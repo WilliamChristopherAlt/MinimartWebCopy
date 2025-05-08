@@ -3,143 +3,255 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MiniMart</title>
+    <title>@ViewData["Title"] - MiniMart</title>
 
-    <!-- Bootstrap CSS -->
+    <!-- CSS Libraries -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-    <!-- Font Awesome CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <!-- Custom CSS -->
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 
+    <!-- Inline Styles -->
     <style>
-        /* Logo styling */
-        .navbar-brand {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: #ff8800 !important;
+        body {
+            padding-top: 56px; /* Height of fixed navbar */
+        }
+
+        .navbar-brand img {
+            height: 40px;
+            width: auto;
+        }
+
+        .navbar-menu-link {
+            color: rgba(0, 0, 0, 0.7);
             text-decoration: none;
-            letter-spacing: -0.5px;
-        }
-
-        /* Improved sidebar styling */
-        .main-container {
-            display: flex;
-            min-height: calc(100vh - 160px);
-        }
-
-        .sidebar {
-            width: 250px;
-            background-color: #f8f9fa;
-            border-right: 1px solid #dee2e6;
-            padding: 1rem 0;
-            min-height: 100%;
-        }
-
-        .sidebar-title {
             padding: 0.5rem 1rem;
-            font-weight: 600;
-            color: #495057;
-            border-bottom: 1px solid #dee2e6;
-            margin-bottom: 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
         }
 
-        .sidebar-menu {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-            .sidebar-menu .sidebar-item {
-                padding: 0;
+            .navbar-menu-link:hover {
+                color: #000;
+                background-color: rgba(0,0,0,.05);
+                border-radius: .25rem;
             }
 
-            .sidebar-menu .sidebar-link {
-                display: flex;
-                align-items: center;
-                padding: 0.75rem 1rem;
-                color: #495057;
-                text-decoration: none;
-                transition: all 0.2s;
-            }
-
-                .sidebar-menu .sidebar-link:hover {
-                    background-color: #e9ecef;
-                    color: #000;
-                }
-
-        .sidebar-link i {
-            margin-right: 0.5rem;
-            width: 20px;
-            text-align: center;
+        .main-container {
+            min-height: calc(100vh - 56px - 72px); /* Adjust footer height if different */
         }
 
-        .content-area {
-            flex: 1;
-            padding: 1rem;
-            overflow-x: auto;
+        .footer-link {
+            color: #6c757d;
+            text-decoration: none;
+            transition: color 0.2s;
         }
 
-        /* Responsive */
-        @@media (max-width: 768px) {
-            .sidebar {
-                display: none;
-                position: fixed;
-                top: 56px;
-                left: 0;
-                height: calc(100% - 56px);
-                z-index: 1030;
-                box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            .footer-link:hover {
+                color: #0d6efd;
             }
 
-                .sidebar.show {
-                    display: block;
-                }
-
-            .toggle-sidebar {
-                display: block !important;
-            }
-        }
-
-        @@media (min-width: 769px) {
-            .toggle-sidebar {
-                display: none !important;
-            }
-        }
-
-        /* Popup menu adjustments */
+        /* Popup Menu Styling */
         .popup-menu {
-            position: absolute;
+            position: fixed; /* Fixed positioning for better control */
             background-color: white;
             border: 1px solid rgba(0,0,0,.125);
             border-radius: 0.25rem;
             z-index: 1050;
-            display: none;
+            display: none; /* Use display none/block for simpler JS toggle initially */
             min-width: 200px;
+            padding: 0.5rem 0;
+            box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
+            /* CSS transitions can be added later if display: block works */
+            /* opacity: 0; visibility: hidden; transition: opacity 0.15s ease-in-out, visibility 0.15s ease-in-out; will-change: opacity, visibility; pointer-events: none; */
         }
 
             .popup-menu.popup-visible {
                 display: block;
+                /* opacity: 1; visibility: visible; pointer-events: auto; */
             }
 
-        #accountDropdownMenu {
-            padding-left: 0;
+            .popup-menu li {
+                padding: 0;
+                border: none;
+                list-style: none !important; /* Ensure no bullets */
+            }
+
+            .popup-menu ul {
+                list-style: none !important;
+                padding-left: 0 !important;
+                margin-bottom: 0 !important; /* Ensure no bullets/padding */
+            }
+
+            .popup-menu .dropdown-item {
+                display: flex;
+                align-items: center;
+                padding: 0.5rem 1rem;
+                color: #212529;
+                text-decoration: none;
+                white-space: nowrap;
+                cursor: pointer;
+            }
+
+                .popup-menu .dropdown-item:hover {
+                    background-color: #e9ecef;
+                    color: #000;
+                }
+
+                .popup-menu .dropdown-item i {
+                    margin-right: 0.75rem;
+                    width: 16px;
+                    text-align: center;
+                    color: #6c757d;
+                }
+
+                .popup-menu .dropdown-item:hover i {
+                    color: #000;
+                }
+
+            .popup-menu .dropdown-header {
+                padding: 0.5rem 1rem;
+                font-size: 0.875rem;
+                color: #6c757d;
+                font-weight: 600;
+            }
+
+            .popup-menu .dropdown-divider {
+                height: 1px;
+                margin: 0.5rem 0;
+                overflow: hidden;
+                background-color: #dee2e6;
+                border: 0;
+            }
+
+        #menuSidebar.popup-menu {
+            min-width: 220px;
+            padding: 0;
+        }
+        /* Remove padding for sidebar */
+        #accountDropdownMenu.popup-menu {
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+        }
+
+        /* --- CSS PANEL ĐĂNG XUẤT AJAX --- */
+        .logout-confirm-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 1055;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+        }
+
+            .logout-confirm-overlay.show {
+                opacity: 1;
+                visibility: visible;
+            }
+
+        .logout-confirm-panel {
+            background-color: #fff;
+            padding: 25px 30px;
+            border-radius: 8px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            min-width: 320px;
+            max-width: 90%;
+            z-index: 1056;
+            transform: scale(0.9);
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .logout-confirm-overlay.show .logout-confirm-panel {
+            transform: scale(1);
+        }
+
+        .logout-confirm-panel h5 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .logout-confirm-panel p {
+            margin-bottom: 25px;
+            color: #555;
+            font-size: 1rem;
+        }
+
+        .logout-confirm-buttons button {
+            margin: 0 8px;
+            min-width: 100px;
+            padding: 8px 15px;
+        }
+
+        #logoutAjaxLink {
+            cursor: pointer;
+        }
+
+        /* --- CSS PANEL ĐĂNG NHẬP AJAX --- */
+        .login-panel-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 1060;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+        }
+
+            .login-panel-overlay.show {
+                opacity: 1;
+                visibility: visible;
+            }
+
+        .login-panel {
+            position: relative;
+            background-color: #fff;
+            padding: 30px 35px;
+            border-radius: 8px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            width: 400px;
+            max-width: 95%;
+            z-index: 1061;
+            transform: scale(0.9);
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .login-panel-overlay.show .login-panel {
+            transform: scale(1);
+        }
+
+        .login-panel-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            padding: 0.5rem;
         }
     </style>
+    @await RenderSectionAsync("Styles", required: false)
 </head>
-<body>
+<body class="d-flex flex-column min-vh-100">
     <header>
-        <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom box-shadow">
+        <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom box-shadow fixed-top">
             <div class="container-fluid">
-                <!-- Logo as text -->
+                <!-- Logo -->
                 <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index" title="Trang chủ">
-                    MiniMart
+                    <img src="~/images/MiniMartlogo.png" alt="MiniMart Logo">
                 </a>
-
-                <!-- Sidebar Toggle Button (Mobile) -->
-                <button class="btn btn-outline-secondary me-2 toggle-sidebar d-lg-none" type="button" id="sidebarToggleBtn">
-                    <i class="fas fa-bars"></i>
-                </button>
 
                 <!-- Toggler -->
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
@@ -148,356 +260,191 @@
 
                 <!-- Navbar Content -->
                 <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                    <!-- Menu Link (Important ID for hover trigger) -->
-                    <a id="menuToggleLink" class="navbar-menu-link d-none d-lg-flex me-3" role="button">
-                        <i class="fas fa-bars me-1"></i> Menu
-                    </a>
+                    <!-- Menu Link (Vẫn ở bên trái) -->
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        @* Sử dụng me-auto để đẩy các mục sau sang phải *@
+                        <li class="nav-item">
+                            <a id="menuToggleLink" class="navbar-menu-link d-none d-lg-flex" href="#" role="button">
+                                <i class="fas fa-bars me-1"></i> Menu
+                            </a>
+                            @* Có thể thêm các link menu khác ở đây nếu muốn chúng ở bên trái *@
+                        </li>
+                    </ul>
 
-                    <!-- Search Form -->
-                    <form class="d-flex search-form my-2 my-lg-0 flex-grow-1" role="search" asp-controller="CustomerProducts" asp-action="Search">
-                        <input class="form-control me-2" type="search" placeholder="Search for products..." aria-label="Search" name="keyword">
+                    <!-- Search Form (Ở giữa - sử dụng mx-auto và giới hạn chiều rộng) -->
+                    <form class="d-flex search-form my-2 my-lg-0 mx-auto" style="max-width: 600px; width: 100%;" role="search" asp-controller="CustomerProducts" asp-action="Search">
+                        <input class="form-control me-2" type="search" placeholder="Tìm kiếm sản phẩm tại Minimart..." aria-label="Search" name="keyword">
                         <button class="btn btn-warning" type="submit">
                             <i class="fas fa-search text-white"></i>
                         </button>
                     </form>
 
-                    <!-- Icons -->
-                    <ul class="navbar-nav navbar-icons d-flex flex-row align-items-center ms-lg-auto">
+                    <!-- Icons (Nhóm lại ở bên phải) -->
+                    <ul class="navbar-nav navbar-icons d-flex flex-row align-items-center ms-lg-3">
+                        @* Bỏ ms-lg-auto, dùng ms-lg-3 để tạo khoảng cách nhỏ *@
+
+                        @* Luôn hiển thị Cart & Notification? Hoặc thêm @if nếu cần *@
+                        @* @if (User.Identity != null && User.Identity.IsAuthenticated) { *@
                         <li class="nav-item me-3">
-                            <a class="nav-link" asp-controller="Cart" asp-action="Index" title="Cart">
+                            <a class="nav-link" asp-controller="Cart" asp-action="Index" title="Giỏ hàng">
                                 <i class="fas fa-shopping-cart fa-lg"></i>
+                                @* Thêm badge nếu cần: <span class="badge bg-danger rounded-pill">3</span> *@
                             </a>
                         </li>
                         <li class="nav-item me-3">
-                            <a class="nav-link" asp-controller="Notification" asp-action="Index" title="Notifications">
+                            <a class="nav-link" asp-controller="Notification" asp-action="Index" title="Thông báo">
                                 <i class="fas fa-bell fa-lg"></i>
+                                @* Thêm badge nếu cần: <span class="badge bg-warning rounded-pill">!</span> *@
                             </a>
                         </li>
-                        <!-- Account Dropdown Trigger (Important ID for click) -->
-                        <li class="nav-item">
-                            <a id="accountDropdownToggle" class="nav-link d-flex align-items-center" role="button" title="Account">
-                                <i class="fas fa-user-circle fa-lg"></i>
-                            </a>
-                        </li>
+                        @* } *@
+
+                        @* Hiển thị Login button hoặc User icon *@
+                        @if (User.Identity != null && User.Identity.IsAuthenticated)
+                        {
+                            <li class="nav-item">
+                                <a id="accountDropdownToggle" class="nav-link d-flex align-items-center" href="#" role="button" title="Tài khoản">
+                                    <i class="fas fa-user-circle fa-lg"></i>
+                                </a>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item">
+                                <button type="button" id="ajaxLoginTrigger" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-sign-in-alt me-1"></i> Đăng nhập
+                                </button>
+                            </li>
+                        }
                     </ul>
                 </div>
-
             </div>
         </nav>
     </header>
 
-    <!-- Popup Account Dropdown (OUTSIDE HEADER) -->
-    <ul id="accountDropdownMenu" class="popup-menu shadow-sm">
-        <!-- Remove list-style and padding via CSS -->
-        <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile"><i class="fas fa-user me-2"></i>Profile</a></li>
-        <li><a class="dropdown-item" asp-controller="Order" asp-action="History"><i class="fas fa-receipt me-2"></i>Order History</a></li>
-        <li><a class="dropdown-item" asp-controller="Account" asp-action="LogoutConfirmation"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
-    </ul>
-
-    <!-- Main Content with Sidebar -->
-    <div class="container-fluid px-0">
-        <div class="main-container">
-            <!-- Sidebar -->
-            <div class="sidebar" id="mainSidebar">
-                <div class="sidebar-title">
-                    <i class="fas fa-th-large me-2"></i>System Management
-                </div>
-                <ul class="sidebar-menu">
-                    <li class="sidebar-item">
-                        <a asp-controller="Categories" asp-action="Index" class="sidebar-link">
-                            <i class="fas fa-folder"></i> Categories
-                        </a>
-                    </li>
-                    <li class="sidebar-item">
-                        <a asp-controller="Suppliers" asp-action="Index" class="sidebar-link">
-                            <i class="fas fa-truck"></i> Suppliers
-                        </a>
-                    </li>
-                    <li class="sidebar-item">
-                        <a asp-controller="MeasurementUnits" asp-action="Index" class="sidebar-link">
-                            <i class="fas fa-ruler"></i> Measurement Units
-                        </a>
-                    </li>
-                    <li class="sidebar-item">
-                        <a asp-controller="ProductTypes" asp-action="Index" class="sidebar-link">
-                            <i class="fas fa-tags"></i> Product Types
-                        </a>
-                    </li>
-                    <li class="sidebar-item">
-                        <a asp-controller="Tags" asp-action="Index" class="sidebar-link">
-                            <i class="fas fa-tag"></i> Tags
-                        </a>
-                    </li>
-                    <li class="sidebar-item">
-                        <a asp-controller="Employees" asp-action="Index" class="sidebar-link">
-                            <i class="fas fa-user-tie"></i> Employees
-                        </a>
-                    </li>
-                    <li class="sidebar-item">
-                        <a asp-controller="EmployeeRoles" asp-action="Index" class="sidebar-link">
-                            <i class="fas fa-id-badge"></i> Employee Roles
-                        </a>
-                    </li>
-                    <li class="sidebar-item">
-                        <a asp-controller="EmployeeAccounts" asp-action="Index" class="sidebar-link">
-                            <i class="fas fa-user-shield"></i> Employee Accounts
-                        </a>
-                    </li>
-                    <li class="sidebar-item">
-                        <a asp-controller="Customers" asp-action="Index" class="sidebar-link">
-                            <i class="fas fa-users"></i> Customers
-                        </a>
-                    </li>
-                    <li class="sidebar-item">
-                        <a asp-controller="Sales" asp-action="Index" class="sidebar-link">
-                            <i class="fas fa-shopping-cart"></i> Sales
-                        </a>
-                    </li>
-                    <li class="sidebar-item">
-                        <a asp-controller="SaleDetails" asp-action="Index" class="sidebar-link">
-                            <i class="fas fa-list-ul"></i> Sale Details
-                        </a>
-                    </li>
-                    <li class="sidebar-item">
-                        <a asp-controller="PaymentMethods" asp-action="Index" class="sidebar-link">
-                            <i class="fas fa-credit-card"></i> Payment Methods
-                        </a>
-                    </li>
-                    <li class="sidebar-item">
-                        <a asp-controller="OtpTypes" asp-action="Index" class="sidebar-link">
-                            <i class="fas fa-key"></i> OTP Types
-                        </a>
-                    </li>
-                </ul>
-            </div>
-
-            <!-- Main Content -->
-            <div class="content-area my-4">
-                <main role="main" class="pb-3">
-                    @RenderBody()
-                </main>
-            </div>
-        </div>
+    @* Popup Menu Sidebar (Luôn render để JS tìm thấy) *@
+    <div id="menuSidebar" class="popup-menu shadow-sm">
+        @* === HTML ĐÃ SỬA ĐỂ BỎ DẤU CHẤM === *@
+        <ul>
+            @* Bỏ style trực tiếp, để CSS xử lý *@
+            <li> <a asp-controller="Categories" asp-action="Index" class="dropdown-item"><i class="fas fa-folder fa-fw me-2"></i>Loại sản phẩm</a> </li>
+            <li> <a asp-controller="Product" asp-action="Index" class="dropdown-item"><i class="fas fa-box-open fa-fw me-2"></i>Sản phẩm</a> </li>
+            <li> <a asp-controller="ProductTypes" asp-action="Index" class="dropdown-item"><i class="fas fa-tags fa-fw me-2"></i>Loại hàng hóa</a> </li>
+            <li> <a asp-controller="Supplier" asp-action="Index" class="dropdown-item"><i class="fas fa-truck fa-fw me-2"></i>Nhà cung cấp</a> </li>
+            @* Thêm link khác nếu cần *@
+        </ul>
     </div>
 
+    @* Popup Account Dropdown (Chỉ render khi đã đăng nhập) *@
+    @if (User.Identity != null && User.Identity.IsAuthenticated)
+    {
+        <ul id="accountDropdownMenu" class="popup-menu shadow-sm">
+            <li class="dropdown-header text-center">Xin chào, @User.Identity.Name!</li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile"><i class="fas fa-user fa-fw me-2"></i>Thông tin cá nhân</a></li>
+            @if (User.IsInRole("Customer"))
+            {
+                <li><a class="dropdown-item" asp-controller="Order" asp-action="History"><i class="fas fa-receipt fa-fw me-2"></i>Lịch sử mua hàng</a></li>
+            }
+            @if (User.IsInRole("Admin") || User.IsInRole("Staff"))
+            {
+                <li><a class="dropdown-item" asp-controller="Employees" asp-action="Index"><i class="fas fa-user-tie fa-fw me-2"></i>Quản lý nhân viên</a></li>
+                <li><a class="dropdown-item" asp-controller="Customers" asp-action="Index"><i class="fas fa-users fa-fw me-2"></i>Quản lý khách hàng</a></li>
+                /* Thêm link quản lý khác */
+            }
+            <li><hr class="dropdown-divider"></li>
+            <li> <a id="logoutAjaxLink" class="dropdown-item" href="#"> <i class="fas fa-sign-out-alt fa-fw me-2"></i>Đăng xuất </a> </li>
+        </ul>
+    }
 
+    <div class="container main-container my-4 flex-grow-1">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
 
-    <!-- Footer -->
-    <footer class="footer mt-auto py-4 bg-light text-muted">
-        <div class="container">
-            <div class="row gy-4">
-                <div class="col-lg-7 col-md-6">
-                    <h5 class="mb-3">Thông tin liên hệ</h5>
-                    <ul class="list-unstyled">
-                        <li class="mb-2">
-                            <i class="fas fa-phone fa-fw me-2"></i> Hotline: <a href="tel:0123456789">0123 456 789</a>
-                        </li>
-                        <li class="mb-2">
-                            <i class="fas fa-envelope fa-fw me-2"></i> Email: <a href="mailto:siuers@siu.edu.vn">siuers@siu.edu.vn</a>
-                        </li>
-                        <li class="mb-2">
-                            <i class="fas fa-map-marker-alt fa-fw me-2"></i> Địa chỉ: 8C Tống Hữu Định, Phường Thảo Điền, Quận 2, TP Hồ Chí Minh
-                        </li>
-                    </ul>
-                </div>
-                <div class="col-lg-4 col-md-6 offset-lg-1">
-                    <h5 class="mb-3">Về chúng tôi</h5>
-                    <ul class="list-unstyled">
-                        <li class="mb-2">
-                            <a asp-area="" asp-controller="Home" asp-action="About" class="footer-link">Giới thiệu</a>
-                        </li>
-                        <li class="mb-2">
-                            <a asp-area="" asp-controller="Home" asp-action="Terms" class="footer-link">Điều khoản sử dụng</a>
-                        </li>
-                        <li class="mb-2">
-                            <a asp-area="" asp-controller="Home" asp-action="Privacy" class="footer-link">Chính sách bảo mật</a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-            <hr class="my-4">
-            <div class="row">
-                <div class="col-12 text-center">
-                    <p class="mb-0 small">© 2025 Bản quyền thuộc về Minimart.</p>
-                </div>
-            </div>
-        </div>
+    <footer class="footer mt-auto py-3 bg-light text-muted">
+        <div class="container"> <div class="row gy-3"> <div class="col-lg-7 col-md-6"> <h5 class="mb-2">Thông tin liên hệ</h5> <ul class="list-unstyled mb-0"> <li class="mb-1 small"> <i class="fas fa-phone fa-fw me-1"></i> Hotline: <a href="tel:0123456789" class="footer-link">0123 456 789</a> </li> <li class="mb-1 small"> <i class="fas fa-envelope fa-fw me-1"></i> Email: <a href="mailto:siuers@siu.edu.vn" class="footer-link">siuers@siu.edu.vn</a> </li> <li class="mb-1 small"> <i class="fas fa-map-marker-alt fa-fw me-1"></i> Địa chỉ: 8C Tống Hữu Định, P. Thảo Điền, Q.2, TP.HCM </li> </ul> </div> <div class="col-lg-4 col-md-6 offset-lg-1"> <h5 class="mb-2">Về chúng tôi</h5> <ul class="list-unstyled mb-0"> <li class="mb-1 small"> <a asp-area="" asp-controller="Home" asp-action="About" class="footer-link">Giới thiệu</a> </li> <li class="mb-1 small"> <a asp-area="" asp-controller="Home" asp-action="Terms" class="footer-link">Điều khoản sử dụng</a> </li> <li class="mb-1 small"> <a asp-area="" asp-controller="Home" asp-action="Privacy" class="footer-link">Chính sách bảo mật</a> </li> </ul> </div> </div> <hr class="my-3"> <div class="row"> <div class="col-12 text-center"> <p class="mb-0 small">© @DateTime.Now.Year Bản quyền thuộc về Minimart.</p> </div> </div> </div>
     </footer>
+
+    @* Panels AJAX (Render có điều kiện) *@
+    @if (User.Identity != null && User.Identity.IsAuthenticated)
+    {
+        <div id="ajaxLogoutConfirmPanel" class="logout-confirm-overlay"> <div class="logout-confirm-panel"> <h5>Xác nhận Đăng xuất</h5> <p>Bạn có chắc chắn muốn đăng xuất?</p> <div class="logout-confirm-buttons"> <button id="ajaxConfirmLogoutBtn" class="btn btn-danger btn-sm">Xác nhận</button> <button id="ajaxCancelLogoutBtn" class="btn btn-secondary btn-sm">Hủy</button> </div> </div> </div>
+    }
+    else
+    {
+        <div id="ajaxLoginPanel" class="login-panel-overlay"> <div class="login-panel"> <button type="button" class="btn-close login-panel-close" aria-label="Close"></button> <h4 class="text-center mb-4">Đăng nhập</h4> <form id="ajaxLoginForm" method="post" action="@Url.Action("Login", "Account")"> @Html.AntiForgeryToken() <div id="ajaxLoginErrorSummary" class="alert alert-danger mb-3" role="alert" style="display: none;"></div> <div class="mb-3"> <label for="ajaxUsername" class="form-label">Tên đăng nhập</label> <input type="text" name="Username" class="form-control form-control-sm" id="ajaxUsername" required> <span class="text-danger d-block mt-1 small" id="ajaxUsernameError"></span> </div> <div class="mb-3"> <label for="ajaxPassword" class="form-label">Mật khẩu</label> <input type="password" name="Password" class="form-control form-control-sm" id="ajaxPassword" required> <span class="text-danger d-block mt-1 small" id="ajaxPasswordError"></span> </div> <div class="mb-3"> <label for="ajaxUserType" class="form-label">Bạn là:</label> <select name="UserType" class="form-select form-select-sm" id="ajaxUserType"> <option value="Customer" selected>Khách hàng</option> <option value="Employee">Nhân viên</option> </select> <span class="text-danger d-block mt-1 small" id="ajaxUserTypeError"></span> </div> <div class="d-grid gap-2 mt-4"> <button type="submit" id="ajaxLoginSubmitBtn" class="btn btn-primary"> <i class="fas fa-sign-in-alt me-1"></i> Đăng nhập </button> </div> </form> </div> </div>
+    }
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
 
-    <!-- Custom JavaScript (Hover for Menu, Click for Account, Right Align Account) -->
+    <script>var activePopupHandlers = [];</script> @* Global variable initialized first *@
+
+    @* Combined Script Block *@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // --- Start: Popup Handler Logic ---
             const navbar = document.querySelector('nav.navbar');
             const popupVisibleClass = 'popup-visible';
-            const hideDelay = 200; // For hover menu
-
-            let activePopupHandlers = [];
-
-            // Sidebar toggle on mobile
-            const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
-            const mainSidebar = document.getElementById('mainSidebar');
-
-            if (sidebarToggleBtn && mainSidebar) {
-                sidebarToggleBtn.addEventListener('click', function() {
-                    mainSidebar.classList.toggle('show');
-                });
-            }
+            const hideDelay = 150;
 
             function createPopupHandler(config) {
                 const { triggerElement, popupElement, positionFunction, interactionType = 'click' } = config;
-
-                if (!triggerElement || !popupElement || !navbar) {
-                    console.error(`Popup handler setup failed: Trigger=${!!triggerElement}, Popup=${!!popupElement}, Navbar=${!!navbar}. Missing element for popup ID: ${popupElement?.id}`);
-                    if (!triggerElement) console.error(`Trigger element for popup ${popupElement?.id} not found.`);
-                    if (!popupElement) console.error(`Popup element itself not found.`);
-                    return null;
-                }
-
+                if (!triggerElement || !popupElement || !navbar) { return null; }
                 let leaveTimeout;
-                let isVisible = false;
-
-                const updateVisibility = () => {
-                    isVisible = popupElement.classList.contains(popupVisibleClass);
-                };
-
                 const show = () => {
-                    activePopupHandlers.forEach(handler => {
-                        if (handler && handler.popupElement !== popupElement) {
-                            handler.hide(true);
-                        }
-                    });
+                    if (!Array.isArray(activePopupHandlers)) activePopupHandlers = [];
+                    activePopupHandlers.forEach(handler => { if (handler && handler.popupElement !== popupElement && handler.isVisible) { handler.hide(true); } });
                     clearTimeout(leaveTimeout);
-                    if (positionFunction) {
-                        positionFunction(triggerElement, popupElement, navbar);
-                    }
+                    if (positionFunction) { positionFunction(triggerElement, popupElement, navbar); }
                     popupElement.classList.add(popupVisibleClass);
-                    updateVisibility();
                 };
-
                 const hide = (immediate = false) => {
                     clearTimeout(leaveTimeout);
-                    if (immediate) {
-                        popupElement.classList.remove(popupVisibleClass);
-                        updateVisibility();
-                    } else {
-                        leaveTimeout = setTimeout(() => {
-                            popupElement.classList.remove(popupVisibleClass);
-                            updateVisibility();
-                        }, hideDelay);
-                    }
+                    if (immediate || interactionType === 'click') { popupElement.classList.remove(popupVisibleClass); }
+                    else { leaveTimeout = setTimeout(() => { if (!popupElement.matches(':hover')) { popupElement.classList.remove(popupVisibleClass); } }, hideDelay); }
                 };
-
-                const toggle = (e) => {
-                    e.preventDefault();
-                    if (isVisible) {
-                        hide(true);
-                    } else {
-                        show();
-                    }
-                };
-
-                // --- Event Listeners ---
-                if (interactionType === 'click') {
-                    triggerElement.addEventListener('click', toggle);
-                }
-                else if (interactionType === 'hover') {
-                    triggerElement.addEventListener('mouseenter', show);
-                    triggerElement.addEventListener('mouseleave', () => hide(false));
-                    popupElement.addEventListener('mouseenter', () => clearTimeout(leaveTimeout));
-                    popupElement.addEventListener('mouseleave', () => hide(false));
-                }
-
-                return {
-                    triggerElement, popupElement, show, hide, toggle,
-                    position: () => { if (positionFunction) positionFunction(triggerElement, popupElement, navbar); },
-                    get isVisible() { updateVisibility(); return isVisible; }
-                };
+                const toggle = (e) => { e.preventDefault(); popupElement.classList.contains(popupVisibleClass) ? hide(true) : show(); };
+                if (interactionType === 'click') { triggerElement.addEventListener('click', toggle); popupElement.addEventListener('click', (e) => e.stopPropagation()); }
+                else if (interactionType === 'hover') { triggerElement.addEventListener('mouseenter', show); triggerElement.addEventListener('mouseleave', () => hide(false)); popupElement.addEventListener('mouseenter', () => clearTimeout(leaveTimeout)); popupElement.addEventListener('mouseleave', () => hide(false)); }
+                return { triggerElement, popupElement, show, hide, toggle, position: () => { if (positionFunction) positionFunction(triggerElement, popupElement, navbar); }, get isVisible() { return popupElement.classList.contains(popupVisibleClass); } };
             }
+            const positionMenuSidebar = (trigger, popup, nav) => { if (!trigger || !popup || !nav) return; const n = nav.getBoundingClientRect(), i = trigger.getBoundingClientRect(); popup.style.position = 'fixed'; popup.style.top = `${n.bottom + 1}px`; popup.style.left = `${i.left}px`; popup.style.right = 'auto'; popup.style.transform = 'translateY(0)'; };
+            const positionAccountDropdown = (trigger, popup, nav) => { if (!trigger || !popup || !nav) return; const n = nav.getBoundingClientRect(); popup.style.position = 'fixed'; popup.style.top = `${n.bottom + 1}px`; const i = 10; popup.style.right = `${i}px`; popup.style.left = 'auto'; popup.style.transform = 'translateY(0)'; };
 
-            // --- Định vị ---
-            const positionMenuSidebar = (trigger, popup, nav) => {
-                if (!trigger || !popup || !nav) return;
-                const navRect = nav.getBoundingClientRect();
-                const linkRect = trigger.getBoundingClientRect();
-                popup.style.position = 'fixed';
-                popup.style.top = `${navRect.bottom + 1}px`;
-                popup.style.left = `${linkRect.left + window.scrollX}px`;
-                popup.style.right = 'auto';
-                popup.style.transform = 'translateY(0)';
-            };
-
-            const positionAccountDropdown = (trigger, popup, nav) => {
-                if (!trigger || !popup || !nav) return;
-                const navRect = nav.getBoundingClientRect();
-                popup.style.position = 'fixed';
-                popup.style.top = `${navRect.bottom + 1}px`;
-
-                const rightMargin = 10; // Khoảng cách lề phải (đổi thành 0 nếu muốn sát)
-                popup.style.right = `${rightMargin}px`;
-                popup.style.left = 'auto'; // Quan trọng
-
-                popup.style.transform = 'translateY(0)';
-            };
+            // Init Handlers
+            const menuToggleLink = document.getElementById('menuToggleLink'); const menuSidebar = document.getElementById('menuSidebar');
+            if (menuToggleLink && menuSidebar) { const menuHandler = createPopupHandler({ triggerElement: menuToggleLink, popupElement: menuSidebar, positionFunction: positionMenuSidebar, interactionType: 'hover' }); if (menuHandler) activePopupHandlers.push(menuHandler); }
+            const accountDropdownToggle = document.getElementById('accountDropdownToggle'); const accountDropdownMenu = document.getElementById('accountDropdownMenu');
+            if (accountDropdownToggle && accountDropdownMenu) { const accountHandler = createPopupHandler({ triggerElement: accountDropdownToggle, popupElement: accountDropdownMenu, positionFunction: positionAccountDropdown, interactionType: 'click' }); if (accountHandler) activePopupHandlers.push(accountHandler); }
+            // --- End: Popup Handler Logic ---
 
 
-            // --- Khởi tạo ---
-            const menuHandler = createPopupHandler({
-                triggerElement: document.getElementById('menuToggleLink'),
-                popupElement: document.getElementById('menuSidebar'),
-                positionFunction: positionMenuSidebar,
-                interactionType: 'hover'
-            });
+            // --- Start: Global Click/Resize Listeners ---
+            document.addEventListener('click', function (event) { let t = !1; const o = document.getElementById('ajaxLoginPanel'), n = document.getElementById('ajaxLogoutConfirmPanel'); if (!Array.isArray(activePopupHandlers)) activePopupHandlers = []; activePopupHandlers.forEach(h => { if (h && h.isVisible && (h.triggerElement.contains(event.target) || h.popupElement.contains(event.target))) { t = !0 } }); if (!t && !(o && o.classList.contains('show') && o.contains(event.target)) && !(n && n.classList.contains('show') && n.contains(event.target))) { activePopupHandlers.forEach(h => { if (h && h.isVisible) { h.hide(!0) } }) } }, !0);
+            let resizeTimeout; window.addEventListener('resize', () => { clearTimeout(resizeTimeout); resizeTimeout = setTimeout(() => { if (!Array.isArray(activePopupHandlers)) activePopupHandlers = []; activePopupHandlers.forEach(handler => { if (handler && handler.isVisible) { handler.position(); } }); }, 150); });
+            // --- End: Global Click/Resize Listeners ---
 
-            const accountHandler = createPopupHandler({
-                triggerElement: document.getElementById('accountDropdownToggle'),
-                popupElement: document.getElementById('accountDropdownMenu'),
-                positionFunction: positionAccountDropdown,
-                interactionType: 'click'
-            });
 
-            if (menuHandler) activePopupHandlers.push(menuHandler);
-            if (accountHandler) activePopupHandlers.push(accountHandler);
+            // --- Start: AJAX Logout Logic ---
+            const logoutLink = document.getElementById('logoutAjaxLink'); const logoutPanel = document.getElementById('ajaxLogoutConfirmPanel'); const confirmLogoutBtn = document.getElementById('ajaxConfirmLogoutBtn'); const cancelLogoutBtn = document.getElementById('ajaxCancelLogoutBtn'); const logoutOverlay = logoutPanel;
+            if (logoutLink && logoutPanel && confirmLogoutBtn && cancelLogoutBtn && logoutOverlay) { logoutLink.addEventListener('click', function (event) { event.preventDefault(); logoutPanel.classList.add('show'); const accountPopup = document.getElementById('accountDropdownMenu'); if (accountPopup && accountPopup.classList.contains('popup-visible')) { const accountHandler = activePopupHandlers?.find(h => h.popupElement === accountPopup); if (accountHandler) { accountHandler.hide(true); } else { accountPopup.classList.remove('popup-visible'); } } }); function closeLogoutPanel() { logoutPanel.classList.remove('show'); } cancelLogoutBtn.addEventListener('click', closeLogoutPanel); logoutOverlay.addEventListener('click', function (event) { if (event.target === logoutOverlay) { closeLogoutPanel(); } }); confirmLogoutBtn.addEventListener('click', function () { const tokenInput = document.querySelector('#ajaxLoginForm input[name="__RequestVerificationToken"], form input[name="__RequestVerificationToken"]'); if (!tokenInput || !tokenInput.value) { console.error('AntiForgeryToken!'); alert('Lỗi bảo mật.'); return; } const token = tokenInput.value; confirmLogoutBtn.disabled = true; confirmLogoutBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> ...'; fetch('/Account/Logout', { method: 'POST', headers: { 'RequestVerificationToken': token, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } }).then(response => { if (response.ok) { window.location.href = '/Account/Login'; } else { console.error('Logout fail:', response.status); response.text().then(text => { alert(`Logout Err (${response.status}): ${text || '?'}`); }).catch(() => alert(`Logout Err (${response.status})`)); closeLogoutPanel(); } }).catch(error => { console.error('Logout Net err:', error); alert('Lỗi mạng.'); closeLogoutPanel(); }).finally(() => { confirmLogoutBtn.disabled = false; confirmLogoutBtn.innerHTML = 'Xác nhận'; }); }); }
+            // --- End: AJAX Logout Logic ---
 
-            // --- Click Outside ---
-            document.addEventListener('click', function (event) {
-                const clickedOnActiveTriggerOrPopup = activePopupHandlers.some(handler =>
-                    handler && handler.isVisible && (handler.triggerElement.contains(event.target) || handler.popupElement.contains(event.target))
-                );
-                if (!clickedOnActiveTriggerOrPopup) {
-                    activePopupHandlers.forEach(handler => {
-                        if (handler && handler.isVisible) handler.hide(true);
-                    });
-                }
 
-                // Close sidebar on mobile if clicking outside
-                if (mainSidebar && mainSidebar.classList.contains('show') &&
-                    !mainSidebar.contains(event.target) &&
-                    !sidebarToggleBtn.contains(event.target)) {
-                    mainSidebar.classList.remove('show');
-                }
-            }, true);
+            // --- Start: AJAX Login Logic ---
+            const loginTrigger = document.getElementById('ajaxLoginTrigger'); const loginPanelOverlay = document.getElementById('ajaxLoginPanel');
+            if (loginTrigger && loginPanelOverlay) { const loginPanel = loginPanelOverlay.querySelector('.login-panel'); const closeLoginBtn = loginPanelOverlay.querySelector('.login-panel-close'); const loginForm = document.getElementById('ajaxLoginForm'); const submitLoginBtn = document.getElementById('ajaxLoginSubmitBtn'); const loginErrorSummary = document.getElementById('ajaxLoginErrorSummary'); const usernameInput = document.getElementById('ajaxUsername'); const passwordInput = document.getElementById('ajaxPassword'); const userTypeSelect = document.getElementById('ajaxUserType'); const usernameError = document.getElementById('ajaxUsernameError'); const passwordError = document.getElementById('ajaxPasswordError'); const userTypeError = document.getElementById('ajaxUserTypeError'); if (!loginPanel || !closeLoginBtn || !loginForm || !submitLoginBtn) { console.error("Missing login panel elements."); return; } loginTrigger.addEventListener('click', function () { loginPanelOverlay.classList.add('show'); }); function closeLoginPanelFunc() { loginPanelOverlay.classList.remove('show'); clearLoginErrorsFunc(); loginForm.reset(); } closeLoginBtn.addEventListener('click', closeLoginPanelFunc); loginPanelOverlay.addEventListener('click', function (event) { if (event.target === loginPanelOverlay) { closeLoginPanelFunc(); } }); function clearLoginErrorsFunc() { if (usernameError) usernameError.textContent = ''; if (passwordError) passwordError.textContent = ''; if (userTypeError) userTypeError.textContent = ''; if (loginErrorSummary) { loginErrorSummary.textContent = ''; loginErrorSummary.style.display = 'none'; } if (usernameInput) usernameInput.classList.remove('is-invalid'); if (passwordInput) passwordInput.classList.remove('is-invalid'); if (userTypeSelect) userTypeSelect.classList.remove('is-invalid'); } function displayLoginErrorsFunc(errorData) { clearLoginErrorsFunc(); console.log("Login Error:", errorData); if (errorData && typeof errorData === 'object') { if (errorData.errors && typeof errorData.errors === 'object') { let g = []; for (const k in errorData.errors) { const m = Array.isArray(errorData.errors[k]) ? errorData.errors[k].join('; ') : errorData.errors[k]; const lk = k.toLowerCase(); if (lk === 'username' && usernameError && usernameInput) { usernameError.textContent = m; usernameInput.classList.add('is-invalid'); } else if (lk === 'password' && passwordError && passwordInput) { passwordError.textContent = m; passwordInput.classList.add('is-invalid'); } else if (lk === 'usertype' && userTypeError && userTypeSelect) { userTypeError.textContent = m; userTypeSelect.classList.add('is-invalid'); } else { g.push(`${k}: ${m}`); } } if (g.length > 0 && loginErrorSummary) { loginErrorSummary.innerHTML = g.join('<br>'); loginErrorSummary.style.display = 'block'; } } else if (errorData.message && loginErrorSummary) { loginErrorSummary.textContent = errorData.message; loginErrorSummary.style.display = 'block'; } else if (loginErrorSummary) { loginErrorSummary.textContent = 'Lỗi server.'; loginErrorSummary.style.display = 'block'; } } else if (loginErrorSummary) { loginErrorSummary.textContent = errorData || 'Lỗi không xác định.'; loginErrorSummary.style.display = 'block'; } } loginForm.addEventListener('submit', function (event) { event.preventDefault(); clearLoginErrorsFunc(); submitLoginBtn.disabled = true; submitLoginBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> ...'; const formData = new FormData(loginForm); const tokenInput = loginForm.querySelector('input[name="__RequestVerificationToken"]'); if (!tokenInput || !tokenInput.value) { console.error('AntiForgeryToken!'); displayLoginErrorsFunc({ message: 'Lỗi bảo mật.' }); submitLoginBtn.disabled = false; submitLoginBtn.innerHTML = '<i class="fas fa-sign-in-alt me-1"></i> Đăng nhập'; return; } const token = tokenInput.value; fetch(loginForm.action, { method: 'POST', headers: { 'RequestVerificationToken': token, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: formData }).then(async response => { const contentType = response.headers.get("content-type"); if (response.ok) { if (contentType && contentType.includes("application/json")) { const result = await response.json(); if (result.success && result.redirectUrl) { window.location.href = result.redirectUrl; } else { displayLoginErrorsFunc({ message: result.message || 'Phản hồi không hợp lệ.' }); } } else { const text = await response.text(); console.warn("OK non-JSON:", text); displayLoginErrorsFunc({ message: `Lỗi định dạng (${response.status}).` }); } } else { if (contentType && contentType.includes("application/json")) { const errorData = await response.json(); displayLoginErrorsFunc(errorData); } else { const errorText = await response.text(); console.error("Error non-JSON:", errorText); displayLoginErrorsFunc({ message: `Lỗi ${response.status}.` }); } } }).catch(error => { console.error('Network error:', error); displayLoginErrorsFunc({ message: 'Lỗi mạng.' }); }).finally(() => { submitLoginBtn.disabled = false; submitLoginBtn.innerHTML = '<i class="fas fa-sign-in-alt me-1"></i> Đăng nhập'; }); }); }
+            // --- End: AJAX Login Logic ---
 
-            // --- Resize ---
-            let resizeTimeout;
-            window.addEventListener('resize', () => {
-                clearTimeout(resizeTimeout);
-                resizeTimeout = setTimeout(() => {
-                    activePopupHandlers.forEach(handler => {
-                        if (handler && handler.isVisible) handler.position();
-                    });
-                }, 100);
-            });
-
-        });
+        }); // End DOMContentLoaded
     </script>
 
     <!-- Optional: Custom site-specific JavaScript -->
     <script src="~/js/site.js" asp-append-version="true"></script>
 
-    <!-- Additional scripts would be rendered here -->
-    @RenderSection("Scripts", required: false)
+    @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

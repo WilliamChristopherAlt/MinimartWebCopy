@@ -1,19 +1,20 @@
 ﻿@{
-    ViewData["Title"] = "Confirm Logout";
-    Layout = "_AuthLayout";
+    ViewData["Title"] = "Xác nhận Đăng xuất";
 }
 
-<div class="container mt-5">
-    <div class="card shadow-sm p-4 rounded-4">
-        <h3 class="mb-3">Are you sure you want to log out?</h3>
-        <form asp-action="Logout" method="post">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-danger me-2">
-                <i class="fas fa-sign-out-alt me-1"></i> Logout
-            </button>
-            <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">
-                Cancel
-            </a>
-        </form>
-    </div>
+<h2>@ViewData["Title"]</h2>
+<hr />
+<div class="alert alert-warning" role="alert">
+    Bạn có chắc chắn muốn đăng xuất khỏi tài khoản của mình không?
 </div>
+
+<form asp-controller="Account" asp-action="Logout" method="post">
+    @Html.AntiForgeryToken() <!-- Quan trọng: Thêm token chống giả mạo -->
+    <button type="submit" class="btn btn-danger">
+        <i class="fas fa-sign-out-alt me-1"></i> Xác nhận Đăng xuất
+    </button>
+    <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">
+        <!-- Nút hủy -->
+        <i class="fas fa-times me-1"></i> Hủy
+    </a>
+</form>

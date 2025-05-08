@@ -1,22 +1,398 @@
+/* wwwroot/css/site.css */
+
+/* Base styles */
 html {
-  font-size: 14px;
+    font-size: 14px;
+    position: relative;
+    min-height: 100%;
 }
 
 @media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
+    html {
+        font-size: 16px;
+    }
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
-
-html {
-  position: relative;
-  min-height: 100%;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    outline: none;
 }
 
 body {
-  margin-bottom: 60px;
+    background-color: #f8f9fa;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
+
+.main-container {
+    flex-grow: 1;
+}
+
+/* ----- Navbar Styles ----- */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,.1);
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+    min-height: 70px;
+    z-index: 1030;
+}
+
+    .navbar > .container-fluid {
+        align-items: stretch;
+    }
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    margin-right: 1rem;
+    background-color: #e9ecef;
+    border-radius: 0.25rem;
+    height: 100%;
+}
+
+    .navbar-brand img {
+        height: 100%;
+        width: auto;
+        object-fit: contain;
+        max-height: 45px;
+    }
+
+.navbar-menu-link {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    color: #0d6efd;
+    text-decoration: none;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    height: 100%;
+}
+
+    .navbar-menu-link:hover {
+        color: #0a58ca;
+    }
+
+#accountDropdownToggle {
+    display: flex;
+    align-items: center;
+    color: #495057;
+    padding: 0.5rem;
+    text-decoration: none;
+    cursor: pointer;
+    height: 100%;
+}
+
+    #accountDropdownToggle:hover {
+        color: #0d6efd;
+    }
+
+.navbar-collapse {
+    align-items: stretch;
+}
+
+.search-form {
+    max-width: 600px;
+    display: flex;
+    align-items: center;
+}
+
+.navbar-icons {
+    height: 100%;
+}
+
+
+/* ----- Styles cho Popup Chung (JS Controlled) ----- */
+.popup-menu {
+    position: fixed;
+    background-color: #ffffff;
+    border: 1px solid rgba(0,0,0,.15);
+    border-radius: 0.25rem;
+    /* box-shadow đã thêm bằng class .shadow-sm trong HTML */
+    z-index: 1031;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease-in-out, visibility 0.15s ease-in-out;
+    will-change: opacity, visibility;
+    pointer-events: none;
+    min-width: 200px;
+}
+
+/* Style riêng cho menu sidebar */
+#menuSidebar.popup-menu {
+    min-width: 220px;
+    padding: 0;
+    margin: 0;
+}
+
+/* Style riêng cho account dropdown */
+#accountDropdownMenu.popup-menu {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    padding-left: 0; /* Bỏ padding trái */
+}
+
+/* Class JS thêm để hiển thị */
+.popup-menu.popup-visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+/* Style link trong Menu Sidebar */
+#menuSidebar .list-group-item {
+    list-style-type: none;
+    padding: 0;
+    border: none;
+}
+
+#menuSidebar .sidebar-link {
+    display: block;
+    padding: 0.75rem 1.25rem;
+    color: #212529;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+    #menuSidebar .sidebar-link:hover {
+        background-color: #f8f9fa;
+        color: #0056b3;
+    }
+
+/* Style item trong Account Dropdown */
+#accountDropdownMenu .dropdown-item {
+    padding: 0.5rem 1.25rem;
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: #212529;
+    background-color: transparent; /* Đảm bảo nền trong suốt */
+    border: 0; /* Bỏ viền nếu có */
+    width: 100%; /* Chiếm đủ chiều rộng */
+    text-align: left; /* Căn trái chữ */
+    white-space: nowrap; /* Không xuống dòng */
+}
+
+    #accountDropdownMenu .dropdown-item:hover {
+        background-color: #e9ecef;
+        color: #000;
+    }
+
+    #accountDropdownMenu .dropdown-item i {
+        width: 1.5em;
+        text-align: center;
+        margin-right: 0.5rem;
+    }
+
+#accountDropdownMenu .dropdown-header {
+    padding: 0.5rem 1.25rem;
+    font-weight: 600;
+    color: #6c757d; /* Màu header hơi nhạt */
+}
+
+#accountDropdownMenu .dropdown-divider {
+    height: 1px;
+    margin: 0.5rem 0;
+    overflow: hidden;
+    background-color: rgba(0, 0, 0, 0.15);
+    border: 0; /* Bỏ border mặc định nếu có */
+}
+
+/* ----- Footer Styles ----- */
+.footer {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    margin-top: auto;
+    font-size: 0.875rem;
+    border-top: 1px solid #dee2e6;
+    background-color: #f8f9fa;
+    color: #6c757d;
+}
+
+    .footer h5 {
+        color: #343a40;
+        margin-bottom: 1rem;
+    }
+
+    .footer ul {
+        padding-left: 0;
+        list-style: none;
+    }
+
+    .footer a, .footer .footer-link {
+        color: #0d6efd;
+        text-decoration: none;
+    }
+
+        .footer a:hover, .footer .footer-link:hover {
+            text-decoration: underline;
+        }
+
+    .footer i {
+        color: #6c757d;
+        width: 1.25em;
+        text-align: center;
+        margin-right: 0.25rem;
+    }
+    /* Thêm margin phải cho icon footer */
+    .footer hr {
+        border-top-color: rgba(0, 0, 0, 0.1);
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+    }
+    /* Điều chỉnh margin hr */
+    .footer .small {
+        font-size: 0.8em;
+    }
+
+/* ----- Responsive ----- */
+@media (min-width: 992px) {
+    .navbar-collapse {
+        display: flex !important;
+        align-items: stretch;
+    }
+
+    .navbar-nav.navbar-icons {
+        align-items: center;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .navbar-menu-link {
+        display: none !important;
+    }
+
+    .search-form {
+        max-width: none;
+        margin-bottom: 0.5rem !important;
+    }
+
+    .navbar-nav.navbar-icons {
+        flex-direction: row !important;
+        margin-top: 0.5rem;
+        margin-left: 0 !important;
+        margin-right: auto;
+    }
+
+    #accountDropdownToggle {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+
+    /* Điều chỉnh vị trí popup trên mobile nếu cần */
+    .popup-menu {
+        /* Có thể cần logic JS khác để định vị tốt hơn trên mobile,
+            hoặc chấp nhận nó hiển thị lệch nếu màn hình quá hẹp */
+    }
+}
+/* --- CSS cho Panel Xác nhận Đăng xuất AJAX --- */
+.logout-confirm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 1055;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+
+    .logout-confirm-overlay.show {
+        opacity: 1;
+        visibility: visible;
+    }
+
+.logout-confirm-panel {
+    background-color: #fff;
+    padding: 25px 30px;
+    border-radius: 8px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    text-align: center;
+    min-width: 320px;
+    max-width: 90%;
+    z-index: 1056;
+    transform: scale(0.9);
+    transition: transform 0.2s ease-in-out;
+}
+
+.logout-confirm-overlay.show .logout-confirm-panel {
+    transform: scale(1);
+}
+
+.logout-confirm-panel h5 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.logout-confirm-panel p {
+    margin-bottom: 25px;
+    color: #555;
+    font-size: 1rem;
+}
+
+.logout-confirm-buttons button {
+    margin: 0 8px;
+    min-width: 100px;
+    padding: 8px 15px;
+}
+
+#logoutAjaxLink {
+    cursor: pointer;
+}
+/* --- Hết CSS Panel --- */
+/* --- CSS CHO PANEL ĐĂNG NHẬP AJAX --- */
+.login-panel-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 1060; /* Cao hơn logout panel */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+
+    .login-panel-overlay.show {
+        opacity: 1;
+        visibility: visible;
+    }
+
+.login-panel {
+    position: relative; /* Để định vị nút close */
+    background-color: #fff;
+    padding: 30px 35px;
+    border-radius: 8px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    width: 400px; /* Độ rộng cố định hoặc max-width */
+    max-width: 95%;
+    z-index: 1061;
+    transform: scale(0.9);
+    transition: transform 0.2s ease-in-out;
+}
+
+.login-panel-overlay.show .login-panel {
+    transform: scale(1);
+}
+
+.login-panel-close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    padding: 0.5rem; /* Tăng vùng click */
+}
+/* --- Hết CSS Panel Đăng nhập --- */

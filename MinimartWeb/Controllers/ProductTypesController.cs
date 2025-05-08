@@ -23,6 +23,7 @@ namespace MinimartWeb.Controllers
         }
 
         // GET: ProductTypes
+        [AllowAnonymous]
         public async Task<IActionResult> Index()
         {
             var applicationDbContext = _context.ProductTypes.Include(p => p.Category).Include(p => p.MeasurementUnit).Include(p => p.Supplier);

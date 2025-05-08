@@ -1,52 +1,47 @@
+// Trong Program.cs (ví dụ .NET 6+)
+
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
-//using MinimartWeb.BOs;
-//using MinimartWeb.DAOs;
-using MinimartWeb;
 using MinimartWeb.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-//// Register DAOs
-//builder.Services.AddScoped<CategoryDAO>();
-//builder.Services.AddScoped<SupplierDAO>();
-//builder.Services.AddScoped<MeasurementUnitDAO>();
-//builder.Services.AddScoped<ProductTypeDAO>();
-//builder.Services.AddScoped<CustomerDAO>();
-//builder.Services.AddScoped<EmployeeRoleDAO>();
-//builder.Services.AddScoped<EmployeeDAO>();
-//builder.Services.AddScoped<AdminDAO>();
-//builder.Services.AddScoped<PaymentMethodDAO>();
-//builder.Services.AddScoped<SaleDAO>();
-//builder.Services.AddScoped<SaleDetailDAO>();
-
-//// Register BOs
-//builder.Services.AddScoped<CategoryBO>();
-//builder.Services.AddScoped<SupplierBO>();
-//builder.Services.AddScoped<MeasurementUnitBO>();
-//builder.Services.AddScoped<ProductTypeBO>();
-//builder.Services.AddScoped<CustomerBO>();
-//builder.Services.AddScoped<EmployeeRoleBO>();
-//builder.Services.AddScoped<EmployeeBO>();
-//builder.Services.AddScoped<AdminBO>();
-//builder.Services.AddScoped<PaymentMethodBO>();
-//builder.Services.AddScoped<SaleBO>();
-//builder.Services.AddScoped<SaleDetailBO>();
-
-
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-
+// --- CẤU HÌNH XÁC THỰC COOKIE (Bạn có thể đã có phần này) ---
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
+        // Quan trọng: Chỉ định đường dẫn trang Login để hệ thống tự động chuyển hướng khi truy cập trang cần Authorize mà chưa đăng nhập
+        // Mặc dù người dùng sẽ dùng panel AJAX, đường dẫn này vẫn cần để middleware hoạt động đúng.
+        // Nó sẽ bị bắt bởi [HttpGet] Login và chuyển hướng về Home.
         options.LoginPath = "/Account/Login";
+        // Chỉ định đường dẫn trang Access Denied
         options.AccessDeniedPath = "/Account/AccessDenied";
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(30); // Ví dụ thời gian hết hạn
+        options.SlidingExpiration = true; // Gia hạn cookie nếu có hoạt động
     });
-builder.Services.AddAuthorization();
+
+// --- THÊM CẤU HÌNH AUTHORIZATION TOÀN CỤC ---
+builder.Services.AddAuthorization(options =>
+{
+    // Thiết lập FallbackPolicy: Chính sách này sẽ áp dụng cho tất cả các endpoint
+    // không có thuộc tính [Authorize] hoặc [AllowAnonymous] nào được chỉ định rõ ràng.
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser() // Yêu cầu người dùng phải được xác thực (đăng nhập)
+        .Build();
+});
+
+
+// --- Các dịch vụ khác (DbContext, Logger, v.v.) ---
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))); // Thay bằng chuỗi kết nối của bạn
+
+// Thêm Logger (nếu dùng trong Controller)
+builder.Services.AddLogging();
+
 
 var app = builder.Build();
 
@@ -54,7 +49,6 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
@@ -63,11 +57,14 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-app.UseAuthentication();
-app.UseAuthorization();
+// --- KÍCH HOẠT MIDDLEWARE XÁC THỰC VÀ AUTHORIZATION ---
+// Đặt UseAuthentication() TRƯỚC UseAuthorization()
+app.UseAuthentication(); // Xác định người dùng là ai (dựa trên cookie)
+app.UseAuthorization(); // Kiểm tra xem người dùng có quyền truy cập không
+
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Account}/{action=Login}/{id?}");
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();
