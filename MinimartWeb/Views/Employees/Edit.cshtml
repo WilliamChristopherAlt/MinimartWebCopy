@@ -1,0 +1,153 @@
+﻿@model MinimartWeb.Model.Employee
+
+@{
+    ViewData["Title"] = "Edit";
+}
+
+<h1>Edit</h1>
+<h4>Employee</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Edit" enctype="multipart/form-data">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <input type="hidden" asp-for="EmployeeID" />
+            <input type="hidden" asp-for="ImagePath" />
+
+            <div class="form-group">
+                <label asp-for="FirstName" class="control-label"></label>
+                <input asp-for="FirstName" class="form-control" />
+                <span asp-validation-for="FirstName" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="LastName" class="control-label"></label>
+                <input asp-for="LastName" class="form-control" />
+                <span asp-validation-for="LastName" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Email" class="control-label"></label>
+                <input asp-for="Email" class="form-control" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="PhoneNumber" class="control-label"></label>
+                <input asp-for="PhoneNumber" class="form-control" />
+                <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Gender" class="control-label"></label>
+                <select asp-for="Gender" class="form-control">
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                </select>
+                <span asp-validation-for="Gender" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="BirthDate" class="control-label"></label>
+                <input asp-for="BirthDate" type="date" class="form-control" />
+                <span asp-validation-for="BirthDate" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="CitizenID" class="control-label"></label>
+                <input asp-for="CitizenID" class="form-control" />
+                <span asp-validation-for="CitizenID" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="RoleID" class="control-label"></label>
+                <select asp-for="RoleID" class="form-control">
+                    @foreach (var role in ViewData["Roles"] as List<SelectListItem>)
+                    {
+                        <option value="@role.Value">@role.Text</option>
+                    }
+                </select>
+                <span asp-validation-for="RoleID" class="text-danger"></span>
+            </div>
+
+            <!-- Image Upload with Drag & Drop -->
+            <div class="form-group">
+                <label for="ProfileImage" class="control-label">Profile Picture</label>
+                <div id="drop-area" style="border: 2px dashed #ccc; padding: 20px; text-align: center; cursor: pointer;">
+                    <p>Drag & Drop image here or click to select</p>
+                    <input type="file" id="ProfileImage" name="ProfileImage" accept="image/*" style="display:none;" />
+                </div>
+
+                <!-- Display image or default image -->
+                <img id="previewImage" src="@Url.Content("/images/users/" + Model.ImagePath)" alt="Image Preview" style="max-width: 200px; margin-top: 10px; display:block;" />
+                <span asp-validation-for="ImagePath" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <input type="submit" value="Save" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-action="Index">Back to List</a>
+</div>
+
+@section Scripts {
+    @Html.RenderPartialAsync("_ValidationScriptsPartial")
+
+    <script>
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('ProfileImage');
+        const previewImage = document.getElementById('previewImage');
+
+        dropArea.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', e => {
+            if (fileInput.files.length > 0) {
+                showPreview(fileInput.files[0]);
+            }
+        });
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, e => e.preventDefault());
+            document.body.addEventListener(eventName, e => e.preventDefault());
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.add('highlight'));
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.remove('highlight'));
+        });
+
+        dropArea.addEventListener('drop', e => {
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                showPreview(e.dataTransfer.files[0]);
+            }
+        });
+
+        function showPreview(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Please upload an image file.');
+                fileInput.value = '';
+                previewImage.style.display = 'none';
+                return;
+            }
+            const url = URL.createObjectURL(file);
+            previewImage.src = url;
+            previewImage.style.display = 'block';
+        }
+    </script>
+
+    <style>
+        #drop-area.highlight {
+            border-color: #0b85a1;
+            background-color: #e0f7fa;
+        }
+    </style>
+}

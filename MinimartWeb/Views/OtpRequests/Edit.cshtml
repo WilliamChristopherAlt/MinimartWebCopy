@@ -1,0 +1,69 @@
+﻿@model MinimartWeb.Model.OtpRequest
+
+@{
+    ViewData["Title"] = "Edit";
+}
+
+<h1>Edit</h1>
+
+<h4>OtpRequest</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Edit">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <input type="hidden" asp-for="OtpRequestID" />
+            <div class="form-group">
+                <label asp-for="CustomerID" class="control-label"></label>
+                <select asp-for="CustomerID" class="form-control" asp-items="ViewBag.CustomerID"></select>
+                <span asp-validation-for="CustomerID" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="EmployeeAccountID" class="control-label"></label>
+                <select asp-for="EmployeeAccountID" class="form-control" asp-items="ViewBag.EmployeeAccountID"></select>
+                <span asp-validation-for="EmployeeAccountID" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="OtpTypeID" class="control-label"></label>
+                <select asp-for="OtpTypeID" class="form-control" asp-items="ViewBag.OtpTypeID"></select>
+                <span asp-validation-for="OtpTypeID" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="OtpCode" class="control-label"></label>
+                <input asp-for="OtpCode" class="form-control" />
+                <span asp-validation-for="OtpCode" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="RequestTime" class="control-label"></label>
+                <input asp-for="RequestTime" class="form-control" />
+                <span asp-validation-for="RequestTime" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="ExpirationTime" class="control-label"></label>
+                <input asp-for="ExpirationTime" class="form-control" />
+                <span asp-validation-for="ExpirationTime" class="text-danger"></span>
+            </div>
+            <div class="form-group form-check">
+                <label class="form-check-label">
+                    <input class="form-check-input" asp-for="IsUsed" /> @Html.DisplayNameFor(model => model.IsUsed)
+                </label>
+            </div>
+            <div class="form-group">
+                <label asp-for="Status" class="control-label"></label>
+                <input asp-for="Status" class="form-control" />
+                <span asp-validation-for="Status" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Save" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-action="Index">Back to List</a>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

@@ -1,0 +1,30 @@
+﻿@model IEnumerable<MinimartWeb.Model.ProductType>
+
+@{
+    ViewData["Title"] = "Products";
+}
+
+<div class="container mt-4">
+    <h2 class="text-center mb-4">Available Products</h2>
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4">
+        @foreach (var item in Model)
+        {
+            <div class="col">
+                <div class="card h-100 shadow-sm border-0 rounded-4">
+                    <img src="~/images/products/@item.ImagePath" class="card-img-top" alt="@item.ProductName" style="height: 200px; object-fit: cover;" />
+                    <div class="card-body">
+                        <h5 class="card-title">@item.ProductName</h5>
+                        <p class="card-text text-muted small">@item.ProductDescription</p>
+                        <p class="fw-bold">@item.Price.ToString("C") / @item.MeasurementUnit.UnitName</p>
+                        <p class="text-success">Stock: @item.StockAmount</p>
+                    </div>
+                    <div class="card-footer bg-white border-0 text-end">
+                        <a asp-controller="Cart" asp-action="Add" asp-route-id="@item.ProductTypeID" class="btn btn-sm btn-warning text-white">
+                            <i class="fas fa-cart-plus me-1"></i> Add to Cart
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

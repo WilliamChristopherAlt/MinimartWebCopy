@@ -1,0 +1,77 @@
+﻿@model IEnumerable<MinimartWeb.Model.Sale>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Index</h1>
+
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.SaleDate)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.DeliveryAddress)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.DeliveryTime)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.IsPickup)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.OrderStatus)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Customer)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Employee)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.PaymentMethod)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.SaleDate)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.DeliveryAddress)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.DeliveryTime)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.IsPickup)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.OrderStatus)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Customer.Email)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Employee.CitizenID)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.PaymentMethod.MethodName)
+            </td>
+            <td>
+                <a asp-action="Edit" asp-route-id="@item.SaleID">Edit</a> |
+                <a asp-action="Details" asp-route-id="@item.SaleID">Details</a> |
+                <a asp-action="Delete" asp-route-id="@item.SaleID">Delete</a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>

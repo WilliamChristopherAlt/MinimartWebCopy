@@ -1,0 +1,158 @@
+﻿@model MinimartWeb.Model.ProductType
+
+@{
+    ViewData["Title"] = "Edit";
+}
+
+<h1>Edit</h1>
+
+<h4>ProductType</h4>
+<hr />
+<div class="row">
+    <div class="col-md-6">
+        <form asp-action="Edit" enctype="multipart/form-data">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <input type="hidden" asp-for="ProductTypeID" />
+            <input type="hidden" asp-for="ImagePath" />
+
+            <div class="form-group">
+                <label asp-for="ProductName" class="control-label"></label>
+                <input asp-for="ProductName" class="form-control" />
+                <span asp-validation-for="ProductName" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="ProductDescription" class="control-label"></label>
+                <input asp-for="ProductDescription" class="form-control" />
+                <span asp-validation-for="ProductDescription" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="CategoryID" class="control-label"></label>
+                <select asp-for="CategoryID" class="form-control" asp-items="ViewBag.CategoryID"></select>
+                <span asp-validation-for="CategoryID" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="SupplierID" class="control-label"></label>
+                <select asp-for="SupplierID" class="form-control" asp-items="ViewBag.SupplierID"></select>
+                <span asp-validation-for="SupplierID" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Price" class="control-label"></label>
+                <input asp-for="Price" class="form-control" />
+                <span asp-validation-for="Price" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="StockAmount" class="control-label"></label>
+                <input asp-for="StockAmount" class="form-control" />
+                <span asp-validation-for="StockAmount" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="MeasurementUnitID" class="control-label"></label>
+                <select asp-for="MeasurementUnitID" class="form-control" asp-items="ViewBag.MeasurementUnitID"></select>
+                <span asp-validation-for="MeasurementUnitID" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="ExpirationDurationDays" class="control-label"></label>
+                <input asp-for="ExpirationDurationDays" class="form-control" />
+                <span asp-validation-for="ExpirationDurationDays" class="text-danger"></span>
+            </div>
+
+            <div class="form-group form-check">
+                <label class="form-check-label">
+                    <input class="form-check-input" asp-for="IsActive" /> @Html.DisplayNameFor(model => model.IsActive)
+                </label>
+            </div>
+
+            <!-- Image Upload Section -->
+            <div class="form-group">
+                <label for="ImageUpload" class="control-label">Product Image</label>
+                <div id="drop-area" style="border: 2px dashed #ccc; padding: 20px; text-align: center; cursor: pointer;">
+                    <p>Drag & Drop image here or click to select</p>
+                    <input type="file" id="ImageUpload" name="ImageUpload" accept="image/*" style="display:none;" />
+                </div>
+                @if (!string.IsNullOrEmpty(Model.ImagePath))
+                {
+                    <img id="currentImage"
+                         src="@(Model.ImagePath != null ? Url.Content("~/images/products/" + Model.ImagePath) : null)"
+                         alt="Current Image"
+                         style="max-width: 200px; margin-top: 10px;" />
+
+                }
+                <img id="previewImage" src="#" alt="Image Preview" style="max-width: 200px; margin-top: 10px; display:none;" />
+                <span asp-validation-for="ImagePath" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <input type="submit" value="Save" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-action="Index">Back to List</a>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('ImageUpload');
+        const previewImage = document.getElementById('previewImage');
+        const currentImage = document.getElementById('currentImage');
+
+        dropArea.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', e => {
+            if (fileInput.files.length > 0) {
+                showPreview(fileInput.files[0]);
+            }
+        });
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, e => e.preventDefault());
+            document.body.addEventListener(eventName, e => e.preventDefault());
+        });
+
+        dropArea.addEventListener('dragenter', () => dropArea.classList.add('highlight'));
+        dropArea.addEventListener('dragover', () => dropArea.classList.add('highlight'));
+        dropArea.addEventListener('dragleave', () => dropArea.classList.remove('highlight'));
+        dropArea.addEventListener('drop', () => dropArea.classList.remove('highlight'));
+
+        dropArea.addEventListener('drop', e => {
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                showPreview(e.dataTransfer.files[0]);
+            }
+        });
+
+        function showPreview(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Please upload an image file.');
+                fileInput.value = '';
+                previewImage.style.display = 'none';
+                return;
+            }
+            const url = URL.createObjectURL(file);
+            previewImage.src = url;
+            previewImage.style.display = 'block';
+            if (currentImage) currentImage.style.display = 'none';
+        }
+    </script>
+
+    <style>
+        #drop-area.highlight {
+            border-color: #0b85a1;
+            background-color: #e0f7fa;
+        }
+    </style>
+}
