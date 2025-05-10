@@ -9,7 +9,7 @@ namespace MinimartWeb.ViewModels
         public string Name { get; set; } = string.Empty;
         public string? ProductDescription { get; set; }
         public decimal Price { get; set; }
-        // public decimal? OriginalPrice { get; set; } // ĐÃ BỎ
+        //public decimal? OriginalPrice { get; set; } // ĐÃ BỎ
         public string? ImagePath { get; set; }
         public decimal StockAmount { get; set; }
         public string MeasurementUnitName { get; set; } = string.Empty;
