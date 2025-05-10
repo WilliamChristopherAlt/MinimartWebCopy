@@ -1,33 +1,26 @@
-﻿@* Khai báo model là ProductType *@
-@model MinimartWeb.Model.ProductType
-@* Đảm bảo namespace MinimartWeb.Model đúng *@
-
+﻿@model MinimartWeb.ViewModels.ProductDetailViewModel
 @{
-    ViewData["Title"] = Model.ProductName + " - Chi tiết sản phẩm";
-    // Hàm định dạng tiền tệ
+    ViewData["Title"] = Model.Product.ProductName + " - Chi tiết sản phẩm";
     string FormatCurrency(decimal price) => price.ToString("N0") + "đ";
 }
 
 <nav aria-label="breadcrumb" class="mb-4">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Trang Chủ</a></li>
-        @* Optional: Breadcrumb cho Category *@
-        @if (Model.Category != null)
+        @if (Model.Product.Category != null)
         {
-            @*<li class="breadcrumb-item"><a asp-controller="CustomerProducts" asp-action="ByCategory" asp-route-id="@Model.CategoryID">@Model.Category.CategoryName</a></li>*@
-            <li class="breadcrumb-item">@Model.Category.CategoryName</li> @* Hiển thị tên Category không link nếu không có action ByCategory *@
+            <li class="breadcrumb-item"><a asp-controller="CustomerProducts" asp-action="Index" asp-route-categoryId="@Model.Product.CategoryID">@Model.Product.Category.CategoryName</a></li>
         }
-        <li class="breadcrumb-item active" aria-current="page">@Model.ProductName</li>
+        <li class="breadcrumb-item active" aria-current="page">@Model.Product.ProductName</li>
     </ol>
 </nav>
 
 <div class="row g-4">
     @* Cột hình ảnh sản phẩm *@
     <div class="col-lg-5 col-md-6 text-center">
-        @if (!string.IsNullOrEmpty(Model.ImagePath))
+        @if (!string.IsNullOrEmpty(Model.Product.ImagePath))
         {
-            <img src="~/images/products/@Model.ImagePath" alt="@Model.ProductName" class="img-fluid rounded shadow-sm mb-3 border" style="max-height: 450px;" />
-            @* TODO: Thêm gallery ảnh nhỏ hoặc zoom nếu có nhiều ảnh *@
+            <img src="~/images/products/@Model.Product.ImagePath" alt="@Model.Product.ProductName" class="img-fluid rounded shadow-sm mb-3 border" style="max-height: 450px;" />
         }
         else
         {
@@ -37,18 +30,13 @@
 
     @* Cột thông tin sản phẩm và nút mua *@
     <div class="col-lg-7 col-md-6">
-        <h1 class="h2 mb-3 fw-light">@Model.ProductName</h1>
-
+        <h1 class="h2 mb-3 fw-light">@Model.Product.ProductName</h1>
         <div class="mb-3 pb-2 border-bottom">
-            <span class="fs-3 text-danger fw-bold me-3">@FormatCurrency(Model.Price)</span>
-            @* TODO: Hiển thị giá gốc và % giảm giá nếu có logic tính *@
-            @* <span class="text-muted text-decoration-line-through me-2">@FormatCurrency(Model.OriginalPrice)</span> *@
-            @* <span class="badge bg-danger rounded-pill">-10%</span> *@
+            <span class="fs-3 text-danger fw-bold me-3">@FormatCurrency(Model.Product.Price)</span>
         </div>
-
         <div class="mb-3">
             <span class="me-3">Tình trạng:</span>
-            @if (Model.StockAmount > 0 && Model.IsActive)
+            @if (Model.Product.StockAmount > 0 && Model.Product.IsActive)
             {
                 <span class="badge bg-success py-2"><i class="fas fa-check me-1"></i> Còn hàng</span>
             }
@@ -56,57 +44,59 @@
             {
                 <span class="badge bg-secondary py-2"><i class="fas fa-times me-1"></i> Hết hàng</span>
             }
-            @* TODO: Hiển thị số lượng đã bán nếu cần *@
-            @* <span class="ms-3 text-muted small">(Đã bán: 123)</span> *@
         </div>
-
-
         <dl class="row mb-3 small text-muted">
-            @if (Model.Category != null)
+            @if (Model.Product.Category != null)
             {
                 <dt class="col-sm-4">Danh mục:</dt>
-                <dd class="col-sm-8">@Model.Category.CategoryName</dd>
+                <dd class="col-sm-8">@Model.Product.Category.CategoryName</dd>
             }
-            @if (Model.Supplier != null)
+            @if (Model.Product.Supplier != null)
             {
                 <dt class="col-sm-4">Nhà cung cấp:</dt>
-                <dd class="col-sm-8">@Model.Supplier.SupplierName</dd>
+                <dd class="col-sm-8">@Model.Product.Supplier.SupplierName</dd>
             }
-            @if (Model.MeasurementUnit != null)
+            @if (Model.Product.MeasurementUnit != null)
             {
                 <dt class="col-sm-4">Đơn vị tính:</dt>
-                <dd class="col-sm-8">@Model.MeasurementUnit.UnitName</dd>
+                <dd class="col-sm-8">@Model.Product.MeasurementUnit.UnitName</dd>
             }
-            @if (Model.ExpirationDurationDays.HasValue && Model.ExpirationDurationDays > 0)
+            @if (Model.Product.ExpirationDurationDays.HasValue && Model.Product.ExpirationDurationDays > 0)
             {
-                <dt class="col-sm-4">Hạn sử dụng (từ NSX):</dt>
-                <dd class="col-sm-8">@Model.ExpirationDurationDays ngày</dd>
+                <dt class="col-sm-4">Hạn SD (từ NSX):</dt>
+                <dd class="col-sm-8">@Model.Product.ExpirationDurationDays ngày</dd>
             }
         </dl>
+        <hr class="my-3">
 
-        <hr class="my-4">
-
-        @* Nút Thêm vào giỏ hàng *@
-        @if (Model.StockAmount > 0 && Model.IsActive)
+        @if (Model.Product.StockAmount > 0 && Model.Product.IsActive)
         {
-            <form asp-controller="Cart" asp-action="AddToCart" method="post" class="d-flex align-items-center">
-                <input type="hidden" name="productId" value="@Model.ProductTypeID" />
-                <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString.Value)"/> @* Lấy cả query string nếu có *@
+            @* Form này dùng chung cho cả AddToCart và BuyNow (BuyNow sẽ đổi action bằng JS) *@
+            <form method="post" id="productActionForm_@Model.Product.ProductTypeID">
+                <input type="hidden" name="productId" value="@Model.Product.ProductTypeID" />
+                <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString.Value)" />
 
-                <div class="me-3">
-                    <label for="quantity-@Model.ProductTypeID" class="form-label small mb-1">Số lượng:</label>
-                    <div class="input-group input-group-sm" style="max-width: 120px;">
-                        <button class="btn btn-outline-secondary" type="button" onclick="updateQuantity(@Model.ProductTypeID, -1)">-</button>
-                        <input type="number" name="quantity" id="quantity-@Model.ProductTypeID" class="form-control text-center" value="1" min="1" max="@((int)Model.StockAmount)" aria-label="Số lượng">
-                        <button class="btn btn-outline-secondary" type="button" onclick="updateQuantity(@Model.ProductTypeID, 1)">+</button>
+                <div class="row g-3 align-items-center mb-3">
+                    <div class="col-md-4 col-lg-3">
+                        <label for="quantity_@Model.Product.ProductTypeID" class="form-label small mb-1 d-block">Số lượng:</label>
+                        <div class="input-group input-group-sm" style="width: 120px;">
+                            <button class="btn btn-outline-secondary" type="button" onclick="updateQuantityOnDetailPage(@Model.Product.ProductTypeID, -1, @((int)Model.Product.StockAmount))">-</button>
+                            <input type="number" name="quantity" id="quantity_@Model.Product.ProductTypeID" class="form-control text-center" value="1" min="1" max="@((int)Model.Product.StockAmount)" aria-label="Số lượng">
+                            <button class="btn btn-outline-secondary" type="button" onclick="updateQuantityOnDetailPage(@Model.Product.ProductTypeID, 1, @((int)Model.Product.StockAmount))">+</button>
+                        </div>
                     </div>
-                </div>
-
-                <div class="align-self-end">
-                    @* Đặt nút submit cùng hàng với input số lượng *@
-                    <button type="submit" class="btn btn-warning">
-                        <i class="fas fa-cart-plus me-1"></i> Thêm vào giỏ hàng
-                    </button>
+                    <div class="col-md-8 col-lg-9">
+                        <div class="d-flex gap-2 mt-md-3">
+                            @* Điều chỉnh margin top cho desktop *@
+                            <button type="submit" asp-controller="Cart" asp-action="AddToCart" class="btn btn-outline-warning flex-grow-1 product-action-btn">
+                                <i class="fas fa-cart-plus me-1"></i> Thêm vào giỏ
+                            </button>
+                            <button type="button" class="btn btn-danger flex-grow-1 product-action-btn"
+                                    onclick="submitBuyNow(@Model.Product.ProductTypeID)">
+                                <i class="fas fa-bolt me-1"></i> Mua ngay
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </form>
         }
@@ -116,43 +106,287 @@
         }
 
         <hr class="my-4">
-
         <div class="product-description-section">
             <h5 class="h6">Mô tả chi tiết sản phẩm</h5>
-            <div class="text-muted small">@Html.Raw(Model.ProductDescription)</div>
+            <div class="text-muted small">@Html.Raw(Model.Product.ProductDescription)</div>
         </div>
-
     </div>
 </div>
 
-@* Phần sản phẩm liên quan (nếu có) *@
-@* <hr class="my-5">
-<h3 class="h4 mb-3">Sản phẩm bạn có thể thích</h3>
-<div class="row row-cols-2 row-cols-md-4 row-cols-lg-5 g-3">
-    Render các sản phẩm liên quan ở đây (cần logic trong Controller để lấy)
-</div> *@
+@* --- PHẦN SẢN PHẨM GỢI Ý (Sử dụng Swiper Carousel) --- *@
+@if (Model.RecommendedProducts.Any())
+{
+    <hr class="my-5">
+    <section class="mb-5 recommended-products-section-detail" id="recommendedProductsOnDetailPage">
+        <div class="d-flex align-items-center mb-3">
+            <h3 class="me-2 mb-0 h5 fw-bold text-primary"><i class="fas fa-lightbulb me-1"></i> Gợi ý cho bạn</h3>
+        </div>
+        <div class="swiper recommended-swiper-detail">
+            <div class="swiper-wrapper">
+                @foreach (var product in Model.RecommendedProducts)
+                {
+                    <div class="swiper-slide"> <partial name="_HotDealProductCard" model="product" /> </div>
+                }
+            </div>
+            <div class="swiper-pagination recommended-pagination-detail"></div> <div class="swiper-button-next recommended-next-detail"></div> <div class="swiper-button-prev recommended-prev-detail"></div>
+    </section>
+}
+
+@* --- Phần "Có thể bạn cũng thích" (Dạng lưới) --- *@
+@if (Model.OtherProducts.Any())
+{
+    <hr class="my-5">
+    <section class="other-products-section-detail" id="otherProductsOnDetailPage">
+        <h3 class="mb-3 h5 fw-bold">Có thể bạn cũng thích</h3>
+        <div class="row row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-3 product-grid-layout">
+            @foreach (var product in Model.OtherProducts)
+            {
+                <partial name="_RegularProductCard" model="product" />
+            }
+        </div>
+        @if (Model.TotalPagesOther > 1)
+        {
+            <nav aria-label="Page navigation for other products" class="mt-4 d-flex justify-content-center">
+                <ul class="pagination pagination-sm">
+                    @if (Model.HasPreviousPageOther)
+                    {
+                        <li class="page-item"><a class="page-link" asp-action="Details" asp-route-id="@Model.Product.ProductTypeID" asp-route-currentPageOther="@(Model.CurrentPageOther - 1)">«</a></li>
+                    }
+                    else
+                    {
+                        <li class="page-item disabled"><span class="page-link">«</span></li>
+                    }
+                    @{
+                        int maxPagesToShow = 5; // Số lượng trang tối đa hiển thị ở giữa
+                        int startPage = Math.Max(1, Model.CurrentPageOther - (maxPagesToShow / 2));
+                        int endPage = Math.Min(Model.TotalPagesOther, startPage + maxPagesToShow - 1);
+                        if (endPage - startPage + 1 < maxPagesToShow) startPage = Math.Max(1, endPage - maxPagesToShow + 1);
+                    }
+                    @if (startPage > 1)
+                    {
+                        <li class="page-item"><a class="page-link" asp-action="Details" asp-route-id="@Model.Product.ProductTypeID" asp-route-currentPageOther="1">1</a></li> @if (startPage > 2)
+                        {
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        }                  }
+                    @for (int i = startPage; i <= endPage; i++)
+                    {
+                        <li class="page-item @(i == Model.CurrentPageOther ? "active" : "")"><a class="page-link" asp-action="Details" asp-route-id="@Model.Product.ProductTypeID" asp-route-currentPageOther="@i">@i</a></li>
+                    }
+                    @if (endPage < Model.TotalPagesOther)
+                    { @if (endPage < Model.TotalPagesOther - 1)
+                        {
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        }
+                        <li class="page-item"><a class="page-link" asp-action="Details" asp-route-id="@Model.Product.ProductTypeID" asp-route-currentPageOther="@Model.TotalPagesOther">@Model.TotalPagesOther</a></li>
+                    }
+                    @if (Model.HasNextPageOther)
+                    {
+                        <li class="page-item"><a class="page-link" asp-action="Details" asp-route-id="@Model.Product.ProductTypeID" asp-route-currentPageOther="@(Model.CurrentPageOther + 1)">»</a></li>
+                    }
+                    else
+                    {
+                        <li class="page-item disabled"><span class="page-link">»</span></li>
+                    }
+                </ul>
+            </nav>
+        }
+    </section>
+}
+
+@section Styles {
+    <style>
+        .product-card {
+            border: 1px solid #f0f0f0;
+            transition: all .2s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            background-color: #fff;
+            border-radius: .5rem;
+            overflow: hidden;
+        }
+
+            .product-card:hover {
+                box-shadow: 0 .3rem .8rem rgba(0,0,0,.12) !important;
+                transform: translateY(-3px);
+            }
+
+        .product-card-img-link {
+            display: block;
+            overflow: hidden;
+            border-bottom: 1px solid #f0f0f0;
+            position: relative;
+        }
+
+        .product-card-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transition: transform .3s ease;
+            padding: .5rem;
+        }
+
+        .product-card:hover .product-card-img {
+            transform: scale(1.03);
+        }
+
+        .product-card-body {
+            padding: .75rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .product-card-footer {
+            margin-top: auto;
+            padding-top: .5rem;
+            border-top: 1px solid #f0f0f0; /* Thêm đường kẻ nhẹ cho footer card */
+        }
+
+        .product-card .product-action-btn i {
+            margin-right: .4rem;
+        }
+
+        /* Styles cho lưới sản phẩm (Recommended và OtherProducts trên trang Details) */
+        .recommended-products-section-detail .product-card-img-link,
+        .other-products-section-detail .product-card-img-link {
+            height: 150px;
+        }
+
+        .recommended-products-section-detail .product-card-title, /* _HotDealProductCard title style */
+        .other-products-section-detail .product-card-title-full { /* _RegularProductCard title style */
+            font-size: 0.85rem;
+            font-weight: 500;
+            min-height: 2.6em;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .recommended-products-section-detail .product-card-price {
+            font-size: .9rem;
+            text-align: center;
+            font-weight: bold;
+            color: #dc3545;
+        }
+
+        .recommended-products-section-detail .product-card-sold {
+            font-size: .7rem;
+            text-align: center;
+            color: #6c757d;
+        }
+
+        .other-products-section-detail .product-card-desc-full {
+            font-size: 0.8rem;
+            min-height: 2.4em;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .other-products-section-detail .product-card-price-unit-full {
+            font-size: 0.9rem;
+        }
+
+        .other-products-section-detail .product-card-stock-full {
+            font-size: 0.75rem;
+        }
+
+        .other-products-section-detail .product-action-btn {
+            font-size: 0.8rem;
+        }
+
+        /* CSS cho Swiper trên trang Details */
+        .recommended-swiper-detail .swiper-slide {
+            padding-bottom: 40px;
+            padding-left: 4px;
+            padding-right: 4px;
+            box-sizing: border-box;
+        }
+
+        .recommended-swiper-detail .swiper-pagination-bullet-active {
+            background-color: #0d6efd !important;
+        }
+
+        .recommended-swiper-detail .swiper-button-next, .recommended-swiper-detail .swiper-button-prev {
+            color: #0d6efd !important;
+            transform: scale(.6);
+            top: 42%;
+        }
+
+            .recommended-swiper-detail .swiper-button-next::after, .recommended-swiper-detail .swiper-button-prev::after {
+                font-size: 1.4rem !important;
+            }
+
+        /* Nút Mua ngay và Thêm vào giỏ hàng trên trang Details */
+        #addToCartFormDetail .product-action-btn {
+            font-size: 0.9rem;
+            padding: 0.5rem 0.75rem;
+        }
+    </style>
+}
 
 @section Scripts {
     <script>
-        // Hàm tăng giảm số lượng đơn giản
-        function updateQuantity(productId, change) {
-            const inputElement = document.getElementById(`quantity-${productId}`);
+        function updateQuantityOnDetailPage(productId, change, maxStock) {
+            const inputElement = document.getElementById(`quantity_${productId}`); // ID phải khớp
+            const formQtyAddToCart = document.getElementById(`formQuantity_AddToCart_${productId}`);
+            const formQtyBuyNow = document.getElementById(`formQuantity_BuyNow_${productId}`);
+
             if (inputElement) {
                 let currentValue = parseInt(inputElement.value, 10);
                 let newValue = currentValue + change;
-                const max = parseInt(inputElement.max, 10);
-                const min = parseInt(inputElement.min, 10);
+                const min = 1;
+                if (isNaN(currentValue)) currentValue = min; // Nếu input rỗng hoặc không phải số
 
-                if (newValue >= min && newValue <= max) {
-                    inputElement.value = newValue;
-                } else if (newValue < min) {
-                    inputElement.value = min;
-                } else if (newValue > max) {
-                    inputElement.value = max;
-                    // Optional: Show a message or disable button further
-                    // alert('Số lượng tồn kho không đủ.');
-                }
+                if (newValue >= min && newValue <= maxStock) inputElement.value = newValue;
+                else if (newValue < min) inputElement.value = min;
+                else if (newValue > maxStock) inputElement.value = maxStock;
+                else inputElement.value = min; // Trường hợp không xác định
+
+                // Cập nhật giá trị cho các input ẩn trong form
+                if (formQtyAddToCart) formQtyAddToCart.value = inputElement.value;
+                if (formQtyBuyNow) formQtyBuyNow.value = inputElement.value;
             }
         }
+
+        function submitBuyNow(productId) {
+            const form = document.getElementById(`productActionForm_${productId}`); // ID form chung
+            const quantityInput = document.getElementById(`quantity_${productId}`);
+            if (form && quantityInput) {
+                // Lấy URL gốc từ asp-action của form Mua hàng nếu có, hoặc xây dựng lại
+                let buyNowUrl = '@Url.Action("BuyNowDirect", "Checkout", new { productId = Model.Product.ProductTypeID })'; // Url gốc
+                const quantity = quantityInput.value;
+
+                // Thêm quantity vào URL
+                const separator = buyNowUrl.includes('?') ? '&' : '?';
+                buyNowUrl = `${buyNowUrl}${separator}quantity=${quantity}`;
+
+                form.action = buyNowUrl;
+                form.method = 'post'; // Đảm bảo là POST nếu BuyNowDirect nhận POST, hoặc GET nếu nó nhận GET
+                form.target = '_self';
+                // Không cần returnUrl nếu BuyNowDirect xử lý chuyển hướng riêng
+                const returnUrlInput = form.querySelector('input[name="returnUrl"]');
+                if (returnUrlInput) returnUrlInput.disabled = true; // Không gửi returnUrl cho BuyNow
+
+                form.submit();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const recommendedProductsCountDetail = @(Model.RecommendedProducts?.Count ?? 0);
+            if (document.querySelector('.recommended-swiper-detail') && recommendedProductsCountDetail > 0) {
+                var recommendedSwiperDetail = new Swiper('.recommended-swiper-detail', {
+                    slidesPerView: 1.8, spaceBetween: 8, grabCursor: true,
+                    loop: recommendedProductsCountDetail > 5,
+                    pagination: { el: '.recommended-pagination-detail', clickable: true, },
+                    navigation: { nextEl: '.recommended-next-detail', prevEl: '.recommended-prev-detail', },
+                    breakpoints: { 576: { slidesPerView: 2.5, spaceBetween: 10 }, 768: { slidesPerView: 3.5, spaceBetween: 10 }, 992: { slidesPerView: 4.5, spaceBetween: 12 }, 1200: { slidesPerView: 5.5, spaceBetween: 12 } }
+                });
+            }
+        });
     </script>
 }
