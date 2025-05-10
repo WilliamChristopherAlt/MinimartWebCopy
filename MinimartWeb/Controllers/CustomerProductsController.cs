@@ -1,126 +1,193 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿// Trong Controllers/CustomerProductsController.cs
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging; // <-- THÊM USING NÀY
+using Microsoft.Extensions.Logging;
 using MinimartWeb.Data;
-using System.Threading.Tasks;
-using System.Linq; // Thêm using Linq nếu cần cho Search
-using MinimartWeb.Model; // Đảm bảo namespace Model đúng
+using MinimartWeb.Model;
 using MinimartWeb.Models;
+using MinimartWeb.ViewModels; // Thêm using này
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
 
-namespace MinimartWeb.Controllers
+public class CustomerProductsController : Controller
 {
-    public class CustomerProductsController : Controller
+    private readonly ApplicationDbContext _context;
+    private readonly ILogger<CustomerProductsController> _logger;
+    private readonly int _otherProductsPerPage = 15; // Số "Sản phẩm khác" trên mỗi trang
+
+    public CustomerProductsController(ApplicationDbContext context, ILogger<CustomerProductsController> logger)
     {
-        private readonly ApplicationDbContext _context;
-        private readonly ILogger<CustomerProductsController> _logger; // <-- KHAI BÁO LOGGER
+        _context = context;
+        _logger = logger;
+    }
 
-        // Sửa Constructor để nhận cả DbContext và ILogger
-        public CustomerProductsController(ApplicationDbContext context, ILogger<CustomerProductsController> logger)
-        {
-            _context = context;
-            _logger = logger; // <-- GÁN LOGGER
-        }
+    [AllowAnonymous]
+    public async Task<IActionResult> Index() { /* ... giữ nguyên ... */  return View(await _context.ProductTypes.Where(p => p.IsActive).Include(p => p.MeasurementUnit).ToListAsync()); }
 
-        // GET: CustomerProducts (Giả sử bạn muốn trang này công khai)
-        [AllowAnonymous] // <-- Thêm AllowAnonymous nếu Index là công khai
-        public async Task<IActionResult> Index()
+    [AllowAnonymous]
+    public async Task<IActionResult> Search(string keyword, int currentPage = 1) // Thêm currentPage cho phân trang "Sản phẩm khác"
+    {
+        _logger.LogInformation("Search action called with keyword: '{Keyword}', CurrentPage: {CurrentPage}", keyword, currentPage);
+        var viewModel = new SearchResultsViewModel
         {
-            try // Thêm try-catch để xử lý lỗi tốt hơn
+            Keyword = keyword ?? string.Empty, // Đảm bảo keyword không null
+            CurrentPage = currentPage
+        };
+
+        try
+        {
+            // 1. LẤY KẾT QUẢ TÌM KIẾM
+            if (!string.IsNullOrWhiteSpace(keyword))
             {
-                var products = await _context.ProductTypes
-                    .Where(p => p.IsActive && p.StockAmount > 0)
-                    .Include(p => p.Category)
-                    .Include(p => p.Supplier)
-                    .Include(p => p.MeasurementUnit)
-                    .AsNoTracking() // Tối ưu đọc
+                var searchResultsQuery = _context.ProductTypes
+                    .Where(p => p.IsActive &&
+                                (p.ProductName.Contains(keyword) ||
+                                 (p.ProductDescription != null && p.ProductDescription.Contains(keyword))))
+                    .Include(p => p.MeasurementUnit) // Include các thông tin cần thiết cho _RegularProductCard
+                    .Include(p => p.Category)       // (Ví dụ)
+                    .AsNoTracking();
+
+                // Chuyển đổi kết quả tìm kiếm sang ProductViewModel
+                viewModel.SearchResults = await searchResultsQuery
+                    .Select(p => new ProductViewModel
+                    {
+                        Id = p.ProductTypeID,
+                        Name = p.ProductName,
+                        ProductDescription = p.ProductDescription,
+                        Price = p.Price,
+                        ImagePath = p.ImagePath,
+                        MeasurementUnitName = p.MeasurementUnit.UnitName ?? "N/A",
+                        StockAmount = p.StockAmount,
+                        IsActive = p.IsActive,
+                        DateAdded = p.DateAdded,
+                        // OriginalPrice = p.OriginalPrice,
+                        // Không cần tính TotalUnitsSold, UnitsSoldThisMonth ở đây nếu card không hiển thị
+                    })
+                    .OrderByDescending(p => p.DateAdded) // Sắp xếp kết quả tìm kiếm nếu muốn
                     .ToListAsync();
 
-                return View(products);
+                _logger.LogInformation("Found {Count} products for keyword '{Keyword}'.", viewModel.SearchResults.Count, keyword);
+
+                // Ghi lịch sử tìm kiếm (như cũ)
+                int? customerId = null;
+                if (User.Identity != null && User.Identity.IsAuthenticated && !string.IsNullOrEmpty(User.Identity.Name))
+                {
+                    var customer = await _context.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Username == User.Identity.Name);
+                    if (customer != null) customerId = customer.CustomerID;
+                }
+                string? sessionId = HttpContext.Session.GetString("UserSessionId");
+                if (customerId.HasValue || !string.IsNullOrEmpty(sessionId))
+                {
+                    _context.SearchHistories.Add(new SearchHistory
+                    {
+                        CustomerID = customerId,
+                        SessionID = customerId.HasValue ? null : sessionId,
+                        SearchKeyword = keyword,
+                        SearchTimestamp = DateTime.Now,
+                        NumberOfResults = viewModel.SearchResults.Count
+                    });
+                    await _context.SaveChangesAsync();
+                }
             }
-            catch (Exception ex)
+            else
             {
-                _logger.LogError(ex, "Error retrieving products for CustomerProducts Index.");
-                // Có thể trả về một trang lỗi thân thiện hơn
-                return View("Error", new ErrorViewModel { /* Thêm thông tin lỗi nếu cần */ });
+                _logger.LogInformation("Search keyword is empty, no search results to fetch.");
+                // Không cần làm gì thêm cho SearchResults nếu keyword rỗng
             }
+
+
+            // 2. LẤY DANH SÁCH "SẢN PHẨM KHÁC" (có phân trang)
+            // Lấy ID của các sản phẩm đã có trong kết quả tìm kiếm để có thể loại trừ (tùy chọn)
+            var searchedProductIds = viewModel.SearchResults.Select(sr => sr.Id).ToHashSet();
+
+            var otherProductsQuery = _context.ProductTypes
+                                    .Where(p => p.IsActive && !searchedProductIds.Contains(p.ProductTypeID)) // Tùy chọn: Loại trừ SP đã có trong kết quả search
+                                    .Include(p => p.MeasurementUnit)
+                                    .OrderByDescending(p => p.DateAdded) // Ví dụ: Sắp xếp theo mới nhất
+                                    .AsNoTracking();
+
+            var totalOtherProducts = await otherProductsQuery.CountAsync();
+            viewModel.TotalPages = (int)Math.Ceiling(totalOtherProducts / (double)_otherProductsPerPage);
+            if (viewModel.CurrentPage < 1) viewModel.CurrentPage = 1;
+            if (viewModel.CurrentPage > viewModel.TotalPages && viewModel.TotalPages > 0) viewModel.CurrentPage = viewModel.TotalPages;
+
+
+            viewModel.OtherProducts = await otherProductsQuery
+                                        .Skip((viewModel.CurrentPage - 1) * _otherProductsPerPage)
+                                        .Take(_otherProductsPerPage)
+                                        .Select(p => new ProductViewModel
+                                        {
+                                            Id = p.ProductTypeID,
+                                            Name = p.ProductName,
+                                            ProductDescription = p.ProductDescription,
+                                            Price = p.Price,
+                                            ImagePath = p.ImagePath,
+                                            MeasurementUnitName = p.MeasurementUnit.UnitName ?? "N/A",
+                                            StockAmount = p.StockAmount,
+                                            IsActive = p.IsActive,
+                                            DateAdded = p.DateAdded
+                                        })
+                                        .ToListAsync();
+            _logger.LogInformation("Fetched {Count} other products for page {Page}.", viewModel.OtherProducts.Count, viewModel.CurrentPage);
+
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during product search or fetching other products for keyword: {Keyword}", keyword);
+            // Vẫn cố gắng trả về viewModel với những gì đã có để View không bị lỗi hoàn toàn
+            // Hoặc return View("Error", new ErrorViewModel ...);
         }
 
-        // Action Search (Đã có AllowAnonymous từ trước)
-        [AllowAnonymous]
-        public async Task<IActionResult> Search(string keyword)
+        return View("SearchResults", viewModel); // Trả về View SearchResults.cshtml
+    }
+
+    [AllowAnonymous]
+    public async Task<IActionResult> Details(int? id)
+    {
+        if (id == null) { _logger.LogWarning("Details called with null ID."); return NotFound(); }
+
+        try
         {
+            var productType = await _context.ProductTypes
+                .Include(p => p.Category).Include(p => p.MeasurementUnit).Include(p => p.Supplier)
+                .AsNoTracking().FirstOrDefaultAsync(m => m.ProductTypeID == id);
+
+            if (productType == null) { _logger.LogWarning("ProductType ID {Id} not found.", id); return NotFound(); }
+
+            // --- GHI LỊCH SỬ XEM ---
             try
             {
-                ViewData["Keyword"] = keyword;
-                var query = _context.ProductTypes
-                                .Include(p => p.Category) // Include lại nếu cần hiển thị trong kết quả
-                                .Include(p => p.MeasurementUnit)
-                                .Include(p => p.Supplier)
-                                .Where(p => p.IsActive) // Chỉ tìm sản phẩm active?
-                                .AsNoTracking();
-
-                if (!string.IsNullOrWhiteSpace(keyword))
+                int? customerId = null;
+                if (User.Identity != null && User.Identity.IsAuthenticated && !string.IsNullOrEmpty(User.Identity.Name))
                 {
-                    query = query.Where(p => p.ProductName.Contains(keyword) ||
-                                            (p.ProductDescription != null && p.ProductDescription.Contains(keyword)));
+                    var customer = await _context.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Username == User.Identity.Name);
+                    if (customer != null) customerId = customer.CustomerID;
                 }
-                else // Nếu keyword rỗng, có thể quay về trang Index hoặc hiển thị tất cả
+                string? sessionId = HttpContext.Session.GetString("UserSessionId");
+
+                if ((customerId.HasValue || !string.IsNullOrEmpty(sessionId)) && productType != null)
                 {
-                    return RedirectToAction(nameof(Index)); // Quay về Index nếu không có keyword
-                    // Hoặc: query = query; // Hiển thị tất cả nếu muốn
+                    var viewHistoryEntry = new ViewHistory
+                    {
+                        CustomerID = customerId,
+                        SessionID = customerId.HasValue ? null : sessionId,
+                        ProductTypeID = productType.ProductTypeID, // Quan trọng: phải là ID của sản phẩm đang xem
+                        ViewTimestamp = DateTime.Now
+                    };
+                    _context.ViewHistories.Add(viewHistoryEntry);
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("View history saved for ProductID: {ProductId}, User/Session: {UserSession}", productType.ProductTypeID, customerId ?? (object)sessionId ?? "Unknown");
                 }
-
-
-                var results = await query.ToListAsync();
-
-                // Quan trọng: Đảm bảo View SearchResults tồn tại hoặc sửa lại để dùng View Index
-                return View("SearchResults", results); // Giả sử có View SearchResults.cshtml
-                                                       // Hoặc return View("Index", results); // Nếu View Index có thể hiển thị kết quả tìm kiếm
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during product search for keyword: {Keyword}", keyword);
-                return View("Error", new ErrorViewModel());
-            }
+            catch (Exception ex) { _logger.LogError(ex, "Error saving view history for ProductID {ProductId}", id); }
+
+            return View(productType);
         }
-
-
-        // Action Details (Đã có AllowAnonymous từ trước)
-        [AllowAnonymous]
-        public async Task<IActionResult> Details(int? id)
-        {
-            if (id == null)
-            {
-                _logger.LogWarning("Details action called with null ID."); // Giờ đây _logger đã tồn tại
-                return NotFound();
-            }
-
-            try
-            {
-                var productType = await _context.ProductTypes
-                    .Include(p => p.Category)
-                    .Include(p => p.MeasurementUnit)
-                    .Include(p => p.Supplier)
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(m => m.ProductTypeID == id);
-
-                if (productType == null)
-                {
-                    _logger.LogWarning("ProductType with ID {Id} not found.", id); // Giờ đây _logger đã tồn tại
-                    return NotFound();
-                }
-
-                return View(productType);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving details for ProductType ID: {Id}", id);
-                return View("Error", new ErrorViewModel());
-            }
-        }
-
-        // Các actions khác nếu có...
-        // Ví dụ CartController sẽ cần inject DbContext và có thể cả Logger
+        catch (Exception ex) { _logger.LogError(ex, "Error retrieving details for ProductType ID: {Id}", id); return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier }); }
     }
 }

@@ -1,0 +1,43 @@
+﻿@model MinimartWeb.ViewModels.ProductViewModel
+@{
+    string FormatCurrency(decimal price) => price.ToString("N0") + "đ"; string FormatStock(decimal stock) => stock.ToString("N0");
+}
+
+<div class="col">
+    <div class="card h-100 product-card product-card-regular">
+        <a asp-controller="CustomerProducts" asp-action="Details" asp-route-id="@Model.Id" class="product-card-img-link">
+            <img src="@(string.IsNullOrEmpty(Model.ImagePath) ? "/images/placeholder.png" : $"/images/products/{Model.ImagePath}")" class="card-img-top product-card-img" loading="lazy" alt="@Model.Name">
+        </a>
+        <div class="product-card-body">
+            <div>
+                <h5 class="product-card-title-full mb-1"> <a asp-controller="CustomerProducts" asp-action="Details" asp-route-id="@Model.Id" class="text-dark text-decoration-none stretched-link" title="@Model.Name">@Model.Name</a> </h5>
+                @if (!string.IsNullOrWhiteSpace(Model.ProductDescription))
+                {
+                    <p class="product-card-desc-full text-muted small mb-2">@Model.ProductDescription</p>
+                }
+                <p class="product-card-price-unit-full fw-bold mb-1">@FormatCurrency(Model.Price) / @Model.MeasurementUnitName</p>
+                @if (Model.StockAmount > 0 && Model.IsActive)
+                {
+                    <p class="product-card-stock-full text-success small mb-2">Kho: @FormatStock(Model.StockAmount)</p>
+                }
+                else
+                {
+                    <p class="text-danger small mb-2 fw-bold">Hết hàng</p>
+                }
+            </div>
+            <div class="product-card-footer mt-auto">
+                @if (Model.StockAmount > 0 && Model.IsActive)
+                {
+                    <div class="d-grid gap-2">
+                        <a asp-controller="Cart" asp-action="AddToCartDirect" asp-route-productId="@Model.Id" asp-route-quantity="1" class="btn btn-outline-warning btn-sm product-action-btn"> <i class="fas fa-cart-plus me-1"></i> Thêm vào giỏ </a>
+                        <a asp-controller="Checkout" asp-action="BuyNow" asp-route-productId="@Model.Id" asp-route-quantity="1" class="btn btn-warning btn-sm product-action-btn"> <i class="fas fa-bolt me-1"></i> Mua ngay </a>
+                    </div>
+                }
+                else
+                {
+                    <button type="button" class="btn btn-secondary btn-sm w-100" disabled>Hết hàng</button>
+                }
+            </div>
+        </div>
+    </div>
+</div>

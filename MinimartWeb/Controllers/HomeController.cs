@@ -1,120 +1,110 @@
-﻿// Trong file: Controllers/HomeController.cs
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using MinimartWeb.Data;
-using MinimartWeb.Models; // Hoặc MinimartWeb.Model
-using MinimartWeb.ViewModels; // Thêm using cho ViewModels
+using MinimartWeb.Model;
+using MinimartWeb.Models;
+using MinimartWeb.Services;
+using MinimartWeb.ViewModels;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
-using System.Linq;         // Thêm using Linq
-using System;             // Thêm using cho DateTime
 
+[AllowAnonymous]
 public class HomeController : Controller
 {
     private readonly ILogger<HomeController> _logger;
     private readonly ApplicationDbContext _context;
+    private readonly IRecommendationService _recommendationService;
+    private readonly int _productsPerPage = 25;
 
-    public HomeController(ILogger<HomeController> logger, ApplicationDbContext context)
+    public HomeController(ILogger<HomeController> logger, ApplicationDbContext context, IRecommendationService recommendationService)
     {
         _logger = logger;
         _context = context;
+        _recommendationService = recommendationService;
     }
 
-    [AllowAnonymous]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int currentPage = 1)
     {
-        // --- Lấy dữ liệu sản phẩm cơ bản ---
-        var allActiveProducts = await _context.ProductTypes
-                                        .Where(p => p.IsActive) // Chỉ lấy sản phẩm đang hoạt động
-                                        .Select(p => new // Chọn các cột cần thiết ban đầu
-                                        {
-                                            p.ProductTypeID,
-                                            p.ProductName,
-                                            p.Price,
-                                            p.ImagePath,
-                                            // Giả sử bạn có cột OriginalPrice trong ProductTypes
-                                            // Nếu không, bạn cần logic khác để xác định giá gốc
-                                            // OriginalPrice = p.OriginalPrice // Ví dụ
-                                            // Thêm các trường cần thiết khác nếu có (ví dụ: cờ FlashSale)
-                                            IsFlashSale = false // Mặc định hoặc lấy từ DB
-                                        })
-                                        .AsNoTracking()
-                                        .ToListAsync();
-
-        // --- Tính toán số lượng đã bán ---
-        var productIds = allActiveProducts.Select(p => p.ProductTypeID).ToList();
-
-        // Tính tổng số lượng bán từ trước đến nay
-        var totalSalesData = await _context.SaleDetails
-                                    .Where(sd => productIds.Contains(sd.ProductTypeID))
-                                    .GroupBy(sd => sd.ProductTypeID)
-                                    .Select(g => new {
-                                        ProductTypeId = g.Key,
-                                        TotalUnitsSold = g.Sum(x => (int)x.Quantity) // Ép kiểu nếu Quantity là decimal
-                                    })
-                                    .ToListAsync();
-
-        // Tính số lượng bán trong tháng hiện tại
-        var now = DateTime.Now;
-        var startOfMonth = new DateTime(now.Year, now.Month, 1);
-        var endOfMonth = startOfMonth.AddMonths(1).AddDays(-1); // Ngày cuối cùng của tháng
-
-        var monthlySalesData = await _context.SaleDetails
-                                    .Include(sd => sd.Sale) // Include bảng Sales để lọc theo SaleDate
-                                    .Where(sd => productIds.Contains(sd.ProductTypeID) &&
-                                                  sd.Sale.SaleDate >= startOfMonth && sd.Sale.SaleDate <= endOfMonth)
-                                    .GroupBy(sd => sd.ProductTypeID)
-                                    .Select(g => new {
-                                        ProductTypeId = g.Key,
-                                        UnitsSoldThisMonth = g.Sum(x => (int)x.Quantity) // Ép kiểu nếu Quantity là decimal
-                                    })
-                                    .ToListAsync();
-
-        // --- Tạo danh sách ProductViewModel hoàn chỉnh ---
-        var productViewModels = allActiveProducts.Select(p => {
-            var totalSale = totalSalesData.FirstOrDefault(s => s.ProductTypeId == p.ProductTypeID);
-            var monthlySale = monthlySalesData.FirstOrDefault(s => s.ProductTypeId == p.ProductTypeID);
-
-            return new ProductViewModel
+        _logger.LogInformation("Home/Index page requested. CurrentPage: {CurrentPage}", currentPage);
+        try
+        {
+            string? sessionId = HttpContext.Session.GetString("UserSessionId");
+            if (string.IsNullOrEmpty(sessionId))
             {
-                Id = p.ProductTypeID,
-                Name = p.ProductName,
-                Price = p.Price,
-                ImagePath = p.ImagePath,
-                // OriginalPrice = p.OriginalPrice, // Gán giá gốc nếu có
-                TotalUnitsSold = totalSale?.TotalUnitsSold ?? 0,
-                UnitsSoldThisMonth = monthlySale?.UnitsSoldThisMonth ?? 0,
-                IsFlashSale = p.IsFlashSale // Gán cờ FlashSale nếu có
-            };
-        }).ToList();
+                sessionId = Guid.NewGuid().ToString();
+                HttpContext.Session.SetString("UserSessionId", sessionId);
+                _logger.LogInformation("New SessionId created: {SessionId}", sessionId);
+            }
 
+            var homePageViewModel = new HomePageViewModel();
 
-        // --- Tạo HomePageViewModel ---
-        var homePageViewModel = new HomePageViewModel();
+            var productViewModelsQuery = _context.ProductTypes
+                .Where(p => p.IsActive)
+                .Include(p => p.MeasurementUnit)
+                // .Include(p => p.Category) // Chỉ include nếu service cần
+                .Select(p => new ProductViewModel
+                {
+                    Id = p.ProductTypeID,
+                    Name = p.ProductName,
+                    ProductDescription = p.ProductDescription,
+                    Price = p.Price,
+                    ImagePath = p.ImagePath,
+                    MeasurementUnitName = p.MeasurementUnit.UnitName ?? "N/A",
+                    StockAmount = p.StockAmount,
+                    IsActive = p.IsActive,
+                    DateAdded = p.DateAdded,
+                   // OriginalPrice = p.OriginalPrice,
+                    TotalUnitsSold = p.SaleDetails.Sum(sd => (int?)sd.Quantity) ?? 0, // Tính TotalUnitsSold
+                    UnitsSoldThisMonth = p.SaleDetails.Where(sd => sd.Sale.SaleDate.Month == DateTime.Now.Month && sd.Sale.SaleDate.Year == DateTime.Now.Year).Sum(sd => (int?)sd.Quantity) ?? 0 // Tính UnitsSoldThisMonth
+                })
+                .AsNoTracking();
 
-        // Lấy top N sản phẩm bán chạy nhất tháng làm Hot Deals
-        int numberOfHotDeals = 5; // Số lượng sản phẩm Hot Deal muốn hiển thị
-        homePageViewModel.HotDeals = productViewModels
-                                        .OrderByDescending(p => p.UnitsSoldThisMonth)
-                                        .Take(numberOfHotDeals)
-                                        .ToList();
+            var productViewModels = await productViewModelsQuery.ToListAsync();
+            _logger.LogInformation("Fetched {Count} total active productViewModels.", productViewModels.Count);
 
-        // Lấy tất cả sản phẩm làm Regular Products (bao gồm cả hot deals, hoặc loại trừ nếu muốn)
-        // Để đơn giản, ta hiển thị tất cả
-        homePageViewModel.RegularProducts = productViewModels
-                                               .OrderByDescending(p => p.TotalUnitsSold) // Sắp xếp theo tổng số bán
-                                               .ToList();
-        // Hoặc nếu muốn loại trừ Hot Deals khỏi Regular Products:
-        // var hotDealIds = homePageViewModel.HotDeals.Select(h => h.Id).ToHashSet();
-        // homePageViewModel.RegularProducts = productViewModels
-        //                                     .Where(p => !hotDealIds.Contains(p.Id))
-        //                                     .OrderByDescending(p => p.TotalUnitsSold)
-        //                                     .ToList();
+            int numberOfHotDeals = 11;
+            homePageViewModel.HotDeals = productViewModels
+                                            .OrderByDescending(p => p.UnitsSoldThisMonth)
+                                            .ThenByDescending(p => p.TotalUnitsSold)
+                                            .Take(numberOfHotDeals)
+                                            .ToList();
+            var hotDealIds = homePageViewModel.HotDeals.Select(h => h.Id).ToList();
+            _logger.LogInformation("Generated {Count} Hot Deals. IDs: {HotDealIds}", homePageViewModel.HotDeals.Count, string.Join(",", hotDealIds));
 
+            int? customerId = null;
+            if (User.Identity != null && User.Identity.IsAuthenticated && !string.IsNullOrEmpty(User.Identity.Name))
+            {
+                var customer = await _context.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Username == User.Identity.Name);
+                if (customer != null) customerId = customer.CustomerID;
+            }
 
-        // Truyền ViewModel vào View
-        return View(homePageViewModel);
+            homePageViewModel.RecommendedProducts = await _recommendationService.GetRecommendationsAsync(customerId, sessionId, hotDealIds, 11);
+            _logger.LogInformation("Generated {Count} Recommended Products for CustomerID: {CustomerId}, SessionID: {SessionId}.", homePageViewModel.RecommendedProducts.Count, customerId, sessionId);
+
+            var regularProductsQuery = productViewModels
+                                        .OrderByDescending(p => p.DateAdded);
+            var totalRegularProducts = regularProductsQuery.Count(); // Count trước khi phân trang
+            homePageViewModel.TotalPages = (int)Math.Ceiling(totalRegularProducts / (double)_productsPerPage);
+            homePageViewModel.CurrentPage = currentPage;
+            homePageViewModel.RegularProducts = regularProductsQuery
+                                                .Skip((currentPage - 1) * _productsPerPage)
+                                                .Take(_productsPerPage)
+                                                .ToList();
+            _logger.LogInformation("Generated {Count} Regular Products for page {CurrentPage}.", homePageViewModel.RegularProducts.Count, currentPage);
+
+            return View(homePageViewModel);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading Home page data.");
+            return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+        }
     }
 
     [AllowAnonymous] public IActionResult Privacy() => View();

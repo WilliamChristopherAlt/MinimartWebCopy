@@ -1,154 +1,346 @@
-﻿@* Khai báo model là HomePageViewModel *@
-@model MinimartWeb.ViewModels.HomePageViewModel
+﻿@model MinimartWeb.ViewModels.HomePageViewModel
 @{
     ViewData["Title"] = "Trang Chủ - MiniMart";
-    // Hàm định dạng tiền tệ (có thể đặt trong helper hoặc để tạm ở đây)
-    string FormatCurrency(decimal price)
-    {
-        return price.ToString("N0") + "đ"; // Ví dụ: 100000đ
-    }
 }
 
 <div class="container mt-4">
 
-    @* --- Phần Hot Deal --- *@
+    @* --- PHẦN HOT DEAL (Sử dụng Swiper Carousel) --- *@
     @if (Model.HotDeals.Any())
     {
-        <section class="mb-5">
+        <section class="mb-5 hot-deals-section" id="hotDealsContainer">
             <div class="d-flex align-items-center mb-3">
-                <h2 class="me-2 mb-0">🔥 HOT DEAL</h2>
-                @* Có thể thêm biểu tượng tia sét bằng Font Awesome nếu muốn *@
-                @* <i class="fas fa-bolt text-warning fa-lg"></i> *@
+                <h2 class="me-2 mb-0 h4 fw-bold text-danger">🔥 HOT DEAL</h2>
             </div>
-
-            @* Sử dụng Bootstrap Grid để hiển thị sản phẩm *@
-            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-3">
-                @* Chia cột: 2 trên mobile, 3 trên tablet, 5 trên desktop *@
-                @foreach (var product in Model.HotDeals)
-                {
-                    <div class="col">
-                        <div class="card h-100 shadow-sm product-card">
-                            @* Thêm class product-card để style riêng nếu cần *@
-                            <a asp-controller="CustomerProducts" asp-action="Details" asp-route-id="@product.Id" class="text-decoration-none">
-                                <img src="@(string.IsNullOrEmpty(product.ImagePath) ? "/images/placeholder.png" : $"/images/products/{product.ImagePath}")"
-                                     class="card-img-top product-card-img" @* Thêm class để style ảnh *@
-                                     alt="@product.Name">
-                            </a>
-                            <div class="card-body d-flex flex-column">
-                                <h6 class="card-title product-card-title fw-normal mb-1">
-                                    @* Class để style tên SP *@
-                                    <a asp-controller="CustomerProducts" asp-action="Details" asp-route-id="@product.Id" class="text-dark text-decoration-none stretched-link">
-                                        @* Giới hạn độ dài tên sản phẩm nếu cần *@
-                                        @product.Name
-                                    </a>
-                                </h6>
-                                <div class="mt-auto">
-                                    @* Đẩy giá và thông tin bán xuống dưới *@
-                                    <div class="d-flex align-items-center mb-1">
-                                        <span class="text-danger fw-bold me-2">@FormatCurrency(product.Price)</span>
-                                        @if (product.DiscountPercent.HasValue)
-                                        {
-                                            <span class="text-muted text-decoration-line-through me-2 small">@FormatCurrency(product.OriginalPrice ?? 0)</span>
-                                            <span class="badge bg-danger rounded-pill small">-@product.DiscountPercent%</span>
-                                        }
-                                    </div>
-                                    @if (product.TotalUnitsSold > 0) @* Chỉ hiển thị nếu đã bán *@
-                                    {
-                                        <small class="text-muted d-block">Đã bán: @product.TotalUnitsSold</small>
-                                    }
-                                    @if (product.IsFlashSale)
-                                    {
-                                        <span class="badge bg-warning text-dark mt-1 small"><i class="fas fa-fire me-1"></i> SẢN PHẨM FLASH SALE</span>
-                                    }
-                                </div>
-                            </div>
+            <div class="swiper hot-deal-swiper">
+                <div class="swiper-wrapper">
+                    @foreach (var product in Model.HotDeals)
+                    {
+                        <div class="swiper-slide">
+                            <partial name="_HotDealProductCard" model="product" />
                         </div>
-                    </div>
-                }
+                    }
+                </div>
+                <div class="swiper-pagination hot-deal-pagination"></div>
+                <div class="swiper-button-next hot-deal-next"></div>
+                <div class="swiper-button-prev hot-deal-prev"></div>
             </div>
         </section>
     }
-
-    @* --- Phần Sản phẩm thường --- *@
-    <section>
-        <h2 class="mb-3">Sản phẩm khác</h2>
-        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-3">
-            @foreach (var product in Model.RegularProducts)
-            {
-                <div class="col">
-                    <div class="card h-100 shadow-sm product-card">
-                        <a asp-controller="CustomerProducts" asp-action="Details" asp-route-id="@product.Id" class="text-decoration-none">
-                            <img src="@(string.IsNullOrEmpty(product.ImagePath) ? "/images/placeholder.png" : $"/images/products/{product.ImagePath}")"
-                                 class="card-img-top product-card-img"
-                                 alt="@product.Name">
-                        </a>
-                        <div class="card-body d-flex flex-column">
-                            <h6 class="card-title product-card-title fw-normal mb-1">
-                                <a asp-controller="CustomerProducts" asp-action="Details" asp-route-id="@product.Id" class="text-dark text-decoration-none stretched-link">
-                                    @product.Name
-                                </a>
-                            </h6>
-                            <div class="mt-auto">
-                                <div class="d-flex align-items-center mb-1">
-                                    <span class="text-danger fw-bold me-2">@FormatCurrency(product.Price)</span>
-                                    @if (product.DiscountPercent.HasValue)
-                                    {
-                                        <span class="text-muted text-decoration-line-through me-2 small">@FormatCurrency(product.OriginalPrice ?? 0)</span>
-                                        <span class="badge bg-danger rounded-pill small">-@product.DiscountPercent%</span>
-                                    }
-                                </div>
-                                @if (product.TotalUnitsSold > 0)
-                                {
-                                    <small class="text-muted d-block">Đã bán: @product.TotalUnitsSold</small>
-                                }
-                                @if (product.IsFlashSale)
-                                {
-                                    <span class="badge bg-warning text-dark mt-1 small"><i class="fas fa-fire me-1"></i> SẢN PHẨM FLASH SALE</span>
-                                }
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            }
+    else
+    {
+        <div class="alert alert-light text-center" role="alert">
+            Hiện chưa có ưu đãi Hot Deal nào.
         </div>
-        @* Thêm nút xem thêm hoặc phân trang nếu cần *@
-        @* <div class="text-center mt-4">
-        <a href="#" class="btn btn-outline-primary">Xem thêm sản phẩm</a>
-        </div> *@
-    </section>
+    }
 
+    @* --- PHẦN SẢN PHẨM ĐỀ XUẤT AI (Sử dụng Swiper Carousel) --- *@
+    @if (Model.RecommendedProducts.Any())
+    {
+        <section class="mb-5 recommended-products-section" id="recommendedProductsContainer">
+            <div class="d-flex align-items-center mb-3">
+                <h2 class="me-2 mb-0 h4 fw-bold text-primary"><i class="fas fa-lightbulb me-1"></i> Gợi ý cho bạn</h2>
+            </div>
+            <div class="swiper recommended-swiper">
+                <div class="swiper-wrapper">
+                    @foreach (var product in Model.RecommendedProducts)
+                    {
+                        <div class="swiper-slide">
+                            @* Tái sử dụng _HotDealProductCard hoặc tạo _RecommendedProductCard riêng nếu giao diện khác *@
+                            <partial name="_HotDealProductCard" model="product" />
+                        </div>
+                    }
+                </div>
+                <div class="swiper-pagination recommended-pagination"></div>
+                <div class="swiper-button-next recommended-next"></div>
+                <div class="swiper-button-prev recommended-prev"></div>
+            </div>
+        </section>
+    }
+    else
+    {
+        @* Không hiển thị gì nếu không có gợi ý, hoặc có thể hiển thị một thông điệp khác *@
+    }
+
+
+    @* --- Phần Sản phẩm khác (Dạng lưới, có phân trang) --- *@
+    <section class="regular-products-section" id="regularProductsContainer">
+        <h2 class="mb-3 h4 fw-bold">Sản phẩm khác</h2>
+        @if (Model.RegularProducts.Any())
+        {
+            <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-3">
+                @foreach (var product in Model.RegularProducts)
+                {
+                    <partial name="_RegularProductCard" model="product" />
+                }
+            </div>
+
+            @* --- Phân trang --- *@
+            @if (Model.TotalPages > 1) // Chỉ hiển thị phân trang nếu có nhiều hơn 1 trang
+            {
+                <nav aria-label="Page navigation" class="mt-4 d-flex justify-content-center">
+                    <ul class="pagination">
+                        @if (Model.HasPreviousPage)
+                        {
+                            <li class="page-item"><a class="page-link" asp-action="Index" asp-route-currentPage="@(Model.CurrentPage - 1)">« Trước</a></li>
+                        }
+                        else
+                        {
+                            <li class="page-item disabled"><span class="page-link">« Trước</span></li>
+                        }
+
+                        @for (int i = 1; i <= Model.TotalPages; i++)
+                        {
+                            <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                <a class="page-link" asp-action="Index" asp-route-currentPage="@i">@i</a>
+                            </li>
+                        }
+
+                        @if (Model.HasNextPage)
+                        {
+                            <li class="page-item"><a class="page-link" asp-action="Index" asp-route-currentPage="@(Model.CurrentPage + 1)">Sau »</a></li>
+                        }
+                        else
+                        {
+                            <li class="page-item disabled"><span class="page-link">Sau »</span></li>
+                        }
+                    </ul>
+                </nav>
+            }
+        }
+        else
+        {
+            <p class="text-center text-muted">Không có sản phẩm nào để hiển thị trong mục này.</p>
+        }
+    </section>
 </div>
 
-@* Thêm CSS tùy chỉnh nếu cần *@
 @section Styles {
     <style>
+        /* --- CARD SẢN PHẨM CHUNG --- */
         .product-card {
-            border: 1px solid #e9ecef;
-            transition: box-shadow 0.2s ease-in-out;
+            border: 1px solid #f0f0f0;
+            transition: all .2s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            background-color: #fff;
+            border-radius: 8px;
+            overflow: hidden;
         }
 
             .product-card:hover {
-                box-shadow: 0 .5rem 1rem rgba(0,0,0,.15) !important;
+                box-shadow: 0 6px 18px rgba(0,0,0,.1) !important;
+                transform: translateY(-4px);
             }
 
-        .product-card-img {
-            aspect-ratio: 1 / 1; /* Giữ tỉ lệ vuông cho ảnh */
-            object-fit: cover; /* Đảm bảo ảnh fill khung */
+        .product-card-img-link {
+            display: block;
+            overflow: hidden;
+            border-bottom: 1px solid #f0f0f0;
+            height: 160px; /* Chiều cao ảnh cho card nhỏ trong carousel */
+            position: relative;
         }
 
-        .product-card-title {
-            /* Giới hạn tên sản phẩm thành 2 dòng */
+        .product-card-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transition: transform .3s ease;
+            padding: 8px;
+        }
+
+        .product-card:hover .product-card-img {
+            transform: scale(1.05);
+        }
+
+        .product-card-body {
+            padding: .75rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- CAROUSEL SPECIFIC STYLES (HotDeal & Recommended dùng chung _HotDealProductCard) --- */
+        .hot-deals-section .product-card-body,
+        .recommended-products-section .product-card-body {
+            text-align: center;
+        }
+
+        .hot-deals-section .product-card-title,
+        .recommended-products-section .product-card-title {
+            font-size: .85rem;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: .2rem;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
             text-overflow: ellipsis;
-            min-height: 2.5em; /* Đảm bảo chiều cao tối thiểu cho 2 dòng */
-            font-size: 0.9rem; /* Điều chỉnh cỡ chữ tên SP */
+            min-height: 2.6em; /* Cho 2 dòng */
         }
 
-        .card-body {
-            padding: 0.8rem; /* Giảm padding body card */
+        .hot-deals-section .product-card-price,
+        .recommended-products-section .product-card-price {
+            font-size: .95rem;
+            font-weight: 700;
+            color: #dc3545;
+            margin-bottom: .1rem;
         }
+
+        .hot-deals-section .product-card-sold,
+        .recommended-products-section .product-card-sold {
+            font-size: .7rem;
+            color: #6c757d;
+            margin-bottom: .4rem;
+        }
+
+        .hot-deals-section .product-action-btn,
+        .recommended-products-section .product-action-btn {
+            font-size: 0.7rem;
+            padding: 0.3rem 0.4rem; /* Nút nhỏ hơn */
+        }
+
+        .hot-deals-section .d-grid, .recommended-products-section .d-grid,
+        .hot-deals-section .d-flex.gap-2, .recommended-products-section .d-flex.gap-2 {
+            gap: 0.3rem !important; /* Giảm khoảng cách giữa 2 nút */
+        }
+
+
+        /* --- REGULAR PRODUCTS CARD (_RegularProductCard) --- */
+        #regularProductsContainer .product-card-img-link {
+            height: 180px;
+        }
+        /* Ảnh có thể to hơn chút */
+        #regularProductsContainer .product-card-title-full {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #212529;
+            margin-bottom: .3rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #regularProductsContainer .product-card-desc-full {
+            font-size: .85rem;
+            color: #6c757d;
+            margin-bottom: .5rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-height: 2.6em;
+        }
+
+        #regularProductsContainer .product-card-price-unit-full {
+            font-size: .95rem;
+            font-weight: 700;
+            color: #212529;
+            margin-bottom: .2rem;
+        }
+
+        #regularProductsContainer .product-card-stock-full {
+            font-size: .8rem;
+            color: #198754;
+            margin-bottom: .75rem;
+        }
+
+        #regularProductsContainer .product-action-btn {
+            font-size: .8rem;
+            padding: .35rem .5rem;
+        }
+
+
+        /* --- FOOTER & NÚT CHUNG --- */
+        .product-card-footer {
+            margin-top: auto;
+            padding-top: .5rem;
+        }
+
+        .product-card .product-action-btn i {
+            margin-right: .4rem;
+        }
+
+        /* --- SWIPER --- */
+        .swiper-slide {
+            display: flex;
+            justify-content: center;
+            padding-bottom: 40px; /* Không gian cho pagination */
+            height: auto !important;
+            box-sizing: border-box;
+            padding-left: 5px;
+            padding-right: 5px;
+        }
+        /* Bỏ .col bên trong swiper-slide nếu có, để card tự co giãn */
+        .swiper-pagination-bullet-active {
+            background-color: #ffc107 !important;
+        }
+
+        .swiper-button-next, .swiper-button-prev {
+            color: #ff8800 !important;
+            transform: scale(.75);
+            top: 45%;
+        }
+            /* Điều chỉnh vị trí nút */
+            .swiper-button-next::after, .swiper-button-prev::after {
+                font-size: 1.6rem !important;
+            }
     </style>
+}
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Dùng || [] để đảm bảo biến có giá trị mảng nếu Model là null hoặc list rỗng
+            const hotDealsCount = @(Model.HotDeals?.Count ?? 0);
+            const recommendedProductsCount = @(Model.RecommendedProducts?.Count ?? 0);
+
+            // --- HOT DEAL SWIPER ---
+            if (document.querySelector('.hot-deal-swiper') && hotDealsCount > 0) {
+                var hotDealSwiper = new Swiper('.hot-deal-swiper', {
+                    slidesPerView: 1.8,
+                    spaceBetween: 8,
+                    grabCursor: true,
+                    loop: hotDealsCount > 9, // Chỉ loop khi có nhiều hơn ngưỡng (ví dụ: 9)
+                    autoplay: { delay: 4000, disableOnInteraction: false, pauseOnMouseEnter: true, },
+                    pagination: { el: '.hot-deal-pagination', clickable: true, },
+                    navigation: { nextEl: '.hot-deal-next', prevEl: '.hot-deal-prev', },
+                    breakpoints: {
+                        576: { slidesPerView: 3.2, spaceBetween: 10 },
+                        768: { slidesPerView: 4.2, spaceBetween: 10 },
+                        992: { slidesPerView: 6.2, spaceBetween: 12 },
+                        1200: { slidesPerView: 8.2, spaceBetween: 12 }, // Tăng ở đây
+                        1400: { slidesPerView: 9, spaceBetween: 10 },
+                        1600: { slidesPerView: 10, spaceBetween: 10 },
+                        1920: { slidesPerView: 11, spaceBetween: 10 }
+                    }
+                });
+            }
+
+            // --- RECOMMENDED PRODUCTS SWIPER ---
+            if (document.querySelector('.recommended-swiper') && recommendedProductsCount > 0) {
+                var recommendedSwiper = new Swiper('.recommended-swiper', {
+                    slidesPerView: 1.8,
+                    spaceBetween: 8,
+                    grabCursor: true,
+                    loop: recommendedProductsCount > 9,
+                    pagination: { el: '.recommended-pagination', clickable: true, },
+                    navigation: { nextEl: '.recommended-next', prevEl: '.recommended-prev', },
+                    breakpoints: {
+                        576: { slidesPerView: 3.2, spaceBetween: 10 },
+                        768: { slidesPerView: 4.2, spaceBetween: 10 },
+                        992: { slidesPerView: 6.2, spaceBetween: 12 },
+                        1200: { slidesPerView: 8.2, spaceBetween: 12 },
+                        1400: { slidesPerView: 9, spaceBetween: 10 },
+                        1600: { slidesPerView: 10, spaceBetween: 10 },
+                        1920: { slidesPerView: 11, spaceBetween: 10 }
+                    }
+                });
+            }
+        });
+    </script>
 }

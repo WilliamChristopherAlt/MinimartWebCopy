@@ -1,46 +1,47 @@
-// Trong Program.cs (ví dụ .NET 6+)
+// Trong Program.cs
 
+// ... các using ...
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using MinimartWeb.Data;
+using MinimartWeb.Services; // Cho RecommendationService
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
-// --- CẤU HÌNH XÁC THỰC COOKIE (Bạn có thể đã có phần này) ---
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
-    {
-        // Quan trọng: Chỉ định đường dẫn trang Login để hệ thống tự động chuyển hướng khi truy cập trang cần Authorize mà chưa đăng nhập
-        // Mặc dù người dùng sẽ dùng panel AJAX, đường dẫn này vẫn cần để middleware hoạt động đúng.
-        // Nó sẽ bị bắt bởi [HttpGet] Login và chuyển hướng về Home.
-        options.LoginPath = "/Account/Login";
-        // Chỉ định đường dẫn trang Access Denied
-        options.AccessDeniedPath = "/Account/AccessDenied";
-        options.ExpireTimeSpan = TimeSpan.FromMinutes(30); // Ví dụ thời gian hết hạn
-        options.SlidingExpiration = true; // Gia hạn cookie nếu có hoạt động
-    });
+// Database Context
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// --- THÊM CẤU HÌNH AUTHORIZATION TOÀN CỤC ---
-builder.Services.AddAuthorization(options =>
-{
-    // Thiết lập FallbackPolicy: Chính sách này sẽ áp dụng cho tất cả các endpoint
-    // không có thuộc tính [Authorize] hoặc [AllowAnonymous] nào được chỉ định rõ ràng.
-    options.FallbackPolicy = new AuthorizationPolicyBuilder()
-        .RequireAuthenticatedUser() // Yêu cầu người dùng phải được xác thực (đăng nhập)
-        .Build();
+// Authentication & Authorization
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options => {
+        options.LoginPath = "/Account/Login";
+        options.AccessDeniedPath = "/Account/AccessDenied";
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
+        options.SlidingExpiration = true;
+    });
+// Bỏ FallbackPolicy nếu muốn trang chủ công khai
+//builder.Services.AddAuthorization(options => {
+//     options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
+// });
+builder.Services.AddAuthorization(); // Hoặc các policy cụ thể
+
+// Session
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options => {
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
 });
 
-
-// --- Các dịch vụ khác (DbContext, Logger, v.v.) ---
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))); // Thay bằng chuỗi kết nối của bạn
-
-// Thêm Logger (nếu dùng trong Controller)
+// Logger
 builder.Services.AddLogging();
+
+// Custom Services
+builder.Services.AddScoped<IRecommendationService, RecommendationService>(); // Đăng ký service
 
 
 var app = builder.Build();
@@ -57,11 +58,10 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-// --- KÍCH HOẠT MIDDLEWARE XÁC THỰC VÀ AUTHORIZATION ---
-// Đặt UseAuthentication() TRƯỚC UseAuthorization()
-app.UseAuthentication(); // Xác định người dùng là ai (dựa trên cookie)
-app.UseAuthorization(); // Kiểm tra xem người dùng có quyền truy cập không
+app.UseSession(); // Đặt UseSession() trước UseAuthentication và UseAuthorization
 
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",

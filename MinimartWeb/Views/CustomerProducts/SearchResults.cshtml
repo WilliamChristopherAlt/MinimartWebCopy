@@ -1,39 +1,201 @@
-﻿@model IEnumerable<MinimartWeb.Model.ProductType>
+﻿@model MinimartWeb.ViewModels.SearchResultsViewModel
 @{
-    ViewData["Title"] = "Search Results";
-    var keyword = ViewBag.SearchKeyword as string;
+    ViewData["Title"] = $"Kết quả cho '{Model.Keyword}'";
 }
 
-<div class="container mt-4">
-    <h3 class="mb-4">Search Results for "<strong>@keyword</strong>"</h3>
-
-    @if (!Model.Any())
+<div class="container mt-4 search-results-page">
+    @* Thêm class để target CSS dễ hơn *@
+    @if (!string.IsNullOrWhiteSpace(Model.Keyword))
     {
-        <p class="text-muted">No products found.</p>
+        <h2 class="mb-4">Kết quả tìm kiếm cho: "<strong>@Model.Keyword</strong>"</h2>
+        @if (Model.SearchResults.Any())
+        {
+            <div class="row row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-3 product-grid-layout">
+                @* Các class responsive columns *@
+                @foreach (var product in Model.SearchResults)
+                {
+                    <partial name="_RegularProductCard" model="product" />
+                }
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-warning text-center" role="alert">
+                Không tìm thấy sản phẩm nào khớp với từ khóa "<strong>@Model.Keyword</strong>".
+            </div>
+        }
+        <hr class="my-5">
     }
     else
     {
-        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4">
-            @foreach (var item in Model)
-
-            {
-                <div class="col">
-                    <div class="card h-100 shadow-sm border-0 rounded-4">
-                        <img src="~/images/products/@item.ImagePath" class="card-img-top" alt="@item.ProductName" style="height: 200px; object-fit: cover;" />
-                        <div class="card-body">
-                            <h5 class="card-title">@item.ProductName</h5>
-                            <p class="card-text text-muted small">@item.ProductDescription</p>
-                            <p class="fw-bold">@item.Price.ToString("C") / @item.MeasurementUnit.UnitName</p>
-                            <p class="text-success">Stock: @item.StockAmount</p>
-                        </div>
-                        <div class="card-footer bg-white border-0 text-end">
-                            <a asp-controller="Cart" asp-action="Add" asp-route-id="@item.ProductTypeID" class="btn btn-sm btn-warning text-white">
-                                <i class="fas fa-cart-plus me-1"></i> Add to Cart
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            }
+        <div class="alert alert-info text-center" role="alert">
+            Vui lòng nhập từ khóa để tìm kiếm.
         </div>
+        <hr class="my-5">
     }
+
+    <section class="other-products-section mt-5">
+        <h3 class="mb-3 h4 fw-bold">Có thể bạn cũng thích</h3>
+        @if (Model.OtherProducts.Any())
+        {
+            <div class="row row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-3 product-grid-layout">
+                @* Áp dụng cùng class lưới *@
+                @foreach (var product in Model.OtherProducts)
+                {
+                    <partial name="_RegularProductCard" model="product" />
+                }
+            </div>
+
+            @if (Model.TotalPages > 1)
+            {
+                <nav aria-label="Page navigation" class="mt-4 d-flex justify-content-center">
+                    <ul class="pagination pagination-sm">
+                        @if (Model.HasPreviousPage)
+                        {
+                            <li class="page-item"><a class="page-link" asp-action="Search" asp-route-keyword="@Model.Keyword" asp-route-currentPage="@(Model.CurrentPage - 1)">«</a></li>
+                        }
+                        else
+                        {
+                            <li class="page-item disabled"><span class="page-link">«</span></li>
+                        }
+                        @for (int i = 1; i <= Model.TotalPages; i++)
+                        {
+                            var pageDiff = Math.Abs(i - Model.CurrentPage);
+                            bool showPage = pageDiff < 2 || i == 1 || i == Model.TotalPages || (Model.CurrentPage <= 3 && i <= 5) || (Model.CurrentPage >= Model.TotalPages - 2 && i >= Model.TotalPages - 4);
+                            bool showEllipsisStart = i == 2 && Model.CurrentPage > 4 && Model.TotalPages > 7;
+                            bool showEllipsisEnd = i == Model.TotalPages - 1 && Model.CurrentPage < Model.TotalPages - 3 && Model.TotalPages > 7;
+
+                            if (showEllipsisStart && i < Model.CurrentPage - 2)
+                            {
+                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                            }
+                            if (showPage)
+                            {
+                                <li class="page-item @(i == Model.CurrentPage ? "active" : "")"><a class="page-link" asp-action="Search" asp-route-keyword="@Model.Keyword" asp-route-currentPage="@i">@i</a></li>
+                            }
+                            if (showEllipsisEnd && i > Model.CurrentPage + 2)
+                            {
+                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                            }
+                        }
+                        @if (Model.HasNextPage)
+                        {
+                            <li class="page-item"><a class="page-link" asp-action="Search" asp-route-keyword="@Model.Keyword" asp-route-currentPage="@(Model.CurrentPage + 1)">»</a></li>
+                        }
+                        else
+                        {
+                            <li class="page-item disabled"><span class="page-link">»</span></li>
+                        }
+                    </ul>
+                </nav>
+            }
+        }
+        else
+        {
+            <p class="text-center text-muted">Không có sản phẩm nào khác để hiển thị.</p>
+        }
+    </section>
 </div>
+
+@section Styles {
+    <style>
+        .search-results-page .product-card {
+            border: 1px solid #e9ecef; /* Viền nhạt hơn */
+            transition: box-shadow 0.3s ease-in-out, transform 0.3s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            background-color: #fff;
+            border-radius: 0.5rem; /* Bo tròn góc */
+            overflow: hidden; /* Đảm bảo các góc bo tròn đẹp */
+        }
+
+            .search-results-page .product-card:hover {
+                box-shadow: 0 .5rem 1rem rgba(0,0,0,.15) !important;
+                transform: translateY(-5px);
+            }
+
+        .search-results-page .product-card-img-link {
+            display: block;
+            overflow: hidden;
+            height: 180px; /* Chiều cao cố định cho vùng ảnh */
+            background-color: #f8f9fa; /* Màu nền nhẹ cho vùng ảnh */
+        }
+
+        .search-results-page .product-card-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* 'contain' để thấy rõ toàn bộ sản phẩm */
+            padding: 0.5rem; /* Khoảng đệm nhỏ quanh ảnh */
+        }
+
+        .search-results-page .product-card-body {
+            padding: 0.8rem;
+            flex-grow: 1; /* Quan trọng để card-body co giãn */
+            display: flex;
+            flex-direction: column; /* Sắp xếp các thành phần bên trong theo chiều dọc */
+        }
+
+        .search-results-page .product-card-title-full {
+            font-size: 0.95rem; /* Kích thước tên sản phẩm */
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.25rem;
+            line-height: 1.3;
+            /* Giới hạn 2 dòng cho tên */
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-height: 2.47em; /* Khoảng 2 dòng với line-height 1.3, điều chỉnh nếu cần */
+        }
+
+        .search-results-page .product-card-desc-full {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-bottom: 0.5rem;
+            line-height: 1.4;
+            /* Giới hạn 2 dòng cho mô tả */
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-height: 2.24em; /* Khoảng 2 dòng */
+        }
+
+            .search-results-page .product-card-desc-full:empty { /* Ẩn nếu rỗng nhưng vẫn giữ không gian */
+                visibility: hidden;
+                min-height: 2.24em; /* Giữ chiều cao tương đương 2 dòng text */
+            }
+
+
+        .search-results-page .product-card-price-unit-full {
+            font-size: 1rem; /* Giá nổi bật hơn */
+            font-weight: 700;
+            color: #212529;
+            margin-bottom: 0.2rem;
+        }
+
+        .search-results-page .product-card-stock-full {
+            font-size: 0.8rem;
+            color: #198754; /* Màu xanh lá cho stock */
+            margin-bottom: 0.75rem;
+        }
+
+        .search-results-page .product-card-footer {
+            margin-top: auto; /* Đẩy các nút xuống dưới cùng */
+            padding-top: 0.5rem;
+            border-top: 1px solid #f0f0f0; /* Đường kẻ nhẹ phía trên nút */
+        }
+
+        .search-results-page .product-action-btn {
+            font-size: 0.8rem;
+            padding: 0.4rem 0.75rem;
+        }
+
+            .search-results-page .product-action-btn i {
+                margin-right: 0.4rem;
+            }
+    </style>
+}

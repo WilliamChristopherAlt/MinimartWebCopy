@@ -9,11 +9,12 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css" />
 
     <!-- Inline Styles -->
     <style>
         body {
-            padding-top: 56px; /* Height of fixed navbar */
+            padding-top: 56px;
         }
 
         .navbar-brand img {
@@ -22,9 +23,9 @@
         }
 
         .navbar-menu-link {
-            color: rgba(0, 0, 0, 0.7);
+            color: rgba(0,0,0,.7);
             text-decoration: none;
-            padding: 0.5rem 1rem;
+            padding: .5rem 1rem;
             display: inline-flex;
             align-items: center;
             cursor: pointer;
@@ -37,55 +38,51 @@
             }
 
         .main-container {
-            min-height: calc(100vh - 56px - 72px); /* Adjust footer height if different */
+            min-height: calc(100vh - 56px - 72px);
         }
 
         .footer-link {
             color: #6c757d;
             text-decoration: none;
-            transition: color 0.2s;
+            transition: color .2s;
         }
 
             .footer-link:hover {
                 color: #0d6efd;
             }
 
-        /* Popup Menu Styling */
         .popup-menu {
-            position: fixed; /* Fixed positioning for better control */
-            background-color: white;
+            position: fixed;
+            background-color: #fff;
             border: 1px solid rgba(0,0,0,.125);
-            border-radius: 0.25rem;
+            border-radius: .25rem;
             z-index: 1050;
-            display: none; /* Use display none/block for simpler JS toggle initially */
+            display: none;
             min-width: 200px;
-            padding: 0.5rem 0;
-            box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
-            /* CSS transitions can be added later if display: block works */
-            /* opacity: 0; visibility: hidden; transition: opacity 0.15s ease-in-out, visibility 0.15s ease-in-out; will-change: opacity, visibility; pointer-events: none; */
+            padding: .5rem 0;
+            box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
         }
 
             .popup-menu.popup-visible {
                 display: block;
-                /* opacity: 1; visibility: visible; pointer-events: auto; */
             }
 
             .popup-menu li {
                 padding: 0;
                 border: none;
-                list-style: none !important; /* Ensure no bullets */
+                list-style: none !important;
             }
 
             .popup-menu ul {
                 list-style: none !important;
                 padding-left: 0 !important;
-                margin-bottom: 0 !important; /* Ensure no bullets/padding */
+                margin-bottom: 0 !important;
             }
 
             .popup-menu .dropdown-item {
                 display: flex;
                 align-items: center;
-                padding: 0.5rem 1rem;
+                padding: .5rem 1rem;
                 color: #212529;
                 text-decoration: none;
                 white-space: nowrap;
@@ -98,7 +95,7 @@
                 }
 
                 .popup-menu .dropdown-item i {
-                    margin-right: 0.75rem;
+                    margin-right: .75rem;
                     width: 16px;
                     text-align: center;
                     color: #6c757d;
@@ -109,15 +106,15 @@
                 }
 
             .popup-menu .dropdown-header {
-                padding: 0.5rem 1rem;
-                font-size: 0.875rem;
+                padding: .5rem 1rem;
+                font-size: .875rem;
                 color: #6c757d;
                 font-weight: 600;
             }
 
             .popup-menu .dropdown-divider {
                 height: 1px;
-                margin: 0.5rem 0;
+                margin: .5rem 0;
                 overflow: hidden;
                 background-color: #dee2e6;
                 border: 0;
@@ -127,45 +124,47 @@
             min-width: 220px;
             padding: 0;
         }
-        /* Remove padding for sidebar */
+
         #accountDropdownMenu.popup-menu {
-            padding-top: 0.5rem;
-            padding-bottom: 0.5rem;
+            padding-top: .5rem;
+            padding-bottom: .5rem;
         }
 
-        /* --- CSS PANEL ĐĂNG XUẤT AJAX --- */
         .logout-confirm-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
+            background-color: rgba(0,0,0,.6);
             z-index: 1055;
             display: flex;
             align-items: center;
             justify-content: center;
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+            transition: opacity .2s ease-in-out,visibility 0s linear .2s;
+            pointer-events: none;
         }
 
             .logout-confirm-overlay.show {
                 opacity: 1;
                 visibility: visible;
+                pointer-events: auto;
+                transition: opacity .2s ease-in-out,visibility 0s linear 0s;
             }
 
         .logout-confirm-panel {
             background-color: #fff;
             padding: 25px 30px;
             border-radius: 8px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 8px 25px rgba(0,0,0,.15);
             text-align: center;
             min-width: 320px;
             max-width: 90%;
             z-index: 1056;
-            transform: scale(0.9);
-            transition: transform 0.2s ease-in-out;
+            transform: scale(.9);
+            transition: transform .2s ease-in-out;
         }
 
         .logout-confirm-overlay.show .logout-confirm-panel {
@@ -196,26 +195,28 @@
             cursor: pointer;
         }
 
-        /* --- CSS PANEL ĐĂNG NHẬP AJAX --- */
         .login-panel-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
+            background-color: rgba(0,0,0,.6);
             z-index: 1060;
             display: flex;
             align-items: center;
             justify-content: center;
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+            transition: opacity .2s ease-in-out,visibility 0s linear .2s;
+            pointer-events: none;
         }
 
             .login-panel-overlay.show {
                 opacity: 1;
                 visibility: visible;
+                pointer-events: auto;
+                transition: opacity .2s ease-in-out,visibility 0s linear 0s;
             }
 
         .login-panel {
@@ -223,12 +224,12 @@
             background-color: #fff;
             padding: 30px 35px;
             border-radius: 8px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 8px 25px rgba(0,0,0,.15);
             width: 400px;
             max-width: 95%;
             z-index: 1061;
-            transform: scale(0.9);
-            transition: transform 0.2s ease-in-out;
+            transform: scale(.9);
+            transition: transform .2s ease-in-out;
         }
 
         .login-panel-overlay.show .login-panel {
@@ -239,7 +240,7 @@
             position: absolute;
             top: 10px;
             right: 15px;
-            padding: 0.5rem;
+            padding: .5rem;
         }
     </style>
     @await RenderSectionAsync("Styles", required: false)
@@ -248,73 +249,24 @@
     <header>
         <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom box-shadow fixed-top">
             <div class="container-fluid">
-                <!-- Logo -->
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index" title="Trang chủ">
-                    <img src="~/images/MiniMartlogo.png" alt="MiniMart Logo">
-                </a>
-
-                <!-- Toggler -->
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-
-                <!-- Navbar Content -->
+                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index" title="Trang chủ"><img src="~/images/MiniMartlogo.png" alt="MiniMart Logo"></a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
                 <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                    <!-- Menu Link (Vẫn ở bên trái) -->
-                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                        @* Sử dụng me-auto để đẩy các mục sau sang phải *@
-                        <li class="nav-item">
-                            <a id="menuToggleLink" class="navbar-menu-link d-none d-lg-flex" href="#" role="button">
-                                <i class="fas fa-bars me-1"></i> Menu
-                            </a>
-                            @* Có thể thêm các link menu khác ở đây nếu muốn chúng ở bên trái *@
-                        </li>
-                    </ul>
-
-                    <!-- Search Form (Ở giữa - sử dụng mx-auto và giới hạn chiều rộng) -->
-                    <form class="d-flex search-form my-2 my-lg-0 mx-auto" style="max-width: 600px; width: 100%;" role="search" asp-controller="CustomerProducts" asp-action="Search">
-                        <input class="form-control me-2" type="search" placeholder="Tìm kiếm sản phẩm tại Minimart..." aria-label="Search" name="keyword">
-                        <button class="btn btn-warning" type="submit">
-                            <i class="fas fa-search text-white"></i>
-                        </button>
-                    </form>
-
-                    <!-- Icons (Nhóm lại ở bên phải) -->
-                    <ul class="navbar-nav navbar-icons d-flex flex-row align-items-center ms-lg-3">
-                        @* Bỏ ms-lg-auto, dùng ms-lg-3 để tạo khoảng cách nhỏ *@
-
-                        @* Luôn hiển thị Cart & Notification? Hoặc thêm @if nếu cần *@
-                        @* @if (User.Identity != null && User.Identity.IsAuthenticated) { *@
-                        <li class="nav-item me-3">
-                            <a class="nav-link" asp-controller="Cart" asp-action="Index" title="Giỏ hàng">
-                                <i class="fas fa-shopping-cart fa-lg"></i>
-                                @* Thêm badge nếu cần: <span class="badge bg-danger rounded-pill">3</span> *@
-                            </a>
-                        </li>
-                        <li class="nav-item me-3">
-                            <a class="nav-link" asp-controller="Notification" asp-action="Index" title="Thông báo">
-                                <i class="fas fa-bell fa-lg"></i>
-                                @* Thêm badge nếu cần: <span class="badge bg-warning rounded-pill">!</span> *@
-                            </a>
-                        </li>
-                        @* } *@
-
-                        @* Hiển thị Login button hoặc User icon *@
+                    <a id="menuToggleLink" class="navbar-menu-link d-none d-lg-flex me-3" href="#" role="button"> <i class="fas fa-bars me-1"></i> Menu </a>
+                    <form class="d-flex search-form my-2 my-lg-0 flex-grow-1" role="search" asp-controller="CustomerProducts" asp-action="Search" id="mainSearchForm"> <input class="form-control me-2" type="search" placeholder="Tìm kiếm sản phẩm..." aria-label="Search" name="keyword"> <button class="btn btn-warning" type="submit"> <i class="fas fa-search text-white"></i> </button> </form>
+                    <ul class="navbar-nav navbar-icons d-flex flex-row align-items-center ms-lg-auto">
+                        @if (User.Identity != null && User.Identity.IsAuthenticated && User.IsInRole("Customer"))
+                        {
+                            <li class="nav-item me-3"> <a class="nav-link" asp-controller="Cart" asp-action="Index" title="Giỏ hàng"><i class="fas fa-shopping-cart fa-lg"></i></a> </li>
+                            <li class="nav-item me-3"> <a class="nav-link" asp-controller="Notification" asp-action="Index" title="Thông báo"><i class="fas fa-bell fa-lg"></i></a> </li>
+                        }
                         @if (User.Identity != null && User.Identity.IsAuthenticated)
                         {
-                            <li class="nav-item">
-                                <a id="accountDropdownToggle" class="nav-link d-flex align-items-center" href="#" role="button" title="Tài khoản">
-                                    <i class="fas fa-user-circle fa-lg"></i>
-                                </a>
-                            </li>
+                            <li class="nav-item"> <a id="accountDropdownToggle" class="nav-link d-flex align-items-center" href="#" role="button" title="Tài khoản"><i class="fas fa-user-circle fa-lg"></i></a> </li>
                         }
                         else
                         {
-                            <li class="nav-item">
-                                <button type="button" id="ajaxLoginTrigger" class="btn btn-outline-primary btn-sm">
-                                    <i class="fas fa-sign-in-alt me-1"></i> Đăng nhập
-                                </button>
-                            </li>
+                            <li class="nav-item"> <button type="button" id="ajaxLoginTrigger" class="btn btn-outline-primary btn-sm"> <i class="fas fa-sign-in-alt me-1"></i> Đăng nhập </button> </li>
                         }
                     </ul>
                 </div>
@@ -322,20 +274,10 @@
         </nav>
     </header>
 
-    @* Popup Menu Sidebar (Luôn render để JS tìm thấy) *@
     <div id="menuSidebar" class="popup-menu shadow-sm">
-        @* === HTML ĐÃ SỬA ĐỂ BỎ DẤU CHẤM === *@
-        <ul>
-            @* Bỏ style trực tiếp, để CSS xử lý *@
-            <li> <a asp-controller="Categories" asp-action="Index" class="dropdown-item"><i class="fas fa-folder fa-fw me-2"></i>Loại sản phẩm</a> </li>
-            <li> <a asp-controller="Product" asp-action="Index" class="dropdown-item"><i class="fas fa-box-open fa-fw me-2"></i>Sản phẩm</a> </li>
-            <li> <a asp-controller="ProductTypes" asp-action="Index" class="dropdown-item"><i class="fas fa-tags fa-fw me-2"></i>Loại hàng hóa</a> </li>
-            <li> <a asp-controller="Supplier" asp-action="Index" class="dropdown-item"><i class="fas fa-truck fa-fw me-2"></i>Nhà cung cấp</a> </li>
-            @* Thêm link khác nếu cần *@
-        </ul>
+        <ul> <li> <a asp-controller="Categories" asp-action="Index" class="dropdown-item"><i class="fas fa-folder fa-fw me-2"></i>Loại sản phẩm</a> </li> <li> <a asp-controller="Product" asp-action="Index" class="dropdown-item"><i class="fas fa-box-open fa-fw me-2"></i>Sản phẩm</a> </li> <li> <a asp-controller="ProductTypes" asp-action="Index" class="dropdown-item"><i class="fas fa-tags fa-fw me-2"></i>Loại hàng hóa</a> </li> <li> <a asp-controller="Supplier" asp-action="Index" class="dropdown-item"><i class="fas fa-truck fa-fw me-2"></i>Nhà cung cấp</a> </li> </ul>
     </div>
 
-    @* Popup Account Dropdown (Chỉ render khi đã đăng nhập) *@
     @if (User.Identity != null && User.Identity.IsAuthenticated)
     {
         <ul id="accountDropdownMenu" class="popup-menu shadow-sm">
@@ -350,7 +292,6 @@
             {
                 <li><a class="dropdown-item" asp-controller="Employees" asp-action="Index"><i class="fas fa-user-tie fa-fw me-2"></i>Quản lý nhân viên</a></li>
                 <li><a class="dropdown-item" asp-controller="Customers" asp-action="Index"><i class="fas fa-users fa-fw me-2"></i>Quản lý khách hàng</a></li>
-                /* Thêm link quản lý khác */
             }
             <li><hr class="dropdown-divider"></li>
             <li> <a id="logoutAjaxLink" class="dropdown-item" href="#"> <i class="fas fa-sign-out-alt fa-fw me-2"></i>Đăng xuất </a> </li>
@@ -367,7 +308,6 @@
         <div class="container"> <div class="row gy-3"> <div class="col-lg-7 col-md-6"> <h5 class="mb-2">Thông tin liên hệ</h5> <ul class="list-unstyled mb-0"> <li class="mb-1 small"> <i class="fas fa-phone fa-fw me-1"></i> Hotline: <a href="tel:0123456789" class="footer-link">0123 456 789</a> </li> <li class="mb-1 small"> <i class="fas fa-envelope fa-fw me-1"></i> Email: <a href="mailto:siuers@siu.edu.vn" class="footer-link">siuers@siu.edu.vn</a> </li> <li class="mb-1 small"> <i class="fas fa-map-marker-alt fa-fw me-1"></i> Địa chỉ: 8C Tống Hữu Định, P. Thảo Điền, Q.2, TP.HCM </li> </ul> </div> <div class="col-lg-4 col-md-6 offset-lg-1"> <h5 class="mb-2">Về chúng tôi</h5> <ul class="list-unstyled mb-0"> <li class="mb-1 small"> <a asp-area="" asp-controller="Home" asp-action="About" class="footer-link">Giới thiệu</a> </li> <li class="mb-1 small"> <a asp-area="" asp-controller="Home" asp-action="Terms" class="footer-link">Điều khoản sử dụng</a> </li> <li class="mb-1 small"> <a asp-area="" asp-controller="Home" asp-action="Privacy" class="footer-link">Chính sách bảo mật</a> </li> </ul> </div> </div> <hr class="my-3"> <div class="row"> <div class="col-12 text-center"> <p class="mb-0 small">© @DateTime.Now.Year Bản quyền thuộc về Minimart.</p> </div> </div> </div>
     </footer>
 
-    @* Panels AJAX (Render có điều kiện) *@
     @if (User.Identity != null && User.Identity.IsAuthenticated)
     {
         <div id="ajaxLogoutConfirmPanel" class="logout-confirm-overlay"> <div class="logout-confirm-panel"> <h5>Xác nhận Đăng xuất</h5> <p>Bạn có chắc chắn muốn đăng xuất?</p> <div class="logout-confirm-buttons"> <button id="ajaxConfirmLogoutBtn" class="btn btn-danger btn-sm">Xác nhận</button> <button id="ajaxCancelLogoutBtn" class="btn btn-secondary btn-sm">Hủy</button> </div> </div> </div>
@@ -379,65 +319,107 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
 
-    <script>var activePopupHandlers = [];</script> @* Global variable initialized first *@
+    @* ===== KHAI BÁO BIẾN TOÀN CỤC VÀ CÁC HÀM CHUNG ===== *@
+    <script>
+        var activePopupHandlers = []; // Biến toàn cục cho các popup handler
+        var recommendedSwiperInstance = null; // Biến toàn cục cho Swiper của Recommended Products
 
-    @* Combined Script Block *@
+        // Hàm làm mới gợi ý (sẽ được gọi sau các hành động)
+        function refreshRecommendedProducts() {
+            console.log("Attempting to refresh recommended products...");
+            const wrapper = document.getElementById('recommendedCarouselWrapper');
+            const containerSection = document.getElementById('recommendedProductsContainer');
+
+            if (!wrapper || !containerSection) {
+                console.error("Recommended carousel wrapper or container not found.");
+                return;
+            }
+
+            wrapper.innerHTML = '<div class="text-center p-3"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Đang tải gợi ý...</div>'; // Loading indicator
+            containerSection.style.display = 'block';
+
+
+            fetch('/Home/GetUpdatedRecommendations')
+                .then(response => {
+                    if (!response.ok) { throw new Error('Network response was not ok: ' + response.status); }
+                    return response.text();
+                })
+                .then(html => {
+                    wrapper.innerHTML = html;
+                    if (!html.trim() || wrapper.querySelector('.swiper-slide') === null) {
+                        // containerSection.style.display = 'none'; // Không ẩn section nữa, có thể hiển thị "không có gợi ý"
+                        wrapper.innerHTML = "<p class='text-center text-muted p-3'>Hiện chưa có gợi ý mới cho bạn.</p>";
+                        console.log("No new recommendations to display.");
+                    } else {
+                        // containerSection.style.display = 'block'; // Đảm bảo section hiện
+                    }
+
+                    if (window.recommendedSwiperInstance) {
+                        window.recommendedSwiperInstance.destroy(true, true);
+                        window.recommendedSwiperInstance = null;
+                    }
+
+                    const newSwiperElement = wrapper.querySelector('.recommended-swiper');
+                    const newRecommendedProductsCount = newSwiperElement ? newSwiperElement.querySelectorAll('.swiper-slide').length : 0;
+
+                    if (newSwiperElement && newRecommendedProductsCount > 0) {
+                        window.recommendedSwiperInstance = new Swiper(newSwiperElement, {
+                            slidesPerView: 1.8, spaceBetween: 8, grabCursor: true,
+                            loop: newRecommendedProductsCount > 9,
+                            pagination: { el: '.recommended-pagination', clickable: true, },
+                            navigation: { nextEl: '.recommended-next', prevEl: '.recommended-prev', },
+                            breakpoints: { 576: { slidesPerView: 3.2, spaceBetween: 10 }, 768: { slidesPerView: 4.2, spaceBetween: 10 }, 992: { slidesPerView: 6.2, spaceBetween: 12 }, 1200: { slidesPerView: 8.2, spaceBetween: 12 }, 1400: { slidesPerView: 9, spaceBetween: 10 }, 1600: { slidesPerView: 10, spaceBetween: 10 }, 1920: { slidesPerView: 11, spaceBetween: 10 } }
+                        });
+                        console.log("New recommendedSwiper initialized with " + newRecommendedProductsCount + " slides.");
+                    } else {
+                        console.log("No new swiper element or slides after refresh.");
+                    }
+                })
+                .catch(error => {
+                    console.error('Error refreshing recommended products:', error);
+                    if (wrapper) wrapper.innerHTML = "<p class='text-center text-danger p-3'>Lỗi tải gợi ý.</p>";
+                });
+        }
+
+        // Trigger làm mới gợi ý từ sessionStorage (ví dụ)
+        function checkAndTriggerRefresh() {
+            if (sessionStorage.getItem('triggerRefreshRecommendations') === 'true') {
+                refreshRecommendedProducts();
+                sessionStorage.removeItem('triggerRefreshRecommendations');
+                console.log("Triggered refresh from session storage.");
+            }
+        }
+
+    </script>
+
+    @* Script chính trong DOMContentLoaded *@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // --- Start: Popup Handler Logic ---
-            const navbar = document.querySelector('nav.navbar');
-            const popupVisibleClass = 'popup-visible';
-            const hideDelay = 150;
+            if (!Array.isArray(activePopupHandlers)) { activePopupHandlers = []; } // Đảm bảo là mảng
 
-            function createPopupHandler(config) {
-                const { triggerElement, popupElement, positionFunction, interactionType = 'click' } = config;
-                if (!triggerElement || !popupElement || !navbar) { return null; }
-                let leaveTimeout;
-                const show = () => {
-                    if (!Array.isArray(activePopupHandlers)) activePopupHandlers = [];
-                    activePopupHandlers.forEach(handler => { if (handler && handler.popupElement !== popupElement && handler.isVisible) { handler.hide(true); } });
-                    clearTimeout(leaveTimeout);
-                    if (positionFunction) { positionFunction(triggerElement, popupElement, navbar); }
-                    popupElement.classList.add(popupVisibleClass);
-                };
-                const hide = (immediate = false) => {
-                    clearTimeout(leaveTimeout);
-                    if (immediate || interactionType === 'click') { popupElement.classList.remove(popupVisibleClass); }
-                    else { leaveTimeout = setTimeout(() => { if (!popupElement.matches(':hover')) { popupElement.classList.remove(popupVisibleClass); } }, hideDelay); }
-                };
-                const toggle = (e) => { e.preventDefault(); popupElement.classList.contains(popupVisibleClass) ? hide(true) : show(); };
-                if (interactionType === 'click') { triggerElement.addEventListener('click', toggle); popupElement.addEventListener('click', (e) => e.stopPropagation()); }
-                else if (interactionType === 'hover') { triggerElement.addEventListener('mouseenter', show); triggerElement.addEventListener('mouseleave', () => hide(false)); popupElement.addEventListener('mouseenter', () => clearTimeout(leaveTimeout)); popupElement.addEventListener('mouseleave', () => hide(false)); }
-                return { triggerElement, popupElement, show, hide, toggle, position: () => { if (positionFunction) positionFunction(triggerElement, popupElement, navbar); }, get isVisible() { return popupElement.classList.contains(popupVisibleClass); } };
-            }
-            const positionMenuSidebar = (trigger, popup, nav) => { if (!trigger || !popup || !nav) return; const n = nav.getBoundingClientRect(), i = trigger.getBoundingClientRect(); popup.style.position = 'fixed'; popup.style.top = `${n.bottom + 1}px`; popup.style.left = `${i.left}px`; popup.style.right = 'auto'; popup.style.transform = 'translateY(0)'; };
-            const positionAccountDropdown = (trigger, popup, nav) => { if (!trigger || !popup || !nav) return; const n = nav.getBoundingClientRect(); popup.style.position = 'fixed'; popup.style.top = `${n.bottom + 1}px`; const i = 10; popup.style.right = `${i}px`; popup.style.left = 'auto'; popup.style.transform = 'translateY(0)'; };
-
-            // Init Handlers
-            const menuToggleLink = document.getElementById('menuToggleLink'); const menuSidebar = document.getElementById('menuSidebar');
-            if (menuToggleLink && menuSidebar) { const menuHandler = createPopupHandler({ triggerElement: menuToggleLink, popupElement: menuSidebar, positionFunction: positionMenuSidebar, interactionType: 'hover' }); if (menuHandler) activePopupHandlers.push(menuHandler); }
-            const accountDropdownToggle = document.getElementById('accountDropdownToggle'); const accountDropdownMenu = document.getElementById('accountDropdownMenu');
-            if (accountDropdownToggle && accountDropdownMenu) { const accountHandler = createPopupHandler({ triggerElement: accountDropdownToggle, popupElement: accountDropdownMenu, positionFunction: positionAccountDropdown, interactionType: 'click' }); if (accountHandler) activePopupHandlers.push(accountHandler); }
-            // --- End: Popup Handler Logic ---
+            // ----- POPUP HANDLER LOGIC -----
+            // ... (Toàn bộ code của Popup Handler, Global Click/Resize Listeners như ở câu trả lời trước) ...
+            const navbar = document.querySelector('nav.navbar'); const popupVisibleClass = 'popup-visible'; const hideDelay = 150; function createPopupHandler(config) { const { triggerElement, popupElement, positionFunction, interactionType = 'click' } = config; if (!triggerElement || !popupElement || !navbar) { return null; } let e; let t = !1; const o = () => { t = popupElement.classList.contains(popupVisibleClass) }, n = () => { activePopupHandlers.forEach(e => { e && e.popupElement !== popupElement && e.isVisible && e.hide(!0) }), clearTimeout(e), positionFunction && positionFunction(triggerElement, popupElement, navbar), popupElement.classList.add(popupVisibleClass), o() }, i = (t = !1) => { clearTimeout(e), t || 'click' === interactionType ? (popupElement.classList.remove(popupVisibleClass), o()) : e = setTimeout(() => { popupElement.matches(':hover') || (popupElement.classList.remove(popupVisibleClass), o()) }, hideDelay) }, s = e => { e.preventDefault(), t ? i(!0) : n() }; return 'click' === interactionType ? (triggerElement.addEventListener('click', s), popupElement.addEventListener('click', e => e.stopPropagation())) : 'hover' === interactionType && (triggerElement.addEventListener('mouseenter', n), triggerElement.addEventListener('mouseleave', () => i(!1)), popupElement.addEventListener('mouseenter', () => clearTimeout(e)), popupElement.addEventListener('mouseleave', () => i(!1))), { triggerElement: triggerElement, popupElement: popupElement, show: n, hide: i, toggle: s, position: () => { positionFunction && positionFunction(triggerElement, popupElement, navbar) }, get isVisible() { o(); return t } }; } const positionMenuSidebar = (t, o, n) => { if (!t || !o || !n) return; const i = n.getBoundingClientRect(), s = t.getBoundingClientRect(); o.style.position = 'fixed', o.style.top = `${i.bottom + 1}px`, o.style.left = `${s.left}px`, o.style.right = 'auto', o.style.transform = 'translateY(0)' }; const positionAccountDropdown = (t, o, n) => { if (!t || !o || !n) return; const i = n.getBoundingClientRect(); o.style.position = 'fixed', o.style.top = `${i.bottom + 1}px`; const s = 10; o.style.right = `${s}px`, o.style.left = 'auto', o.style.transform = 'translateY(0)' }; const menuToggleLink = document.getElementById('menuToggleLink'); const menuSidebar = document.getElementById('menuSidebar'); if (menuToggleLink && menuSidebar) { const menuHandler = createPopupHandler({ triggerElement: menuToggleLink, popupElement: menuSidebar, positionFunction: positionMenuSidebar, interactionType: 'hover' }); if (menuHandler) activePopupHandlers.push(menuHandler); } const accountDropdownToggle = document.getElementById('accountDropdownToggle'); const accountDropdownMenu = document.getElementById('accountDropdownMenu'); if (accountDropdownToggle && accountDropdownMenu) { const accountHandler = createPopupHandler({ triggerElement: accountDropdownToggle, popupElement: accountDropdownMenu, positionFunction: positionAccountDropdown, interactionType: 'click' }); if (accountHandler) activePopupHandlers.push(accountHandler); } document.addEventListener('click', function (event) { let t = !1; const o = document.getElementById('ajaxLoginPanel'), n = document.getElementById('ajaxLogoutConfirmPanel'); if (!Array.isArray(activePopupHandlers)) activePopupHandlers = []; activePopupHandlers.forEach(h => { if (h && h.isVisible && (h.triggerElement.contains(event.target) || h.popupElement.contains(event.target))) { t = !0 } }); if (!t && !(o && o.classList.contains('show') && o.contains(event.target)) && !(n && n.classList.contains('show') && n.contains(event.target))) { activePopupHandlers.forEach(h => { if (h && h.isVisible) { h.hide(!0) } }) } }, !0); let resizeTimeout; window.addEventListener('resize', () => { clearTimeout(resizeTimeout); resizeTimeout = setTimeout(() => { if (!Array.isArray(activePopupHandlers)) activePopupHandlers = []; activePopupHandlers.forEach(handler => { if (handler && handler.isVisible) { handler.position(); } }); }, 150); });
 
 
-            // --- Start: Global Click/Resize Listeners ---
-            document.addEventListener('click', function (event) { let t = !1; const o = document.getElementById('ajaxLoginPanel'), n = document.getElementById('ajaxLogoutConfirmPanel'); if (!Array.isArray(activePopupHandlers)) activePopupHandlers = []; activePopupHandlers.forEach(h => { if (h && h.isVisible && (h.triggerElement.contains(event.target) || h.popupElement.contains(event.target))) { t = !0 } }); if (!t && !(o && o.classList.contains('show') && o.contains(event.target)) && !(n && n.classList.contains('show') && n.contains(event.target))) { activePopupHandlers.forEach(h => { if (h && h.isVisible) { h.hide(!0) } }) } }, !0);
-            let resizeTimeout; window.addEventListener('resize', () => { clearTimeout(resizeTimeout); resizeTimeout = setTimeout(() => { if (!Array.isArray(activePopupHandlers)) activePopupHandlers = []; activePopupHandlers.forEach(handler => { if (handler && handler.isVisible) { handler.position(); } }); }, 150); });
-            // --- End: Global Click/Resize Listeners ---
+            // ----- AJAX LOGOUT -----
+            const logoutLink = document.getElementById('logoutAjaxLink'); const logoutPanel = document.getElementById('ajaxLogoutConfirmPanel'); const confirmLogoutBtn = document.getElementById('ajaxConfirmLogoutBtn'); const cancelLogoutBtn = document.getElementById('ajaxCancelLogoutBtn');
+            if (logoutLink && logoutPanel && confirmLogoutBtn && cancelLogoutBtn) { /* ... JS Logout như cũ ... */ logoutLink.addEventListener('click', (e) => { e.preventDefault(); logoutPanel.classList.add('show'); const t = document.getElementById('accountDropdownMenu'); if (t && t.classList.contains('popup-visible')) { const o = activePopupHandlers?.find(e => e.popupElement === t); o ? o.hide(!0) : t.classList.remove('popup-visible') } }); const closeLogout = () => logoutPanel.classList.remove('show'); cancelLogoutBtn.addEventListener('click', closeLogout); logoutPanel.addEventListener('click', (e) => { if (e.target === logoutPanel) closeLogout() }); confirmLogoutBtn.addEventListener('click', () => { const e = document.querySelector('#ajaxLoginForm input[name="__RequestVerificationToken"], form input[name="__RequestVerificationToken"]'); if (!e || !e.value) { alert('Lỗi bảo mật.'); return } confirmLogoutBtn.disabled = !0; confirmLogoutBtn.innerHTML = '...'; fetch('/Account/Logout', { method: 'POST', headers: { 'RequestVerificationToken': e.value, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } }).then(r => r.ok ? window.location.href = '/Account/Login' : r.text().then(t => alert(`Lỗi (${r.status}): ${t || '?'}`)).finally(closeLogout)).catch(err => { alert('Lỗi mạng.'); closeLogout() }).finally(() => { confirmLogoutBtn.disabled = !1; confirmLogoutBtn.textContent = 'Xác nhận' }) }); }
 
-
-            // --- Start: AJAX Logout Logic ---
-            const logoutLink = document.getElementById('logoutAjaxLink'); const logoutPanel = document.getElementById('ajaxLogoutConfirmPanel'); const confirmLogoutBtn = document.getElementById('ajaxConfirmLogoutBtn'); const cancelLogoutBtn = document.getElementById('ajaxCancelLogoutBtn'); const logoutOverlay = logoutPanel;
-            if (logoutLink && logoutPanel && confirmLogoutBtn && cancelLogoutBtn && logoutOverlay) { logoutLink.addEventListener('click', function (event) { event.preventDefault(); logoutPanel.classList.add('show'); const accountPopup = document.getElementById('accountDropdownMenu'); if (accountPopup && accountPopup.classList.contains('popup-visible')) { const accountHandler = activePopupHandlers?.find(h => h.popupElement === accountPopup); if (accountHandler) { accountHandler.hide(true); } else { accountPopup.classList.remove('popup-visible'); } } }); function closeLogoutPanel() { logoutPanel.classList.remove('show'); } cancelLogoutBtn.addEventListener('click', closeLogoutPanel); logoutOverlay.addEventListener('click', function (event) { if (event.target === logoutOverlay) { closeLogoutPanel(); } }); confirmLogoutBtn.addEventListener('click', function () { const tokenInput = document.querySelector('#ajaxLoginForm input[name="__RequestVerificationToken"], form input[name="__RequestVerificationToken"]'); if (!tokenInput || !tokenInput.value) { console.error('AntiForgeryToken!'); alert('Lỗi bảo mật.'); return; } const token = tokenInput.value; confirmLogoutBtn.disabled = true; confirmLogoutBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> ...'; fetch('/Account/Logout', { method: 'POST', headers: { 'RequestVerificationToken': token, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } }).then(response => { if (response.ok) { window.location.href = '/Account/Login'; } else { console.error('Logout fail:', response.status); response.text().then(text => { alert(`Logout Err (${response.status}): ${text || '?'}`); }).catch(() => alert(`Logout Err (${response.status})`)); closeLogoutPanel(); } }).catch(error => { console.error('Logout Net err:', error); alert('Lỗi mạng.'); closeLogoutPanel(); }).finally(() => { confirmLogoutBtn.disabled = false; confirmLogoutBtn.innerHTML = 'Xác nhận'; }); }); }
-            // --- End: AJAX Logout Logic ---
-
-
-            // --- Start: AJAX Login Logic ---
+            // ----- AJAX LOGIN -----
             const loginTrigger = document.getElementById('ajaxLoginTrigger'); const loginPanelOverlay = document.getElementById('ajaxLoginPanel');
-            if (loginTrigger && loginPanelOverlay) { const loginPanel = loginPanelOverlay.querySelector('.login-panel'); const closeLoginBtn = loginPanelOverlay.querySelector('.login-panel-close'); const loginForm = document.getElementById('ajaxLoginForm'); const submitLoginBtn = document.getElementById('ajaxLoginSubmitBtn'); const loginErrorSummary = document.getElementById('ajaxLoginErrorSummary'); const usernameInput = document.getElementById('ajaxUsername'); const passwordInput = document.getElementById('ajaxPassword'); const userTypeSelect = document.getElementById('ajaxUserType'); const usernameError = document.getElementById('ajaxUsernameError'); const passwordError = document.getElementById('ajaxPasswordError'); const userTypeError = document.getElementById('ajaxUserTypeError'); if (!loginPanel || !closeLoginBtn || !loginForm || !submitLoginBtn) { console.error("Missing login panel elements."); return; } loginTrigger.addEventListener('click', function () { loginPanelOverlay.classList.add('show'); }); function closeLoginPanelFunc() { loginPanelOverlay.classList.remove('show'); clearLoginErrorsFunc(); loginForm.reset(); } closeLoginBtn.addEventListener('click', closeLoginPanelFunc); loginPanelOverlay.addEventListener('click', function (event) { if (event.target === loginPanelOverlay) { closeLoginPanelFunc(); } }); function clearLoginErrorsFunc() { if (usernameError) usernameError.textContent = ''; if (passwordError) passwordError.textContent = ''; if (userTypeError) userTypeError.textContent = ''; if (loginErrorSummary) { loginErrorSummary.textContent = ''; loginErrorSummary.style.display = 'none'; } if (usernameInput) usernameInput.classList.remove('is-invalid'); if (passwordInput) passwordInput.classList.remove('is-invalid'); if (userTypeSelect) userTypeSelect.classList.remove('is-invalid'); } function displayLoginErrorsFunc(errorData) { clearLoginErrorsFunc(); console.log("Login Error:", errorData); if (errorData && typeof errorData === 'object') { if (errorData.errors && typeof errorData.errors === 'object') { let g = []; for (const k in errorData.errors) { const m = Array.isArray(errorData.errors[k]) ? errorData.errors[k].join('; ') : errorData.errors[k]; const lk = k.toLowerCase(); if (lk === 'username' && usernameError && usernameInput) { usernameError.textContent = m; usernameInput.classList.add('is-invalid'); } else if (lk === 'password' && passwordError && passwordInput) { passwordError.textContent = m; passwordInput.classList.add('is-invalid'); } else if (lk === 'usertype' && userTypeError && userTypeSelect) { userTypeError.textContent = m; userTypeSelect.classList.add('is-invalid'); } else { g.push(`${k}: ${m}`); } } if (g.length > 0 && loginErrorSummary) { loginErrorSummary.innerHTML = g.join('<br>'); loginErrorSummary.style.display = 'block'; } } else if (errorData.message && loginErrorSummary) { loginErrorSummary.textContent = errorData.message; loginErrorSummary.style.display = 'block'; } else if (loginErrorSummary) { loginErrorSummary.textContent = 'Lỗi server.'; loginErrorSummary.style.display = 'block'; } } else if (loginErrorSummary) { loginErrorSummary.textContent = errorData || 'Lỗi không xác định.'; loginErrorSummary.style.display = 'block'; } } loginForm.addEventListener('submit', function (event) { event.preventDefault(); clearLoginErrorsFunc(); submitLoginBtn.disabled = true; submitLoginBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> ...'; const formData = new FormData(loginForm); const tokenInput = loginForm.querySelector('input[name="__RequestVerificationToken"]'); if (!tokenInput || !tokenInput.value) { console.error('AntiForgeryToken!'); displayLoginErrorsFunc({ message: 'Lỗi bảo mật.' }); submitLoginBtn.disabled = false; submitLoginBtn.innerHTML = '<i class="fas fa-sign-in-alt me-1"></i> Đăng nhập'; return; } const token = tokenInput.value; fetch(loginForm.action, { method: 'POST', headers: { 'RequestVerificationToken': token, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: formData }).then(async response => { const contentType = response.headers.get("content-type"); if (response.ok) { if (contentType && contentType.includes("application/json")) { const result = await response.json(); if (result.success && result.redirectUrl) { window.location.href = result.redirectUrl; } else { displayLoginErrorsFunc({ message: result.message || 'Phản hồi không hợp lệ.' }); } } else { const text = await response.text(); console.warn("OK non-JSON:", text); displayLoginErrorsFunc({ message: `Lỗi định dạng (${response.status}).` }); } } else { if (contentType && contentType.includes("application/json")) { const errorData = await response.json(); displayLoginErrorsFunc(errorData); } else { const errorText = await response.text(); console.error("Error non-JSON:", errorText); displayLoginErrorsFunc({ message: `Lỗi ${response.status}.` }); } } }).catch(error => { console.error('Network error:', error); displayLoginErrorsFunc({ message: 'Lỗi mạng.' }); }).finally(() => { submitLoginBtn.disabled = false; submitLoginBtn.innerHTML = '<i class="fas fa-sign-in-alt me-1"></i> Đăng nhập'; }); }); }
-            // --- End: AJAX Login Logic ---
+            if (loginTrigger && loginPanelOverlay) { /* ... JS Login như cũ ... */ const e = loginPanelOverlay.querySelector('.login-panel'), t = loginPanelOverlay.querySelector('.login-panel-close'), o = document.getElementById('ajaxLoginForm'), n = document.getElementById('ajaxLoginSubmitBtn'), i = document.getElementById('ajaxLoginErrorSummary'), s = document.getElementById('ajaxUsername'), l = document.getElementById('ajaxPassword'), r = document.getElementById('ajaxUserType'), a = document.getElementById('ajaxUsernameError'), d = document.getElementById('ajaxPasswordError'), c = document.getElementById('ajaxUserTypeError'); if (!e || !t || !o || !n) { return } loginTrigger.addEventListener('click', () => loginPanelOverlay.classList.add('show')); const p = () => { loginPanelOverlay.classList.remove('show'); u(); o.reset() }; t.addEventListener('click', p); loginPanelOverlay.addEventListener('click', (e) => { if (e.target === loginPanelOverlay) p() }); const u = () => { if (a) a.textContent = ''; if (d) d.textContent = ''; if (c) c.textContent = ''; if (i) { i.textContent = ''; i.style.display = 'none' } if (s) s.classList.remove('is-invalid'); if (l) l.classList.remove('is-invalid'); if (r) r.classList.remove('is-invalid') }; const m = (e) => { u(); if (e && typeof e === 'object') { if (e.errors && typeof e.errors === 'object') { let t = []; for (const o in e.errors) { const n = Array.isArray(e.errors[o]) ? e.errors[o].join('; ') : e.errors[o], s = o.toLowerCase(); 'username' === s && a && s ? (a.textContent = n, s.classList.add('is-invalid')) : 'password' === s && d && l ? (d.textContent = n, l.classList.add('is-invalid')) : 'usertype' === s && c && r ? (c.textContent = n, r.classList.add('is-invalid')) : t.push(`${o}: ${n}`) } t.length > 0 && i && (i.innerHTML = t.join('<br>'), i.style.display = 'block') } else e.message && i ? (i.textContent = e.message, i.style.display = 'block') : i && (i.textContent = 'Lỗi server.', i.style.display = 'block') } else i && (i.textContent = e || 'Lỗi không xác định.', i.style.display = 'block') }; o.addEventListener('submit', (e) => { e.preventDefault(); u(); n.disabled = !0; n.innerHTML = '...'; const t = new FormData(o), i = o.querySelector('input[name="__RequestVerificationToken"]'); if (!i || !i.value) { m({ message: 'Lỗi bảo mật.' }); n.disabled = !1; n.innerHTML = '<i class="fas fa-sign-in-alt me-1"></i> Đăng nhập'; return } fetch(o.action, { method: 'POST', headers: { 'RequestVerificationToken': i.value, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: t }).then(async r => { const c = r.headers.get("content-type"); if (r.ok) { if (c && c.includes("application/json")) { const t = await r.json(); t.success && t.redirectUrl ? window.location.href = t.redirectUrl : m({ message: t.message || 'Phản hồi lỗi.' }) } else { const t = await r.text(); m({ message: `Lỗi định dạng (${r.status}).` }) } } else { if (c && c.includes("application/json")) { const t = await r.json(); m(t) } else { const t = await r.text(); m({ message: `Lỗi ${r.status}.` }) } } }).catch(err => m({ message: 'Lỗi mạng.' })).finally(() => { n.disabled = !1; n.innerHTML = '<i class="fas fa-sign-in-alt me-1"></i> Đăng nhập' }) }); }
+
+            // Kiểm tra và trigger refresh recommendations khi trang tải nếu có cờ
+            checkAndTriggerRefresh();
+
+            // Lắng nghe sự kiện 'triggerRecommendationRefresh' tùy chỉnh trên document
+            document.addEventListener('triggerRecommendationRefresh', function () {
+                console.log("Custom event 'triggerRecommendationRefresh' received.");
+                refreshRecommendedProducts();
+            });
 
         }); // End DOMContentLoaded
     </script>

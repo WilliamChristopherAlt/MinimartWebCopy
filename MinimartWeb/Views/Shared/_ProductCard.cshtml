@@ -1,0 +1,66 @@
+﻿@model MinimartWeb.ViewModels.ProductViewModel
+@{
+    string FormatCurrency(decimal price) => price.ToString("N0") + "đ";
+    string FormatStock(decimal stock) => stock.ToString("N0");
+}
+
+<div class="col">
+    <div class="card h-100 product-card">
+        <a asp-controller="CustomerProducts" asp-action="Details" asp-route-id="@Model.Id" class="product-card-img-link">
+            <img src="@(string.IsNullOrEmpty(Model.ImagePath) ? "/images/placeholder.png" : $"/images/products/{Model.ImagePath}")"
+                 class="card-img-top product-card-img" loading="lazy" alt="@Model.Name">
+        </a>
+        <div class="product-card-body">
+            <div>
+                <h6 class="product-card-title">
+                    @* Sử dụng style chung cho title *@
+                    <a asp-controller="CustomerProducts" asp-action="Details" asp-route-id="@Model.Id" class="text-dark text-decoration-none stretched-link" title="@Model.Name">
+                        @Model.Name
+                    </a>
+                </h6>
+
+                @* Hiển thị Mô tả, Giá/Đơn vị, Kho tùy theo bạn muốn cho card chung này *@
+                @if (!string.IsNullOrWhiteSpace(Model.ProductDescription))
+                {
+                    <p class="product-card-desc-shared">@Model.ProductDescription</p> @* Class cho mô tả *@
+                }
+                <p class="product-card-price-unit-shared mb-1">@FormatCurrency(Model.Price) / @Model.MeasurementUnitName</p>
+                @if (Model.StockAmount > 0 && Model.IsActive)
+                {
+                    <p class="product-card-stock-shared mb-2">Kho: @FormatStock(Model.StockAmount)</p>
+                }
+                else
+                {
+                    <p class="text-danger small mb-2 fw-bold">Hết hàng</p>
+                }
+                @* Hiển thị "Đã bán" cho Hot Deal (bạn sẽ truyền một cờ vào partial view) *@
+                @if (ViewData["IsHotDeal"] != null && (bool)ViewData["IsHotDeal"]! && Model.TotalUnitsSold > 0)
+                {
+                    <p class="product-card-sold-hotdeal mb-2">Đã bán: @Model.TotalUnitsSold</p>
+                }
+            </div>
+
+            <div class="product-card-footer mt-auto">
+                @if (Model.StockAmount > 0 && Model.IsActive)
+                {
+                    <div class="d-grid gap-2">
+                        @* Sử dụng d-grid để các nút chiếm toàn bộ chiều rộng và cách nhau *@
+                        @* NÚT THÊM VÀO GIỎ HÀNG *@
+                        <a asp-controller="Cart" asp-action="AddToCartDirect" asp-route-productId="@Model.Id" asp-route-quantity="1" class="btn btn-outline-warning btn-sm product-action-btn">
+                            <i class="fas fa-cart-plus me-1"></i> Thêm vào giỏ
+                        </a>
+                        @* NÚT MUA NGAY *@
+                        <a asp-controller="Checkout" asp-action="BuyNow" asp-route-productId="@Model.Id" asp-route-quantity="1" class="btn btn-warning btn-sm product-action-btn">
+                            @* Trỏ đến CheckoutController, action BuyNow *@
+                            <i class="fas fa-bolt me-1"></i> Mua ngay
+                        </a>
+                    </div>
+                }
+                else
+                {
+                    <button type="button" class="btn btn-secondary btn-sm w-100" disabled>Hết hàng</button>
+                }
+            </div>
+        </div>
+    </div>
+</div>

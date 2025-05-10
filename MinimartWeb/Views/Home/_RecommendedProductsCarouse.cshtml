@@ -1,0 +1,22 @@
+﻿@model IEnumerable<MinimartWeb.ViewModels.ProductViewModel>
+
+@if (Model.Any())
+{
+    <div class="swiper recommended-swiper">
+        <div class="swiper-wrapper">
+            @foreach (var product in Model)
+            {
+                <div class="swiper-slide">
+                    <partial name="_HotDealProductCard" model="product" /> @* Hoặc partial card riêng cho recommended *@
+                </div>
+            }
+        </div>
+        <div class="swiper-pagination recommended-pagination"></div>
+        <div class="swiper-button-next recommended-next"></div>
+        <div class="swiper-button-prev recommended-prev"></div>
+    </div>
+}
+else
+{
+    @* <p class="text-center text-muted">Hiện chưa có gợi ý nào cho bạn.</p> *@
+}

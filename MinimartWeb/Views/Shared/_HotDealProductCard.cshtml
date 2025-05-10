@@ -1,0 +1,37 @@
+﻿@model MinimartWeb.ViewModels.ProductViewModel
+@{
+    string FormatCurrency(decimal price) => price.ToString("N0") + "đ";
+}
+
+<div class="col">
+    <div class="card h-100 product-card product-card-hotdeal">
+        <a asp-controller="CustomerProducts" asp-action="Details" asp-route-id="@Model.Id" class="product-card-img-link">
+            <img src="@(string.IsNullOrEmpty(Model.ImagePath) ? "/images/placeholder.png" : $"/images/products/{Model.ImagePath}")" class="card-img-top product-card-img" loading="lazy" alt="@Model.Name">
+        </a>
+        <div class="product-card-body text-center">
+            <div>
+                <h6 class="product-card-title justify-content-center">
+                    <a asp-controller="CustomerProducts" asp-action="Details" asp-route-id="@Model.Id" class="text-dark text-decoration-none stretched-link" title="@Model.Name">@Model.Name</a>
+                </h6>
+                <p class="product-card-price mb-1">@FormatCurrency(Model.Price)</p>
+                @if (Model.TotalUnitsSold > 0)
+                {
+                    <p class="product-card-sold mb-2">Đã bán: @Model.TotalUnitsSold</p>
+                }
+            </div>
+            <div class="product-card-footer mt-auto">
+                @if (Model.StockAmount > 0 && Model.IsActive)
+                {
+                    <div class="d-flex justify-content-center gap-2">
+                        <a asp-controller="Cart" asp-action="AddToCartDirect" asp-route-productId="@Model.Id" asp-route-quantity="1" class="btn btn-sm btn-outline-warning product-action-btn p-1 px-2" title="Thêm vào giỏ"> <i class="fas fa-cart-plus"></i> </a>
+                        <a asp-controller="Checkout" asp-action="BuyNow" asp-route-productId="@Model.Id" asp-route-quantity="1" class="btn btn-sm btn-warning product-action-btn p-1 px-2" title="Mua ngay"> <i class="fas fa-bolt"></i> </a>
+                    </div>
+                }
+                else
+                {
+                    <button type="button" class="btn btn-secondary btn-sm w-100" disabled>Hết hàng</button>
+                }
+            </div>
+        </div>
+    </div>
+</div>
