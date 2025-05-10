@@ -5,13 +5,13 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MinimartWeb.Model // Đảm bảo namespace đúng
 {
+    [Table("ViewHistories")]
     public class ViewHistory
     {
         [Key]
         public long ViewHistoryID { get; set; }
-
         public int? CustomerID { get; set; } // Nullable
-        [ForeignKey("CustomerID")]
+
         public virtual Customer? Customer { get; set; } // Navigation property, nullable
 
         [MaxLength(255)]

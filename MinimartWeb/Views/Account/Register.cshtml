@@ -1,0 +1,121 @@
+﻿@model MinimartWeb.Models.RegisterViewModel
+@{
+    ViewData["Title"] = "Đăng ký tài khoản mới";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white text-center">
+                    <h4 class="mb-0">@ViewData["Title"]</h4>
+                </div>
+                <div class="card-body p-4">
+                    <form asp-action="Register" method="post" enctype="multipart/form-data">
+                        @* enctype="multipart/form-data" cần thiết nếu bạn cho phép tải ProfileImage *@
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3 alert alert-danger" role="alert"></div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="FirstName" class="form-label"></label>
+                                <input asp-for="FirstName" class="form-control form-control-sm" placeholder="Ví dụ: Văn" />
+                                <span asp-validation-for="FirstName" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="LastName" class="form-label"></label>
+                                <input asp-for="LastName" class="form-control form-control-sm" placeholder="Ví dụ: An" />
+                                <span asp-validation-for="LastName" class="text-danger small"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Email" class="form-label"></label>
+                            <input asp-for="Email" type="email" class="form-control form-control-sm" placeholder="vidu@example.com" />
+                            <span asp-validation-for="Email" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="PhoneNumber" class="form-label"></label>
+                            <input asp-for="PhoneNumber" type="tel" class="form-control form-control-sm" placeholder="09xxxxxxxx" />
+                            <span asp-validation-for="PhoneNumber" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Username" class="form-label"></label>
+                            <input asp-for="Username" class="form-control form-control-sm" placeholder="Tối thiểu 3 ký tự" />
+                            <span asp-validation-for="Username" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Password" class="form-label"></label>
+                            <input asp-for="Password" type="password" class="form-control form-control-sm" placeholder="Tối thiểu 6 ký tự" />
+                            <span asp-validation-for="Password" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="ConfirmPassword" class="form-label"></label>
+                            <input asp-for="ConfirmPassword" type="password" class="form-control form-control-sm" placeholder="Nhập lại mật khẩu" />
+                            <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+                        </div>
+
+                        @* Bỏ comment phần này nếu bạn muốn cho phép tải ảnh đại diện khi đăng ký *@
+                        @*
+                        <div class="mb-3">
+                        <label asp-for="ProfileImage" class="form-label"></label>
+                        <input asp-for="ProfileImage" type="file" class="form-control form-control-sm">
+                        <span asp-validation-for="ProfileImage" class="text-danger small"></span>
+                        </div>
+                        *@
+
+                        @* Ví dụ thêm checkbox đồng ý điều khoản (nếu có) *@
+                        @*
+                        <div class="form-check mb-3">
+                        <input asp-for="AcceptTerms" type="checkbox" class="form-check-input" />
+                        <label asp-for="AcceptTerms" class="form-check-label">
+                        Tôi đồng ý với <a href="/Home/Terms" target="_blank">điều khoản dịch vụ</a>.
+                        </label>
+                        <span asp-validation-for="AcceptTerms" class="text-danger small d-block"></span>
+                        </div>
+                        *@
+
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary btn-block">
+                                <i class="fas fa-user-plus me-2"></i>Đăng ký
+                            </button>
+                        </div>
+                    </form>
+                    <hr class="my-3" />
+                    <div class="text-center">
+                        <p class="mb-0 small">
+                            Đã có tài khoản?
+                            <a href="#" id="loginFromRegisterLink">Đăng nhập ngay</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const loginLink = document.getElementById('loginFromRegisterLink');
+            if (loginLink) {
+                loginLink.addEventListener('click', function(event) {
+                    event.preventDefault(); // Ngăn không cho link điều hướng
+                    const ajaxLoginTrigger = document.getElementById('ajaxLoginTrigger');
+                    if (ajaxLoginTrigger) {
+                        ajaxLoginTrigger.click(); // Kích hoạt modal đăng nhập AJAX
+                    } else {
+                        // Fallback nếu không tìm thấy trigger (ví dụ: chuyển đến trang đăng nhập riêng)
+                        window.location.href = '@Url.Action("Login", "Account")';
+                    }
+                });
+            }
+        });
+    </script>
+}

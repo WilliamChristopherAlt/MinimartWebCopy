@@ -1,4 +1,7 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿// Trong file: Model/Customer.cs
+using System;
+using System.Collections.Generic; // Cần cho ICollection
+using System.ComponentModel.DataAnnotations;
 
 namespace MinimartWeb.Model
 {
@@ -7,48 +10,54 @@ namespace MinimartWeb.Model
         [Key]
         public int CustomerID { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Họ là bắt buộc.")]
         [StringLength(255)]
-        [Display(Name = "First Name")]
+        [Display(Name = "Họ")]
         public string FirstName { get; set; }
 
+        // ... (các thuộc tính khác của Customer giữ nguyên) ...
         [Required]
         [StringLength(255)]
-        [Display(Name = "Last Name")]
+        [Display(Name = "Tên")]
         public string LastName { get; set; }
 
-        [Required]
-        [EmailAddress]
+        [Required(ErrorMessage = "Email là bắt buộc.")]
+        [EmailAddress(ErrorMessage = "Địa chỉ email không hợp lệ.")]
         [StringLength(255)]
-        [Display(Name = "Email Address")]
+        [Display(Name = "Địa chỉ Email")]
         public string Email { get; set; }
 
-        [Required]
-        [RegularExpression(@"^\d{10}$", ErrorMessage = "Phone number must be exactly 10 digits.")]
-        [Display(Name = "Phone Number")]
+        [Required(ErrorMessage = "Số điện thoại là bắt buộc.")]
+        [RegularExpression(@"^\d{10}$", ErrorMessage = "Số điện thoại phải có đúng 10 chữ số.")]
+        [Display(Name = "Số điện thoại")]
         public string PhoneNumber { get; set; }
 
         [StringLength(512)]
-        [Display(Name = "Profile Image")]
+        [Display(Name = "Ảnh đại diện")]
         public string? ImagePath { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Tên đăng nhập là bắt buộc.")]
         [StringLength(255)]
-        [Display(Name = "Username")]
+        [Display(Name = "Tên đăng nhập")]
         public string Username { get; set; }
 
         [Required]
-        [MaxLength(64)]
-        [Display(Name = "Password Hash")]
         public byte[] PasswordHash { get; set; }
 
         [Required]
-        [MaxLength(64)]
-        [Display(Name = "Salt")]
         public byte[] Salt { get; set; }
 
-        // Navigation property
-        public ICollection<Sale> Sales { get; set; } = new HashSet<Sale>();
-        public ICollection<OtpRequest> OtpRequests { get; set; } = new HashSet<OtpRequest>();
+        [Display(Name = "Đã xác minh Email")]
+        public bool IsEmailVerified { get; set; }
+
+        [Display(Name = "Thời điểm xác minh Email")]
+        public DateTime? EmailVerifiedAt { get; set; }
+
+
+        // === NAVIGATION PROPERTIES CẦN THÊM/SỬA ===
+        public virtual ICollection<Sale> Sales { get; set; } = new HashSet<Sale>(); // Collection các Sale liên quan
+        public virtual ICollection<OtpRequest> OtpRequests { get; set; } = new HashSet<OtpRequest>(); // Collection các OtpRequest liên quan
+        public virtual ICollection<ViewHistory> ViewHistories { get; set; } = new HashSet<ViewHistory>(); // Nếu có
+        public virtual ICollection<SearchHistory> SearchHistories { get; set; } = new HashSet<SearchHistory>(); // Nếu có
     }
 }

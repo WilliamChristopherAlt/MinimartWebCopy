@@ -5,13 +5,13 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MinimartWeb.Model
 {
+    [Table("SearchHistories")]
     public class SearchHistory
     {
         [Key]
         public long SearchHistoryID { get; set; }
-
         public int? CustomerID { get; set; }
-        [ForeignKey("CustomerID")]
+
         public virtual Customer? Customer { get; set; }
 
         [MaxLength(255)]

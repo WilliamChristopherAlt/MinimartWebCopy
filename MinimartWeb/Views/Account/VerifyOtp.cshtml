@@ -1,0 +1,68 @@
+﻿@* Trong Views/Account/VerifyOtp.cshtml *@
+@model MinimartWeb.Models.VerifyOtpViewModel
+@{
+    ViewData["Title"] = "Xác Minh Mã OTP";
+}
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white text-center">
+                    <h4 class="mb-0">@ViewData["Title"]</h4>
+                </div>
+                <div class="card-body p-4">
+                    @if (TempData["InfoMessage"] != null)
+                    {
+                        <div class="alert alert-info">@TempData["InfoMessage"]</div>
+                    }
+                    @if (TempData["SuccessMessage"] != null)
+                    {
+                        <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+                    }
+                    @if (TempData["ErrorMessage"] != null)
+                    {
+                        <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+                    }
+
+                    <p class="text-center">Một mã OTP đã được gửi đến email: <strong>@ViewBag.EmailToVerify</strong>. Vui lòng kiểm tra hộp thư (cả mục Spam/Junk) và nhập mã vào ô bên dưới để hoàn tất xác minh.</p>
+
+                    <form asp-action="VerifyOtp" method="post">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3 alert alert-danger" role="alert" style="@(ViewData.ModelState.IsValid ? "display:none;" : "")"></div>
+                        @Html.AntiForgeryToken()
+
+                        @* Truyền lại email để action POST có thể sử dụng *@
+                        <input type="hidden" asp-for="Email" value="@ViewBag.EmailToVerify" />
+
+                        <div class="mb-3">
+                            <label asp-for="OtpCode" class="form-label"></label>
+                            <input asp-for="OtpCode" class="form-control form-control-lg text-center" maxlength="6" placeholder="------" autofocus autocomplete="one-time-code" />
+                            <span asp-validation-for="OtpCode" class="text-danger small"></span>
+                        </div>
+
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary btn-block">
+                                <i class="fas fa-check-circle me-2"></i>Xác Minh
+                            </button>
+                        </div>
+                    </form>
+                    <hr class="my-3" />
+                    <div class="text-center">
+                        <p class="mb-0 small">
+                            Không nhận được mã?
+                            <a asp-action="ResendVerificationOtp" asp-route-email="@ViewBag.EmailToVerify">Gửi lại mã OTP</a>
+                            <br />
+                            <a asp-action="Register">Quay lại trang Đăng ký</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}
