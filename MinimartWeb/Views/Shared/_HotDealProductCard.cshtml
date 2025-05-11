@@ -11,27 +11,44 @@
         <div class="product-card-body text-center">
             <div>
                 <h6 class="product-card-title justify-content-center">
-                    <a asp-controller="CustomerProducts" asp-action="Details" asp-route-id="@Model.Id" class="text-dark text-decoration-none stretched-link" title="@Model.Name">@Model.Name</a>
+                    <a asp-controller="CustomerProducts" asp-action="Details" asp-route-id="@Model.Id" class="text-dark text-decoration-none" title="@Model.Name">@Model.Name</a>
                 </h6>
+
                 <p class="product-card-price mb-1">@FormatCurrency(Model.Price)</p>
                 @if (Model.TotalUnitsSold > 0)
                 {
                     <p class="product-card-sold mb-2">Đã bán: @Model.TotalUnitsSold</p>
                 }
             </div>
-            <div class="product-card-footer mt-auto">
-                @if (Model.StockAmount > 0 && Model.IsActive)
-                {
-                    <div class="d-flex justify-content-center gap-2">
-                        <a asp-controller="Cart" asp-action="AddToCartDirect" asp-route-productId="@Model.Id" asp-route-quantity="1" class="btn btn-sm btn-outline-warning product-action-btn p-1 px-2" title="Thêm vào giỏ"> <i class="fas fa-cart-plus"></i> </a>
-                        <a asp-controller="Checkout" asp-action="BuyNow" asp-route-productId="@Model.Id" asp-route-quantity="1" class="btn btn-sm btn-warning product-action-btn p-1 px-2" title="Mua ngay"> <i class="fas fa-bolt"></i> </a>
-                    </div>
-                }
-                else
-                {
-                    <button type="button" class="btn btn-secondary btn-sm w-100" disabled>Hết hàng</button>
-                }
-            </div>
+            @* <div class="product-card-footer mt-3"> *@
+            @*     @if (Model.StockAmount > 0 && Model.IsActive) *@
+            @*     { *@
+            @*         <!-- Add to Cart --> *@
+            @*         <form asp-controller="Cart" asp-action="AddToCart" method="post" class="mb-2"> *@
+            @*             <input type="hidden" name="productId" value="@Model.Id" /> *@
+            @*             <input type="hidden" name="quantity" value="1" /> *@
+            @*             <button type="submit" class="btn btn-outline-secondary w-100" title="Thêm vào giỏ"> *@
+            @*                 <i class="fas fa-cart-plus me-1"></i> Thêm vào giỏ *@
+            @*             </button> *@
+            @*         </form> *@
+
+            @*         <!-- Buy Now --> *@
+            @*         <form asp-controller="Cart" asp-action="BuyNow" method="post"> *@
+            @*             <input type="hidden" name="productId" value="@Model.Id" /> *@
+            @*             <input type="hidden" name="quantity" value="1" /> *@
+            @*             <button type="submit" class="btn btn-outline-warning w-100" title="Mua ngay"> *@
+            @*                 <i class="fas fa-bolt me-1"></i> Mua ngay *@
+            @*             </button> *@
+            @*         </form> *@
+
+
+            @*     } *@
+            @*     else *@
+            @*     { *@
+            @*         <button type="button" class="btn btn-secondary w-100" disabled>Hết hàng</button> *@
+            @*     } *@
+            @* </div> *@
+
         </div>
     </div>
 </div>

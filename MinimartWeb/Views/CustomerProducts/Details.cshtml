@@ -66,6 +66,16 @@
                 <dt class="col-sm-4">Hạn SD (từ NSX):</dt>
                 <dd class="col-sm-8">@Model.Product.ExpirationDurationDays ngày</dd>
             }
+            @if (Model.Product.Tags != null && Model.Product.Tags.Any())
+            {
+                <dt class="col-sm-4">Thẻ liên quan:</dt>
+                <dd class="col-sm-8">
+                    @foreach (var tag in Model.Product.Tags)
+                    {
+                        <span class="badge bg-secondary me-1">@tag</span>
+                    }
+                </dd>
+            }
         </dl>
         <hr class="my-3">
 
@@ -81,20 +91,36 @@
                         <label for="quantity_@Model.Product.ProductTypeID" class="form-label small mb-1 d-block">Số lượng:</label>
                         <div class="input-group input-group-sm" style="width: 120px;">
                             <button class="btn btn-outline-secondary" type="button" onclick="updateQuantityOnDetailPage(@Model.Product.ProductTypeID, -1, @((int)Model.Product.StockAmount))">-</button>
-                            <input type="number" name="quantity" id="quantity_@Model.Product.ProductTypeID" class="form-control text-center" value="1" min="1" max="@((int)Model.Product.StockAmount)" aria-label="Số lượng">
+                            @{
+                                var isContinuous = Model.Product?.MeasurementUnit?.IsContinuous ?? false;
+                                var minVal = isContinuous ? "0.01" : "1";
+                                var stepVal = isContinuous ? "0.01" : "1";
+                                var unitName = Model.Product?.MeasurementUnit?.UnitName ?? "đơn vị";
+                            }
+                            <input type="number"
+                                   name="quantity"
+                                   id="quantity_@Model.Product.ProductTypeID"
+                                   class="form-control text-center"
+                                   value="1"
+                                   min="@minVal"
+                                   max="@Model.Product.StockAmount"
+                                   step="@stepVal"
+                                   aria-label="Số lượng" />
+
                             <button class="btn btn-outline-secondary" type="button" onclick="updateQuantityOnDetailPage(@Model.Product.ProductTypeID, 1, @((int)Model.Product.StockAmount))">+</button>
                         </div>
                     </div>
                     <div class="col-md-8 col-lg-9">
                         <div class="d-flex gap-2 mt-md-3">
-                            @* Điều chỉnh margin top cho desktop *@
-                            <button type="submit" asp-controller="Cart" asp-action="AddToCart" class="btn btn-outline-warning flex-grow-1 product-action-btn">
+                            @* Điều chỉnh margin top cho desktop *@ <button type="button" class="btn btn-outline-warning flex-grow-1 product-action-btn add-to-cart-ajax">
                                 <i class="fas fa-cart-plus me-1"></i> Thêm vào giỏ
                             </button>
+
                             <button type="button" class="btn btn-danger flex-grow-1 product-action-btn"
                                     onclick="submitBuyNow(@Model.Product.ProductTypeID)">
                                 <i class="fas fa-bolt me-1"></i> Mua ngay
                             </button>
+
                         </div>
                     </div>
                 </div>
@@ -167,7 +193,7 @@
                         <li class="page-item"><a class="page-link" asp-action="Details" asp-route-id="@Model.Product.ProductTypeID" asp-route-currentPageOther="1">1</a></li> @if (startPage > 2)
                         {
                             <li class="page-item disabled"><span class="page-link">...</span></li>
-                        }                  }
+                        }       }
                     @for (int i = startPage; i <= endPage; i++)
                     {
                         <li class="page-item @(i == Model.CurrentPageOther ? "active" : "")"><a class="page-link" asp-action="Details" asp-route-id="@Model.Product.ProductTypeID" asp-route-currentPageOther="@i">@i</a></li>
@@ -329,10 +355,17 @@
     </style>
 }
 
+<form id="buyNowForm" method="post" action="/Cart/BuyNow" style="display: none;">
+    <input type="hidden" name="productId" id="buyNowProductId" />
+    <input type="hidden" name="quantity" id="buyNowQuantity" />
+</form>
+
+
+
 @section Scripts {
     <script>
         function updateQuantityOnDetailPage(productId, change, maxStock) {
-            const inputElement = document.getElementById(`quantity_${productId}`); // ID phải khớp
+            const inputElement = document.getElementById(`quantity_${productId}`);
             const formQtyAddToCart = document.getElementById(`formQuantity_AddToCart_${productId}`);
             const formQtyBuyNow = document.getElementById(`formQuantity_BuyNow_${productId}`);
 
@@ -340,53 +373,113 @@
                 let currentValue = parseInt(inputElement.value, 10);
                 let newValue = currentValue + change;
                 const min = 1;
-                if (isNaN(currentValue)) currentValue = min; // Nếu input rỗng hoặc không phải số
+                if (isNaN(currentValue)) currentValue = min;
 
                 if (newValue >= min && newValue <= maxStock) inputElement.value = newValue;
                 else if (newValue < min) inputElement.value = min;
                 else if (newValue > maxStock) inputElement.value = maxStock;
-                else inputElement.value = min; // Trường hợp không xác định
 
-                // Cập nhật giá trị cho các input ẩn trong form
                 if (formQtyAddToCart) formQtyAddToCart.value = inputElement.value;
                 if (formQtyBuyNow) formQtyBuyNow.value = inputElement.value;
             }
         }
 
         function submitBuyNow(productId) {
-            const form = document.getElementById(`productActionForm_${productId}`); // ID form chung
-            const quantityInput = document.getElementById(`quantity_${productId}`);
-            if (form && quantityInput) {
-                // Lấy URL gốc từ asp-action của form Mua hàng nếu có, hoặc xây dựng lại
-                let buyNowUrl = '@Url.Action("BuyNowDirect", "Checkout", new { productId = Model.Product.ProductTypeID })'; // Url gốc
-                const quantity = quantityInput.value;
+            const quantity = document.getElementById(`quantity_${productId}`).value;
 
-                // Thêm quantity vào URL
-                const separator = buyNowUrl.includes('?') ? '&' : '?';
-                buyNowUrl = `${buyNowUrl}${separator}quantity=${quantity}`;
-
-                form.action = buyNowUrl;
-                form.method = 'post'; // Đảm bảo là POST nếu BuyNowDirect nhận POST, hoặc GET nếu nó nhận GET
-                form.target = '_self';
-                // Không cần returnUrl nếu BuyNowDirect xử lý chuyển hướng riêng
-                const returnUrlInput = form.querySelector('input[name="returnUrl"]');
-                if (returnUrlInput) returnUrlInput.disabled = true; // Không gửi returnUrl cho BuyNow
-
-                form.submit();
-            }
+            fetch("/Cart/BuyNow", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: new URLSearchParams({ productId, quantity })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.redirectUrl) {
+                    window.location.href = data.redirectUrl;
+                } else {
+                    showToast(data.message || "Đã xảy ra lỗi không xác định.", true);
+                }
+            })
+            .catch(err => {
+                showToast("Something went wrong while processing Buy Now.", true);
+                console.error(err);
+            });
         }
 
-        document.addEventListener('DOMContentLoaded', function () {
+
+
+        document.addEventListener("DOMContentLoaded", function () {
+            // Swiper setup
             const recommendedProductsCountDetail = @(Model.RecommendedProducts?.Count ?? 0);
             if (document.querySelector('.recommended-swiper-detail') && recommendedProductsCountDetail > 0) {
-                var recommendedSwiperDetail = new Swiper('.recommended-swiper-detail', {
-                    slidesPerView: 1.8, spaceBetween: 8, grabCursor: true,
+                new Swiper('.recommended-swiper-detail', {
+                    slidesPerView: 1.8,
+                    spaceBetween: 8,
+                    grabCursor: true,
                     loop: recommendedProductsCountDetail > 5,
-                    pagination: { el: '.recommended-pagination-detail', clickable: true, },
-                    navigation: { nextEl: '.recommended-next-detail', prevEl: '.recommended-prev-detail', },
-                    breakpoints: { 576: { slidesPerView: 2.5, spaceBetween: 10 }, 768: { slidesPerView: 3.5, spaceBetween: 10 }, 992: { slidesPerView: 4.5, spaceBetween: 12 }, 1200: { slidesPerView: 5.5, spaceBetween: 12 } }
+                    pagination: {
+                        el: '.recommended-pagination-detail',
+                        clickable: true
+                    },
+                    navigation: {
+                        nextEl: '.recommended-next-detail',
+                        prevEl: '.recommended-prev-detail'
+                    },
+                    breakpoints: {
+                        576: { slidesPerView: 2.5, spaceBetween: 10 },
+                        768: { slidesPerView: 3.5, spaceBetween: 10 },
+                        992: { slidesPerView: 4.5, spaceBetween: 12 },
+                        1200: { slidesPerView: 5.5, spaceBetween: 12 }
+                    }
                 });
             }
+
+            // AJAX AddToCart
+            document.querySelectorAll(".add-to-cart-ajax").forEach(button => {
+                button.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    const form = this.closest("form");
+                    const productId = form.querySelector("input[name='productId']").value;
+                    const quantity = form.querySelector("input[name='quantity']").value;
+
+                    fetch("/Cart/AddToCart", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/x-www-form-urlencoded"
+                        },
+                        body: new URLSearchParams({ productId, quantity })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        showToast(data.message, !data.success);
+                    })
+                    .catch(err => {
+                        showToast("Đã xảy ra lỗi kết nối với máy chủ.", true);
+                        console.error(err);
+                    });
+                });
+            });
         });
+
+        function showToast(message, isError = false) {
+            const toast = document.createElement("div");
+            toast.className = `toast align-items-center text-white ${isError ? 'bg-danger' : 'bg-success'} border-0`;
+            toast.role = "alert";
+            toast.style.position = "fixed";
+            toast.style.bottom = "1rem";
+            toast.style.right = "1rem";
+            toast.style.zIndex = "9999";
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>`;
+            document.body.appendChild(toast);
+            const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+            bsToast.show();
+            setTimeout(() => toast.remove(), 4000);
+        }
     </script>
 }

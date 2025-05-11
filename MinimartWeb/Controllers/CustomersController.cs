@@ -15,7 +15,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace MinimartWeb.Controllers
 {
-    [Authorize(Roles = "Admin")]
+    //[Authorize(Roles = "Admin")]
     public class CustomersController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -158,113 +158,95 @@ namespace MinimartWeb.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id,
-      [Bind("CustomerID,FirstName,LastName,Email,PhoneNumber,Username")] Customer customer,
-      string Password,
-      IFormFile ProfileImage)
+            [Bind("CustomerID,FirstName,LastName,Email,PhoneNumber,Username,IsEmailVerified")] Customer customer,
+            string Password,
+            IFormFile ProfileImage)
         {
             if (id != customer.CustomerID)
-            {
                 return NotFound();
-            }
 
-            // Remove password fields to prevent overposting
+            // Remove fields that are not posted or manually handled
             ModelState.Remove(nameof(Customer.PasswordHash));
             ModelState.Remove(nameof(Customer.Salt));
-            ModelState.Remove("ProfileImage");
+            ModelState.Remove(nameof(Customer.ImagePath));
+            ModelState.Remove(nameof(Customer.EmailVerifiedAt));
+
             if (string.IsNullOrWhiteSpace(Password))
-            {
-                // If password is empty, keep existing password.
                 ModelState.Remove("Password");
-            }
 
-            // Check for existing email, phone number, and username (excluding current customer)
+            // Check for uniqueness (excluding current user)
             if (await _context.Customers.AnyAsync(c => c.Email == customer.Email && c.CustomerID != customer.CustomerID))
-            {
                 ModelState.AddModelError("Email", "The email address is already taken.");
-            }
+
             if (await _context.Customers.AnyAsync(c => c.PhoneNumber == customer.PhoneNumber && c.CustomerID != customer.CustomerID))
-            {
                 ModelState.AddModelError("PhoneNumber", "The phone number is already in use.");
-            }
+
             if (await _context.Customers.AnyAsync(c => c.Username == customer.Username && c.CustomerID != customer.CustomerID))
-            {
                 ModelState.AddModelError("Username", "The username is already taken.");
-            }
 
             if (!ModelState.IsValid)
+                return View(customer);
+
+            var customerFromDb = await _context.Customers.FindAsync(id);
+            if (customerFromDb == null)
+                return NotFound();
+
+            // Update editable fields
+            customerFromDb.FirstName = customer.FirstName;
+            customerFromDb.LastName = customer.LastName;
+            customerFromDb.Email = customer.Email;
+            customerFromDb.PhoneNumber = customer.PhoneNumber;
+            customerFromDb.Username = customer.Username;
+
+            // ✅ Update IsEmailVerified + Timestamp
+            customerFromDb.IsEmailVerified = customer.IsEmailVerified;
+            if (customer.IsEmailVerified && customerFromDb.EmailVerifiedAt == null)
             {
-                return View(customer); // Return view with validation errors
+                customerFromDb.EmailVerifiedAt = DateTime.UtcNow;
+            }
+            else if (!customer.IsEmailVerified)
+            {
+                customerFromDb.EmailVerifiedAt = null;
             }
 
-            if (!ModelState.IsValid)
+            // ✅ Handle image upload
+            if (ProfileImage != null && ProfileImage.Length > 0)
             {
-                Console.WriteLine("ModelState not valid.");
-                foreach (var error in ModelState.Values.SelectMany(v => v.Errors))
+                var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images", "users");
+                Directory.CreateDirectory(uploadsFolder); // Create folder if missing
+
+                var uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(ProfileImage.FileName);
+                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
                 {
-                    Console.WriteLine(error.ErrorMessage);
+                    await ProfileImage.CopyToAsync(fileStream);
                 }
+
+                customerFromDb.ImagePath = uniqueFileName;
+            }
+
+            // ✅ Update password if provided
+            if (!string.IsNullOrWhiteSpace(Password))
+            {
+                (byte[] passwordHash, byte[] salt) = GeneratePasswordHashAndSalt(Password);
+                customerFromDb.PasswordHash = passwordHash;
+                customerFromDb.Salt = salt;
             }
 
             try
             {
-                var customerFromDb = await _context.Customers.FindAsync(id);
-                if (customerFromDb == null)
-                {
-                    return NotFound();
-                }
-
-                // Update editable fields
-                customerFromDb.FirstName = customer.FirstName;
-                customerFromDb.LastName = customer.LastName;
-                customerFromDb.Email = customer.Email;
-                customerFromDb.PhoneNumber = customer.PhoneNumber;
-                customerFromDb.Username = customer.Username;
-
-                // Handle image upload
-                if (ProfileImage != null && ProfileImage.Length > 0)
-                {
-                    var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images", "users");
-                    if (!Directory.Exists(uploadsFolder))
-                    {
-                        Directory.CreateDirectory(uploadsFolder);
-                    }
-
-                    var uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(ProfileImage.FileName);
-                    var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                    using (var fileStream = new FileStream(filePath, FileMode.Create))
-                    {
-                        await ProfileImage.CopyToAsync(fileStream);
-                    }
-
-                    customerFromDb.ImagePath = uniqueFileName;
-                }
-                // If no image is uploaded, keep the existing ImagePath (no change)
-
-                // Only update password if provided
-                if (!string.IsNullOrWhiteSpace(Password))
-                {
-                    (byte[] passwordHash, byte[] salt) = GeneratePasswordHashAndSalt(Password);
-                    customerFromDb.PasswordHash = passwordHash;
-                    customerFromDb.Salt = salt;
-                }
-
-
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
             catch (DbUpdateConcurrencyException)
             {
                 if (!CustomerExists(customer.CustomerID))
-                {
                     return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                throw;
             }
         }
+
 
         // GET: Customers/Delete/5
         public async Task<IActionResult> Delete(int? id)

@@ -289,55 +289,84 @@
             .swiper-button-next::after, .swiper-button-prev::after {
                 font-size: 1.6rem !important;
             }
+
+        /* Neutral white background, highlight on hover */
+        .btn-outline-secondary.product-action-btn {
+            background-color: #fff;
+            color: #6c757d;
+            border-color: #6c757d;
+        }
+
+            .btn-outline-secondary.product-action-btn:hover {
+                background-color: #e2e6ea;
+                color: #212529;
+                border-color: #dae0e5;
+            }
+
+        /* Neutral white for Buy Now button */
+        .btn-outline-warning.product-action-btn {
+            background-color: #fff;
+            color: #ffc107;
+            border-color: #ffc107;
+        }
+
+            .btn-outline-warning.product-action-btn:hover {
+                background-color: #ffe69c;
+                color: #000;
+                border-color: #ffcd39;
+            }
+
     </style>
 }
 
 @section Scripts {
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // Dùng || [] để đảm bảo biến có giá trị mảng nếu Model là null hoặc list rỗng
+            const maxDisplayCount = 6;
+
             const hotDealsCount = @(Model.HotDeals?.Count ?? 0);
             const recommendedProductsCount = @(Model.RecommendedProducts?.Count ?? 0);
 
             // --- HOT DEAL SWIPER ---
             if (document.querySelector('.hot-deal-swiper') && hotDealsCount > 0) {
+                const limitedHotDeals = Math.min(hotDealsCount, maxDisplayCount);
+
                 var hotDealSwiper = new Swiper('.hot-deal-swiper', {
-                    slidesPerView: 1.8,
-                    spaceBetween: 8,
+                    slidesPerView: limitedHotDeals,
+                    spaceBetween: 10,
                     grabCursor: true,
-                    loop: hotDealsCount > 9, // Chỉ loop khi có nhiều hơn ngưỡng (ví dụ: 9)
-                    autoplay: { delay: 4000, disableOnInteraction: false, pauseOnMouseEnter: true, },
-                    pagination: { el: '.hot-deal-pagination', clickable: true, },
-                    navigation: { nextEl: '.hot-deal-next', prevEl: '.hot-deal-prev', },
+                    loop: false, // disable loop when showing only a few items
+                    autoplay: false,
+                    pagination: { el: '.hot-deal-pagination', clickable: true },
+                    navigation: { nextEl: '.hot-deal-next', prevEl: '.hot-deal-prev' },
                     breakpoints: {
-                        576: { slidesPerView: 3.2, spaceBetween: 10 },
-                        768: { slidesPerView: 4.2, spaceBetween: 10 },
-                        992: { slidesPerView: 6.2, spaceBetween: 12 },
-                        1200: { slidesPerView: 8.2, spaceBetween: 12 }, // Tăng ở đây
-                        1400: { slidesPerView: 9, spaceBetween: 10 },
-                        1600: { slidesPerView: 10, spaceBetween: 10 },
-                        1920: { slidesPerView: 11, spaceBetween: 10 }
+                        576: { slidesPerView: Math.min(2, limitedHotDeals) },
+                        768: { slidesPerView: Math.min(3, limitedHotDeals) },
+                        992: { slidesPerView: Math.min(4, limitedHotDeals) },
+                        1200: { slidesPerView: Math.min(5, limitedHotDeals) },
+                        1400: { slidesPerView: Math.min(6, limitedHotDeals) }
                     }
                 });
             }
 
             // --- RECOMMENDED PRODUCTS SWIPER ---
             if (document.querySelector('.recommended-swiper') && recommendedProductsCount > 0) {
+                const limitedRecommended = Math.min(recommendedProductsCount, maxDisplayCount);
+
                 var recommendedSwiper = new Swiper('.recommended-swiper', {
-                    slidesPerView: 1.8,
-                    spaceBetween: 8,
+                    slidesPerView: limitedRecommended,
+                    spaceBetween: 10,
                     grabCursor: true,
-                    loop: recommendedProductsCount > 9,
-                    pagination: { el: '.recommended-pagination', clickable: true, },
-                    navigation: { nextEl: '.recommended-next', prevEl: '.recommended-prev', },
+                    loop: false,
+                    autoplay: false,
+                    pagination: { el: '.recommended-pagination', clickable: true },
+                    navigation: { nextEl: '.recommended-next', prevEl: '.recommended-prev' },
                     breakpoints: {
-                        576: { slidesPerView: 3.2, spaceBetween: 10 },
-                        768: { slidesPerView: 4.2, spaceBetween: 10 },
-                        992: { slidesPerView: 6.2, spaceBetween: 12 },
-                        1200: { slidesPerView: 8.2, spaceBetween: 12 },
-                        1400: { slidesPerView: 9, spaceBetween: 10 },
-                        1600: { slidesPerView: 10, spaceBetween: 10 },
-                        1920: { slidesPerView: 11, spaceBetween: 10 }
+                        576: { slidesPerView: Math.min(2, limitedRecommended) },
+                        768: { slidesPerView: Math.min(3, limitedRecommended) },
+                        992: { slidesPerView: Math.min(4, limitedRecommended) },
+                        1200: { slidesPerView: Math.min(5, limitedRecommended) },
+                        1400: { slidesPerView: Math.min(6, limitedRecommended) }
                     }
                 });
             }

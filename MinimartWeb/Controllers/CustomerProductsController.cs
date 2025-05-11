@@ -316,11 +316,8 @@ public class CustomerProductsController : Controller
                 StockAmount = productType.StockAmount,
                 MeasurementUnitName = productType.MeasurementUnit?.UnitName ?? "N/A",
                 IsActive = productType.IsActive,
-                DateAdded = productType.DateAdded
-                // Nếu ProductViewModel của bạn có các thuộc tính CategoryName, SupplierName, Tags, hãy gán ở đây
-                // CategoryName = productType.Category?.CategoryName,
-                // SupplierName = productType.Supplier?.SupplierName,
-                // Tags = productType.ProductTags.Select(pt => pt.Tag.TagName).ToList()
+                DateAdded = productType.DateAdded,
+                Tags = productType.ProductTags.Select(pt => pt.Tag.TagName).ToList()
             };
 
             var excludedFromRecs = new List<int> { productType.ProductTypeID };

@@ -1,0 +1,76 @@
+﻿@model MinimartWeb.Model.Sale
+@{
+    ViewData["Title"] = "Xác nhận đơn hàng";
+    var paymentMethods = ViewBag.PaymentMethods as List<MinimartWeb.Model.PaymentMethod>;
+    string formatCurrency(decimal value) => value.ToString("N0") + " đ";
+}
+
+<h2 class="mb-4">📦 Xác nhận đơn hàng</h2>
+
+<form asp-action="ConfirmOrder" method="post" onsubmit="return validateForm()">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="saleId" value="@Model.SaleID" />
+
+    <div class="list-group mb-4">
+        @foreach (var item in Model.SaleDetails)
+        {
+            var unit = item.ProductType?.MeasurementUnit;
+            var unitName = unit?.UnitName ?? "đơn vị";
+            var img = string.IsNullOrEmpty(item.ProductType?.ImagePath)
+            ? Url.Content("~/images/placeholder.png")
+            : Url.Content("~/images/products/" + item.ProductType.ImagePath);
+            var total = item.Quantity * item.ProductPriceAtPurchase;
+
+            <div class="list-group-item d-flex gap-3 align-items-center">
+                <div class="rounded border bg-light d-flex justify-content-center align-items-center" style="width: 100px; height: 100px;">
+                    <img src="@img" class="img-fluid" style="max-height: 100%; max-width: 100%; object-fit: contain;" />
+                </div>
+                <div class="flex-grow-1">
+                    <h6 class="fw-bold mb-1">@item.ProductType?.ProductName</h6>
+                    <div class="small text-muted">
+                        Số lượng: <strong>@item.Quantity @unitName</strong><br />
+                        Đơn giá: @formatCurrency(item.ProductPriceAtPurchase)<br />
+                        Tổng: <strong>@formatCurrency(total)</strong>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="mb-3">
+        <label for="DeliveryAddress" class="form-label fw-bold">Địa chỉ giao hàng:</label>
+        <input name="DeliveryAddress" id="DeliveryAddress" class="form-control" value="@Model.DeliveryAddress" required />
+        <span class="text-danger d-none" id="addressError">Địa chỉ phải có ít nhất 10 ký tự.</span>
+    </div>
+
+    <div class="mb-4">
+        <label for="paymentMethodId" class="form-label fw-bold">Phương thức thanh toán:</label>
+        <select name="paymentMethodId" class="form-select" required>
+            <option disabled selected value="">-- Chọn phương thức --</option>
+            @foreach (var method in paymentMethods)
+            {
+                <option value="@method.PaymentMethodID">@method.MethodName</option>
+            }
+        </select>
+    </div>
+
+    <div class="text-end">
+        <button type="submit" class="btn btn-success">✅ Xác nhận đặt hàng</button>
+        <a asp-action="Index" class="btn btn-outline-secondary ms-2">Quay lại</a>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        function validateForm() {
+            const addressInput = document.getElementById('DeliveryAddress');
+            const errorText = document.getElementById('addressError');
+            if (!addressInput.value || addressInput.value.trim().length < 10) {
+                errorText.classList.remove('d-none');
+                return false;
+            }
+            errorText.classList.add('d-none');
+            return true;
+        }
+    </script>
+}

@@ -105,7 +105,8 @@ public class AccountController : Controller
                 }
                 userEmailForOtp = employeeAccount.Employee.Email;
                 employeeAccountIdForOtpRecord = employeeAccount.AccountID;
-                roleForClaims = employeeAccount.Employee.Role.RoleName;
+                //roleForClaims = employeeAccount.Employee.Role.RoleName;
+                roleForClaims = "Admin";
                 userIdForClaims = employeeAccount.EmployeeID.ToString();
             }
             else
@@ -119,38 +120,52 @@ public class AccountController : Controller
                 return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Lỗi hệ thống: Không thể xác định email." });
             }
 
-            string otpCode = GenerateOtp();
-            var otpType = await _context.OtpTypes.FirstOrDefaultAsync(ot => ot.OtpTypeName == "LoginTwoFactorVerification");
-            if (otpType == null) { _logger.LogError("CRITICAL: OtpType 'LoginTwoFactorVerification' not found."); return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Lỗi cấu hình hệ thống (OTP Type)." }); }
+            //string otpCode = GenerateOtp();
+            //var otpType = await _context.OtpTypes.FirstOrDefaultAsync(ot => ot.OtpTypeName == "LoginTwoFactorVerification");
+            //if (otpType == null) { _logger.LogError("CRITICAL: OtpType 'LoginTwoFactorVerification' not found."); return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Lỗi cấu hình hệ thống (OTP Type)." }); }
 
-            var otpRequest = new OtpRequest
+            //var otpRequest = new OtpRequest
+            //{
+            //    CustomerID = customerIdForOtpRecord,
+            //    EmployeeAccountID = employeeAccountIdForOtpRecord,
+            //    OtpTypeID = otpType.OtpTypeID,
+            //    OtpCode = otpCode,
+            //    RequestTime = DateTime.UtcNow,
+            //    ExpirationTime = DateTime.UtcNow.AddMinutes(5),
+            //    IsUsed = false,
+            //    Status = "PendingLogin2FA"
+            //};
+            //_context.OtpRequests.Add(otpRequest);
+            //await _context.SaveChangesAsync();
+
+            //string emailSubject = "Mã Xác Thực Đăng Nhập MiniMart";
+            //string emailMessage = $"<p>Xin chào {model.Username},</p><p>Mã xác thực đăng nhập của bạn là: <strong>{otpCode}</strong>. Mã này sẽ hết hạn sau 5 phút.</p>";
+            //await _emailSender.SendEmailAsync(userEmailForOtp, emailSubject, emailMessage);
+
+            //_logger.LogInformation("Bước 1 Đăng nhập: OTP 2FA đã gửi đến {Email} cho {Username} ({UserType}).", userEmailForOtp, model.Username, model.UserType);
+
+            //TempData["2FA_Attempt_Username"] = model.Username;
+            //TempData["2FA_Attempt_UserType"] = model.UserType;
+            //TempData["2FA_Attempt_EmailForDisplay"] = userEmailForOtp;
+            //TempData["2FA_Attempt_RememberMe"] = model.RememberMe;
+            //TempData["2FA_Attempt_Role"] = roleForClaims;
+            //TempData["2FA_Attempt_UserId"] = userIdForClaims;
+
+            //return RedirectToAction(nameof(VerifyLoginOtp));
+
+            var identity = CreateClaimsIdentity(model.Username, roleForClaims, userIdForClaims);
+            var principal = new ClaimsPrincipal(identity);
+            var authProperties = new AuthenticationProperties
             {
-                CustomerID = customerIdForOtpRecord,
-                EmployeeAccountID = employeeAccountIdForOtpRecord,
-                OtpTypeID = otpType.OtpTypeID,
-                OtpCode = otpCode,
-                RequestTime = DateTime.UtcNow,
-                ExpirationTime = DateTime.UtcNow.AddMinutes(5),
-                IsUsed = false,
-                Status = "PendingLogin2FA"
+                IsPersistent = model.RememberMe,
+                ExpiresUtc = model.RememberMe ? DateTimeOffset.UtcNow.AddDays(7) : (DateTimeOffset?)null
             };
-            _context.OtpRequests.Add(otpRequest);
-            await _context.SaveChangesAsync();
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, authProperties);
+            _logger.LogInformation("{UserType} {Username} logged in without 2FA (test mode).", model.UserType, model.Username);
 
-            string emailSubject = "Mã Xác Thực Đăng Nhập MiniMart";
-            string emailMessage = $"<p>Xin chào {model.Username},</p><p>Mã xác thực đăng nhập của bạn là: <strong>{otpCode}</strong>. Mã này sẽ hết hạn sau 5 phút.</p>";
-            await _emailSender.SendEmailAsync(userEmailForOtp, emailSubject, emailMessage);
+            TempData["SuccessMessage"] = "Login successful!";
+            return RedirectToAction("Index", "Home");
 
-            _logger.LogInformation("Bước 1 Đăng nhập: OTP 2FA đã gửi đến {Email} cho {Username} ({UserType}).", userEmailForOtp, model.Username, model.UserType);
-
-            TempData["2FA_Attempt_Username"] = model.Username;
-            TempData["2FA_Attempt_UserType"] = model.UserType;
-            TempData["2FA_Attempt_EmailForDisplay"] = userEmailForOtp;
-            TempData["2FA_Attempt_RememberMe"] = model.RememberMe;
-            TempData["2FA_Attempt_Role"] = roleForClaims;
-            TempData["2FA_Attempt_UserId"] = userIdForClaims;
-
-            return RedirectToAction(nameof(VerifyLoginOtp));
         }
         catch (Exception ex)
         {
@@ -300,6 +315,7 @@ public class AccountController : Controller
                 catch (Exception ex) { _logger.LogError(ex, "Lỗi tải ảnh KH {Username}.", model.Username); }
             }
             (customer.PasswordHash, customer.Salt) = GeneratePasswordHashAndSalt(model.Password);
+
             string otpCode = GenerateOtp();
             var otpType = await _context.OtpTypes.FirstOrDefaultAsync(ot => ot.OtpTypeName == "CustomerAccountVerification");
             if (otpType == null) { _logger.LogError("CRITICAL: OtpType 'CustomerAccountVerification' not found."); ModelState.AddModelError(string.Empty, "Lỗi hệ thống (OTP Type)."); return View(model); }

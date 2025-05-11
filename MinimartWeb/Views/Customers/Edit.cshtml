@@ -13,55 +13,64 @@
         <form asp-action="Edit" enctype="multipart/form-data">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             <input type="hidden" asp-for="CustomerID" />
+
             <div class="form-group">
                 <label asp-for="FirstName" class="control-label"></label>
                 <input asp-for="FirstName" class="form-control" />
                 <span asp-validation-for="FirstName" class="text-danger"></span>
             </div>
+
             <div class="form-group">
                 <label asp-for="LastName" class="control-label"></label>
                 <input asp-for="LastName" class="form-control" />
                 <span asp-validation-for="LastName" class="text-danger"></span>
             </div>
+
             <div class="form-group">
                 <label asp-for="Email" class="control-label"></label>
                 <input asp-for="Email" class="form-control" />
                 <span asp-validation-for="Email" class="text-danger"></span>
             </div>
+
             <div class="form-group">
                 <label asp-for="PhoneNumber" class="control-label"></label>
                 <input asp-for="PhoneNumber" class="form-control" />
                 <span asp-validation-for="PhoneNumber" class="text-danger"></span>
             </div>
+
             <div class="form-group">
                 <label asp-for="Username" class="control-label"></label>
                 <input asp-for="Username" class="form-control" />
                 <span asp-validation-for="Username" class="text-danger"></span>
             </div>
 
-            <!-- Password Input -->
             <div class="form-group">
                 <label for="Password" class="control-label">Password</label>
                 <input type="password" id="Password" name="Password" class="form-control" />
-                <span class="text-danger"></span>
-                <small class="form-text text-muted">Leave blank if you don't want to change the password.</small>
+                <small class="form-text text-muted">Leave blank to keep current password.</small>
             </div>
 
-            <!-- Image Upload with Drag & Drop -->
             <div class="form-group">
                 <label class="control-label">Profile Picture</label>
                 <div id="drop-area" style="border: 2px dashed #ccc; padding: 20px; text-align: center; cursor: pointer;">
                     <p>Drag & Drop image here or click to select</p>
                     <input type="file" id="ProfileImage" name="ProfileImage" accept="image/*" style="display:none;" />
                 </div>
-                <img id="previewImage" src="#" alt="Image Preview" style="max-width: 200px; margin-top: 10px; display:none;" src="@("~/images/users/" + Model.ImagePath)" />
+                <img id="previewImage" src="@("/images/users/" + Model.ImagePath)" alt="Preview" style="max-width: 200px; margin-top: 10px; display:@(string.IsNullOrEmpty(Model.ImagePath) ? "none" : "block");" />
                 <span asp-validation-for="ImagePath" class="text-danger"></span>
+            </div>
+
+            <!-- ✅ New Fields -->
+            <div class="form-group form-check">
+                <input type="checkbox" class="form-check-input" asp-for="IsEmailVerified" />
+                <label asp-for="IsEmailVerified" class="form-check-label"></label>
             </div>
 
             <div class="form-group">
                 <input type="submit" value="Save" class="btn btn-primary" />
             </div>
         </form>
+
     </div>
 </div>
 
