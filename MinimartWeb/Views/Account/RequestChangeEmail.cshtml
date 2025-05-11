@@ -1,0 +1,61 @@
+﻿@model MinimartWeb.Models.RequestChangeEmailViewModel
+@{
+    ViewData["Title"] = "Yêu cầu thay đổi Email";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white text-center py-3">
+                    <h4 class="mb-0">@ViewData["Title"]</h4>
+                </div>
+                <div class="card-body p-4 p-md-5">
+                    <p class="text-muted mb-3">
+                        Một mã OTP sẽ được gửi đến địa chỉ email mới để xác minh bạn là chủ sở hữu.
+                        Email hiện tại của bạn là: <strong>@Model.CurrentEmail</strong>
+                    </p>
+
+                    @if (TempData["ErrorMessage"] != null)
+                    {
+                        <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+                    }
+
+                    <form asp-action="RequestChangeEmail" method="post">
+                        @Html.AntiForgeryToken()
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert" style="@(ViewData.ModelState.IsValid ? "display:none;" : "")">Vui lòng kiểm tra lại các thông tin đã nhập.</div>
+                        <input type="hidden" asp-for="CurrentEmail" />
+
+                        <div class="mb-3">
+                            <label asp-for="NewEmail" class="form-label fw-medium"></label>
+                            <input asp-for="NewEmail" type="email" class="form-control form-control-lg" placeholder="nhapemailmoi@example.com" />
+                            <span asp-validation-for="NewEmail" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="CurrentPassword" class="form-label fw-medium"></label>
+                            <input asp-for="CurrentPassword" type="password" class="form-control form-control-lg" autocomplete="current-password" />
+                            <span asp-validation-for="CurrentPassword" class="text-danger small"></span>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-info btn-lg text-white">
+                                <i class="fas fa-paper-plane me-2"></i> Gửi yêu cầu
+                            </button>
+                        </div>
+                    </form>
+                    <div class="text-center mt-4">
+                        <a asp-action="Settings" asp-controller="Account" class="btn btn-link">Quay lại Cài đặt</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

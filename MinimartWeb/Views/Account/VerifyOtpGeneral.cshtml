@@ -1,0 +1,97 @@
+﻿@model MinimartWeb.Models.VerifyOtpGeneralViewModel
+@{
+    ViewData["Title"] = "Xác thực OTP";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    string pageSubTitle = "Vui lòng nhập mã OTP đã được gửi.";
+    string submitButtonText = "Xác nhận";
+    string backLinkAction = "Index"; // Mặc định
+    string backLinkController = "Home"; // Mặc định
+    string backLinkText = "Quay về Trang chủ";
+
+    if (Model.Purpose == "ChangePassword")
+    {
+        pageSubTitle = "Xác nhận thay đổi mật khẩu của bạn.";
+        backLinkAction = "ChangePassword";
+        backLinkController = "Account";
+        backLinkText = "Quay lại trang đổi mật khẩu";
+    }
+    else if (Model.Purpose == "ChangeEmail_NewEmailVerification")
+    {
+        pageSubTitle = "Xác minh địa chỉ email mới của bạn.";
+        backLinkAction = "RequestChangeEmail";
+        backLinkController = "Account";
+        backLinkText = "Quay lại yêu cầu đổi email";
+    }
+    else if (Model.Purpose == "InitialEmailVerification" || ViewBag.PurposeContext == "Register")
+    { // Giả sử bạn có thể dùng ViewBag cho Register OTP
+        pageSubTitle = "Xác minh tài khoản của bạn.";
+        backLinkAction = "Register"; // Hoặc action Resend nếu thất bại nhiều lần
+        backLinkController = "Account";
+        backLinkText = "Gửi lại OTP / Quay lại đăng ký";
+    }
+}
+
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-5 col-md-7">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white text-center py-3">
+                    @* Màu sắc có thể thay đổi tùy purpose *@
+                    <h4 class="mb-0">@ViewData["Title"]</h4>
+                </div>
+                <div class="card-body p-4 p-md-5">
+                    @if (!string.IsNullOrEmpty(Model.VerificationDetail))
+                    {
+                        <div class="alert alert-info small py-2 mb-3 text-center">@Html.Raw(Model.VerificationDetail)</div>
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center mb-3">@pageSubTitle</p>
+                    }
+
+                    @if (TempData["ErrorMessage"] != null)
+                    {
+                        <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+                    }
+                    @if (TempData["InfoMessage"] != null)
+                    {
+                        <div class="alert alert-info">@TempData["InfoMessage"]</div>
+                    }
+
+                    <form asp-action="VerifyOtpForAction" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="Purpose" />
+                        <input type="hidden" asp-for="VerificationDetail" />
+
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert" style="@(ViewData.ModelState.IsValid ? "display:none;" : "")"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="OtpCode" class="form-label visually-hidden"></label>
+                            <input asp-for="OtpCode" class="form-control form-control-lg text-center fw-bold"
+                                   placeholder="X X X X X X"
+                                   maxlength="6"
+                                   autocomplete="one-time-code"
+                                   autofocus
+                                   style="letter-spacing: 0.5em; font-size: 1.5rem;" />
+                            <span asp-validation-for="OtpCode" class="text-danger d-block text-center mt-2 small"></span>
+                        </div>
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-check-circle me-2"></i> @submitButtonText
+                            </button>
+                        </div>
+                    </form>
+                    <div class="text-center mt-4">
+                        <a asp-action="@backLinkAction" asp-controller="@backLinkController" class="btn btn-link">@backLinkText</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}
