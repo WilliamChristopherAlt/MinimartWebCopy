@@ -1,0 +1,117 @@
+﻿@model MinimartWeb.Models.CustomerSettingsViewModel
+@using System.Text.Encodings.Web;
+@{
+    ViewData["Title"] = "Cài đặt tài khoản";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var imageSrcForDisplay = !string.IsNullOrEmpty(Model.ImagePath) && Model.ImagePath != "default.jpg"
+                             ? Url.Content("~/images/users/" + Model.ImagePath)
+                             : Url.Content("~/images/users/default.jpg");
+}
+
+<div class="container my-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-7">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light text-center py-3">
+                    <h3 class="mb-0">@ViewData["Title"]</h3>
+                    <p class="text-muted mb-0 small">Quản lý thông tin cá nhân và bảo mật tài khoản.</p>
+                </div>
+                <div class="card-body p-4 p-md-5">
+                    @if (TempData["SuccessMessage"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">@TempData["SuccessMessage"]<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>
+                    }
+                    
+                    <form asp-action="Settings" method="post" enctype="multipart/form-data">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="CustomerId" />
+
+                        @if (ViewData.ModelState[string.Empty] != null && ViewData.ModelState[string.Empty].Errors.Any())
+                        {
+                             <div class="alert alert-danger mb-3" role="alert">
+                                @foreach (var error in ViewData.ModelState[string.Empty].Errors) { <p class="mb-0">@error.ErrorMessage</p> }
+                            </div>
+                        }
+                        
+                        <h5 class="mb-3">Thông tin cá nhân</h5>
+                        <div class="row mb-4 align-items-center">
+                            @* ... (Phần hiển thị/upload ảnh) ... *@
+                            <div class="col-md-4 text-center text-md-start">
+                                <img id="settingImagePreview" src="@imageSrcForDisplay" class="img-thumbnail rounded-circle" alt="Ảnh đại diện" style="width: 120px; height: 120px; object-fit: cover;">
+                            </div>
+                            <div class="col-md-8">
+                                <label asp-for="NewImageFile" class="form-label"></label>
+                                <input asp-for="NewImageFile" type="file" class="form-control form-control-sm" id="settingNewImageFile" accept="image/jpeg, image/png, image/gif" onchange="previewSettingImage(event)" />
+                                <span asp-validation-for="NewImageFile" class="text-danger" style="font-size:0.9em;"></span>
+                                <small class="form-text text-muted">Để trống nếu không muốn thay đổi ảnh.</small>
+                            </div>
+                        </div>
+                        
+                        <div class="row g-3">
+                            @* ... (Các input cho FirstName, LastName, Username (readonly), Email (readonly), PhoneNumber) ... *@
+                            <div class="col-md-6">
+                                <label asp-for="FirstName" class="form-label fw-medium"></label>
+                                <input asp-for="FirstName" class="form-control" />
+                                <span asp-validation-for="FirstName" class="text-danger" style="font-size:0.9em;"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="LastName" class="form-label fw-medium"></label>
+                                <input asp-for="LastName" class="form-control" />
+                                <span asp-validation-for="LastName" class="text-danger" style="font-size:0.9em;"></span>
+                            </div>
+                            <div class="col-12"><label asp-for="Username" class="form-label fw-medium"></label><input asp-for="Username" class="form-control" readonly /></div>
+                            <div class="col-12"><label asp-for="Email" class="form-label fw-medium"></label><input asp-for="Email" class="form-control" readonly /></div>
+                            <div class="col-12"><label asp-for="PhoneNumber" class="form-label fw-medium"></label><input asp-for="PhoneNumber" class="form-control" /><span asp-validation-for="PhoneNumber" class="text-danger" style="font-size:0.9em;"></span></div>
+
+
+                            <div class="col-12 mt-3">
+                                 <hr class="my-3">
+                                <h5 class="mb-3 text-danger">Xác nhận thay đổi thông tin</h5>
+                                <label asp-for="CurrentPassword" class="form-label fw-medium"></label>
+                                <input asp-for="CurrentPassword" type="password" class="form-control" autocomplete="current-password" />
+                                <span asp-validation-for="CurrentPassword" class="text-danger" style="font-size:0.9em;"></span>
+                                <small class="form-text text-muted">Nhập mật khẩu hiện tại của bạn để lưu các thay đổi thông tin cá nhân trên.</small>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save me-2"></i> Lưu thay đổi thông tin
+                            </button>
+                        </div>
+                    </form>
+
+                    <hr class="my-4"> @* Đường kẻ phân cách *@
+
+                    <h5 class="mb-3">Bảo mật tài khoản</h5>
+                    <div class="d-grid gap-2 d-sm-flex justify-content-sm-start">
+                        <a asp-controller="Account" asp-action="ChangePassword" class="btn btn-outline-secondary">
+                            <i class="fas fa-key me-2"></i> Đổi mật khẩu
+                        </a>
+                        <a asp-controller="Account" asp-action="RequestChangeEmail" class="btn btn-outline-info">
+                            <i class="fas fa-envelope-open-text me-2"></i> Thay đổi Email
+                        </a>
+                    </div>
+                     <div class="text-center mt-4">
+                        <a asp-controller="Account" asp-action="Profile" class="btn btn-link">Xem trang cá nhân công khai</a>
+                    </div>
+                </div> @* đóng card-body *@
+            </div> @* đóng card *@
+        </div> @* đóng col *@
+    </div> @* đóng row *@
+</div> @* đóng container *@
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+    <script>
+        function previewSettingImage(event) {
+            const reader = new FileReader();
+            const output = document.getElementById('settingImagePreview');
+            const originalImageSrc = "@Html.Raw(JavaScriptEncoder.Default.Encode(imageSrcForDisplay))";
+            reader.onload = function () { if (output) { output.src = reader.result; } }
+            if (event.target.files && event.target.files[0]) { reader.readAsDataURL(event.target.files[0]); }
+            else { if (output) {output.src = originalImageSrc;} }
+        }
+    </script>
+}

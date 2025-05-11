@@ -87,12 +87,8 @@
                     <a id="menuToggleLink" class="navbar-menu-link d-none d-lg-flex me-3" href="#" role="button"> <i class="fas fa-bars me-1"></i> Menu </a>
                     <form class="d-flex search-form my-2 my-lg-0 flex-grow-1" role="search" asp-controller="CustomerProducts" asp-action="Index" method="get" id="mainSearchForm">
                         <input class="form-control me-2" type="search" placeholder="Tìm kiếm sản phẩm..." aria-label="Search" name="searchString" autocomplete="off">
-                        <button class="btn btn-warning me-2" type="submit" title="Tìm kiếm"><i class="fas fa-search text-white"></i></button>
-                        <a class="btn btn-outline-secondary" href="@Url.Action("Index", "CustomerProducts")" title="Lọc & Sắp xếp">
-                            <i class="fas fa-filter"></i>
-                        </a>
+                        <button class="btn btn-warning" type="submit"><i class="fas fa-search text-white"></i></button>
                     </form>
-
                     <ul class="navbar-nav navbar-icons d-flex flex-row align-items-center ms-lg-auto">
                         @if (User.Identity != null && User.Identity.IsAuthenticated && User.IsInRole("Customer"))
                         {
@@ -114,44 +110,8 @@
     </header>
 
     @* Menu Sidebar và Account Dropdown giữ nguyên như code bạn cung cấp *@
-    <div id="menuSidebar" class="popup-menu shadow-sm">
-        @if (User.Identity != null && User.Identity.IsAuthenticated)
-        {
-            if (User.IsInRole("Admin"))
-            {
-                <ul>
-                    <li><a asp-controller="Categories" asp-action="Index" class="dropdown-item"><i class="fas fa-folder fa-fw me-2"></i>Danh mục</a></li>
-                    <li><a asp-controller="EmployeeRoles" asp-action="Index" class="dropdown-item"><i class="fas fa-user-tag fa-fw me-2"></i>Vai trò nhân viên</a></li>
-                    <li><a asp-controller="Employees" asp-action="Index" class="dropdown-item"><i class="fas fa-user-tie fa-fw me-2"></i>Nhân viên</a></li>
-                    <li><a asp-controller="EmployeeAccounts" asp-action="Index" class="dropdown-item"><i class="fas fa-users-cog fa-fw me-2"></i>Tài khoản NV</a></li>
-                    <li><a asp-controller="MeasurementUnits" asp-action="Index" class="dropdown-item"><i class="fas fa-balance-scale fa-fw me-2"></i>Đơn vị đo</a></li>
-                    <li><a asp-controller="OtpTypes" asp-action="Index" class="dropdown-item"><i class="fas fa-key fa-fw me-2"></i>Loại OTP</a></li>
-                    <li><a asp-controller="PaymentMethods" asp-action="Index" class="dropdown-item"><i class="fas fa-credit-card fa-fw me-2"></i>Phương thức thanh toán</a></li>
-                    <li><a asp-controller="ProductTypes" asp-action="Index" class="dropdown-item"><i class="fas fa-boxes fa-fw me-2"></i>Sản phẩm</a></li>
-                    <li><a asp-controller="Tags" asp-action="Index" class="dropdown-item"><i class="fas fa-tags fa-fw me-2"></i>Tags</a></li>
-                    <li><a asp-controller="Suppliers" asp-action="Index" class="dropdown-item"><i class="fas fa-truck fa-fw me-2"></i>Nhà cung cấp</a></li>
-                </ul>
-            }
-            else if (User.IsInRole("Customer"))
-            {
-                <ul>
-                    <li><a asp-controller="Home" asp-action="Index" class="dropdown-item"><i class="fas fa-home fa-fw me-2"></i>Trang chủ</a></li>
-                    <li><a asp-controller="CustomerProducts" asp-action="Index" class="dropdown-item"><i class="fas fa-filter fa-fw me-2"></i>Lọc nâng cao</a></li>
-                </ul>
-            }
-        }
-    </div>
-    @if (User.Identity != null && User.Identity.IsAuthenticated)
-    {
-        <ul id="accountDropdownMenu" class="popup-menu shadow-sm"><li class="dropdown-header text-center">Xin chào, @User.Identity.Name!</li><li><hr class="dropdown-divider"></li><li><a class="dropdown-item" asp-controller="Account" asp-action="Profile"><i class="fas fa-user fa-fw me-2"></i>Thông tin cá nhân</a></li>@if (User.IsInRole("Customer"))
-            {
-                <li><a class="dropdown-item" asp-controller="Sales" asp-action="OrderHistory"><i class="fas fa-receipt fa-fw me-2"></i>Lịch sử mua hàng</a></li>
-            }
-            @if (User.IsInRole("Admin") || User.IsInRole("Staff"))
-            {
-
-            }<li><hr class="dropdown-divider"></li><li> <a id="logoutAjaxLink" class="dropdown-item" href="#"> <i class="fas fa-sign-out-alt fa-fw me-2"></i>Đăng xuất </a> </li></ul>
-    }
+    <div id="menuSidebar" class="popup-menu shadow-sm"> <!-- ... nội dung menu ... --> <ul> <li> <a asp-controller="Categories" asp-action="Index" class="dropdown-item"><i class="fas fa-folder fa-fw me-2"></i>Loại sản phẩm</a> </li> <li> <a asp-controller="ProductTypes" asp-action="Index" class="dropdown-item"><i class="fas fa-tags fa-fw me-2"></i>Sản phẩm (Admin View)</a> </li> <li> <a asp-controller="Suppliers" asp-action="Index" class="dropdown-item"><i class="fas fa-truck fa-fw me-2"></i>Nhà cung cấp</a> </li> </ul></div>
+    @if (User.Identity != null && User.Identity.IsAuthenticated) {<ul id="accountDropdownMenu" class="popup-menu shadow-sm"><li class="dropdown-header text-center">Xin chào, @User.Identity.Name!</li><li><hr class="dropdown-divider"></li><li><a class="dropdown-item" asp-controller="Account" asp-action="Profile"><i class="fas fa-user fa-fw me-2"></i>Thông tin cá nhân</a></li>@if (User.IsInRole("Customer")){<li><a class="dropdown-item" asp-controller="Sales" asp-action="OrderHistory"><i class="fas fa-receipt fa-fw me-2"></i>Lịch sử mua hàng</a><li><a class="dropdown-item" asp-controller="Account" asp-action="Settings"><i class="fas fa-cog fa-fw me-2"></i>Cài đặt tài khoản</a></li></li>} @if (User.IsInRole("Admin") || User.IsInRole("Staff")){<li><a class="dropdown-item" asp-controller="Employees" asp-action="Index"><i class="fas fa-user-tie fa-fw me-2"></i>Quản lý nhân viên</a></li><li><a class="dropdown-item" asp-controller="EmployeeAccounts" asp-action="Index"><i class="fas fa-users-cog fa-fw me-2"></i>Quản lý tài khoản NV</a></li><li><a class="dropdown-item" asp-controller="Customers" asp-action="Index"><i class="fas fa-users fa-fw me-2"></i>Quản lý khách hàng</a></li>}<li><hr class="dropdown-divider"></li><li> <a id="logoutAjaxLink" class="dropdown-item" href="#"> <i class="fas fa-sign-out-alt fa-fw me-2"></i>Đăng xuất </a> </li></ul>}
 
     <div class="container main-container my-4 flex-grow-1">
         <main role="main" class="pb-3">
