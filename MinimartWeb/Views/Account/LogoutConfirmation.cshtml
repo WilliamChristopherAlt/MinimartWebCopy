@@ -9,7 +9,7 @@
 </div>
 
 <form asp-controller="Account" asp-action="Logout" method="post">
-    @Html.AntiForgeryToken() <!-- Quan trọng: Thêm token chống giả mạo -->
+    @* @Html.AntiForgeryToken() <!-- Quan trọng: Thêm token chống giả mạo --> *@
     <button type="submit" class="btn btn-danger">
         <i class="fas fa-sign-out-alt me-1"></i> Xác nhận Đăng xuất
     </button>

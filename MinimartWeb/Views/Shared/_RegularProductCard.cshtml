@@ -25,19 +25,19 @@
                     <p class="text-danger small mb-2 fw-bold">Hết hàng</p>
                 }
             </div>
-            <div class="product-card-footer mt-auto">
-                @if (Model.StockAmount > 0 && Model.IsActive)
-                {
-                    <div class="d-grid gap-2">
-                        <a asp-controller="Cart" asp-action="AddToCartDirect" asp-route-productId="@Model.Id" asp-route-quantity="1" class="btn btn-outline-warning btn-sm product-action-btn"> <i class="fas fa-cart-plus me-1"></i> Thêm vào giỏ </a>
-                        <a asp-controller="Checkout" asp-action="BuyNow" asp-route-productId="@Model.Id" asp-route-quantity="1" class="btn btn-warning btn-sm product-action-btn"> <i class="fas fa-bolt me-1"></i> Mua ngay </a>
-                    </div>
-                }
-                else
-                {
-                    <button type="button" class="btn btn-secondary btn-sm w-100" disabled>Hết hàng</button>
-                }
-            </div>
+            @* <div class="product-card-footer mt-auto"> *@
+            @*     @if (Model.StockAmount > 0 && Model.IsActive) *@
+            @*     { *@
+            @*         <div class="d-grid gap-2"> *@
+            @*             <a asp-controller="Cart" asp-action="AddToCartDirect" asp-route-productId="@Model.Id" asp-route-quantity="1" class="btn btn-outline-warning btn-sm product-action-btn"> <i class="fas fa-cart-plus me-1"></i> Thêm vào giỏ </a> *@
+            @*             <a asp-controller="Checkout" asp-action="BuyNow" asp-route-productId="@Model.Id" asp-route-quantity="1" class="btn btn-warning btn-sm product-action-btn"> <i class="fas fa-bolt me-1"></i> Mua ngay </a> *@
+            @*         </div> *@
+            @*     } *@
+            @*     else *@
+            @*     { *@
+            @*         <button type="button" class="btn btn-secondary btn-sm w-100" disabled>Hết hàng</button> *@
+            @*     } *@
+            @* </div> *@
         </div>
     </div>
 </div>

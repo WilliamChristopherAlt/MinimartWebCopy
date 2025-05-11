@@ -59,5 +59,9 @@ namespace MinimartWeb.Model
         public MeasurementUnit MeasurementUnit { get; set; }
         public ICollection<ProductTag> ProductTags { get; set; } = new List<ProductTag>();
         public ICollection<SaleDetail> SaleDetails { get; set; } = new List<SaleDetail>();
+
+        [NotMapped]
+        public List<string> Tags => ProductTags?.Select(pt => pt.Tag.TagName).ToList() ?? new List<string>();
+
     }
 }

@@ -1,0 +1,41 @@
+﻿@model List<MinimartWeb.Model.Sale>
+@{
+    ViewData["Title"] = "Lịch sử đơn hàng";
+    string formatCurrency(decimal v) => v.ToString("N0") + " đ";
+}
+
+<h2 class="mb-4">🕘 Lịch sử đơn hàng</h2>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">Bạn chưa có đơn hàng nào đã được xác nhận.</div>
+}
+else
+{
+    foreach (var sale in Model)
+    {
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header d-flex justify-content-between">
+                <span><strong>Mã đơn hàng:</strong> #@sale.SaleID</span>
+                <span class="text-muted">@sale.SaleDate.ToString("dd/MM/yyyy HH:mm")</span>
+            </div>
+            <div class="card-body">
+                <p><strong>Trạng thái:</strong> @sale.OrderStatus</p>
+                <p><strong>Phương thức thanh toán:</strong> @sale.PaymentMethod?.MethodName</p>
+                <p><strong>Địa chỉ giao hàng:</strong> @sale.DeliveryAddress</p>
+                <hr />
+                @foreach (var item in sale.SaleDetails)
+                {
+                    <div class="d-flex justify-content-between mb-2">
+                        <div>@item.ProductType?.ProductName</div>
+                        <div>@item.Quantity x @formatCurrency(item.ProductPriceAtPurchase)</div>
+                    </div>
+                }
+                <hr />
+                <div class="text-end fw-bold">
+                    Tổng tiền: @formatCurrency(sale.SaleDetails.Sum(x => x.Quantity * x.ProductPriceAtPurchase))
+                </div>
+            </div>
+        </div>
+    }
+}

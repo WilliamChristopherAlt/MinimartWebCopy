@@ -19,6 +19,8 @@ namespace MinimartWeb.ViewModels
         public int UnitsSoldThisMonth { get; set; }
         public bool IsFlashSale { get; set; } = false;
 
+        public List<string> Tags { get; set; } = new();
+
         // public int? DiscountPercent { /* ... property tính toán dựa trên OriginalPrice đã bị bỏ ... */ }
     }
 }

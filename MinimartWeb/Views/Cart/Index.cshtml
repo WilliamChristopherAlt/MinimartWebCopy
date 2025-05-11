@@ -1,0 +1,135 @@
+﻿@model MinimartWeb.Model.Sale
+@{
+    ViewData["Title"] = "Giỏ hàng của bạn";
+    string formatCurrency(decimal value) => value.ToString("N0") + " đ";
+}
+
+<h2 class="mb-4">🛒 Giỏ hàng của bạn</h2>
+
+@if (Model == null || !Model.SaleDetails.Any())
+{
+    <div class="alert alert-info">Giỏ hàng hiện đang trống.</div>
+}
+else
+{
+    <form asp-action="Index" method="post" id="cartForm">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="saleId" value="@Model.SaleID" />
+
+        <div class="list-group">
+            @foreach (var item in Model.SaleDetails)
+            {
+                var unit = item.ProductType?.MeasurementUnit;
+                var isContinuous = unit?.IsContinuous ?? false;
+                var min = isContinuous ? "0.01" : "1";
+                var step = isContinuous ? "0.01" : "1";
+                var unitName = unit?.UnitName ?? "đơn vị";
+                var img = string.IsNullOrEmpty(item.ProductType?.ImagePath)
+                ? Url.Content("~/images/placeholder.png")
+                : Url.Content("~/images/products/" + item.ProductType.ImagePath);
+                var itemTotal = item.Quantity * item.ProductPriceAtPurchase;
+
+                <div class="list-group-item mb-3 border rounded p-3 d-flex justify-content-between align-items-stretch flex-row" data-product-id="@item.ProductTypeID" data-price="@item.ProductPriceAtPurchase" style="gap: 1.5rem;">
+                    <a asp-controller="CustomerProducts" asp-action="Details" asp-route-id="@item.ProductTypeID"
+                       class="d-flex flex-row text-decoration-none text-dark product-link-hover" style="flex: 1 1 auto;">
+                        <div class="image-box d-flex justify-content-center align-items-center bg-light border" style="width: 140px; height: 140px; flex-shrink: 0;">
+                            <img src="@img" alt="Ảnh sản phẩm" class="img-fluid rounded" style="max-height: 100%; max-width: 100%; object-fit: contain;" />
+                        </div>
+                        <div class="product-info d-flex flex-column justify-content-center ps-3" style="flex-grow: 1;">
+                            <h6 class="fw-bold mb-1">@item.ProductType?.ProductName</h6>
+                            @if (!string.IsNullOrWhiteSpace(item.ProductType?.ProductDescription))
+                            {
+                                <p class="small text-muted mb-1">@item.ProductType.ProductDescription</p>
+                            }
+                            <p class="mb-1 small text-muted">Đơn giá: @formatCurrency(item.ProductPriceAtPurchase)</p>
+                            <p class="mb-0 small text-muted item-total">Tổng: <strong>@formatCurrency(itemTotal)</strong></p>
+                        </div>
+                    </a>
+
+                    <div class="product-actions d-flex flex-column align-items-stretch justify-content-start gap-2" style="min-width: 200px;">
+
+                        <div class="mb-2">
+                            <label class="form-label small mb-1">Số lượng:</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number"
+                                       class="form-control quantity-input text-start"
+                                       name="updatedQuantities[@item.ProductTypeID]"
+                                       value="@item.Quantity"
+                                       min="@min"
+                                       step="@step" />
+                                <span class="input-group-text">@unitName</span>
+                            </div>
+                        </div>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-danger mt-2"
+                                data-product-id="@item.ProductTypeID">
+                            <i class="fas fa-trash-alt me-1"></i> Xóa
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="mt-4 text-end fs-5 fw-bold">
+            Tổng cộng: <span id="grandTotal">@formatCurrency(Model.SaleDetails.Sum(x => x.Quantity * x.ProductPriceAtPurchase))</span>
+        </div>
+
+        <div class="d-flex justify-content-between mt-4">
+            <button type="submit" class="btn btn-primary">Cập nhật giỏ hàng</button>
+            <a class="btn btn-success" asp-controller="Cart" asp-action="ConfirmOrder" asp-route-saleId="@Model.SaleID">Tiến hành đặt hàng</a>
+        </div>
+    </form>
+}
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const formatCurrency = (val) =>
+                val.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }).replace("₫", "đ");
+
+            const updateTotals = () => {
+                let grandTotal = 0;
+
+                document.querySelectorAll('.list-group-item').forEach(row => {
+                    const price = parseFloat(row.dataset.price);
+                    const qty = parseFloat(row.querySelector('input.quantity-input').value);
+                    const itemTotal = price * qty;
+
+                    row.querySelector('.item-total strong').innerText = formatCurrency(itemTotal);
+                    grandTotal += itemTotal;
+                });
+
+                document.getElementById('grandTotal').innerText = formatCurrency(grandTotal);
+            };
+
+            document.querySelectorAll('input.quantity-input').forEach(input =>
+                input.addEventListener('input', updateTotals)
+            );
+
+            document.querySelectorAll('.btn-outline-danger').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const id = this.dataset.productId;
+                    if (confirm("Bạn có chắc chắn muốn xóa sản phẩm này khỏi giỏ hàng?")) {
+                        const form = document.getElementById('cartForm');
+                        const input = document.createElement("input");
+                        input.type = "hidden";
+                        input.name = "removeProductId";
+                        input.value = id;
+                        form.appendChild(input);
+                        form.submit();
+                    }
+                });
+            });
+        });
+    </script>
+}
+
+@section Styles {
+    <style>
+        .product-link-hover:hover {
+            background-color: #f9f9f9;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s ease;
+        }
+    </style>
+}

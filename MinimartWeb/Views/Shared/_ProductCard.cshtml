@@ -46,11 +46,11 @@
                     <div class="d-grid gap-2">
                         @* Sử dụng d-grid để các nút chiếm toàn bộ chiều rộng và cách nhau *@
                         @* NÚT THÊM VÀO GIỎ HÀNG *@
-                        <a asp-controller="Cart" asp-action="AddToCartDirect" asp-route-productId="@Model.Id" asp-route-quantity="1" class="btn btn-outline-warning btn-sm product-action-btn">
+                        <a asp-controller="Cart" asp-action="AddToCartDirect" asp-route-productId="@Model.Id" asp-route-quantity="1" class="btn btn-outline-secondary w-100 product-action-btn">
                             <i class="fas fa-cart-plus me-1"></i> Thêm vào giỏ
                         </a>
                         @* NÚT MUA NGAY *@
-                        <a asp-controller="Checkout" asp-action="BuyNow" asp-route-productId="@Model.Id" asp-route-quantity="1" class="btn btn-warning btn-sm product-action-btn">
+                        <a asp-controller="Checkout" asp-action="BuyNow" asp-route-productId="@Model.Id" asp-route-quantity="1" class="btn btn-outline-warning w-100 product-action-btn">
                             @* Trỏ đến CheckoutController, action BuyNow *@
                             <i class="fas fa-bolt me-1"></i> Mua ngay
                         </a>
