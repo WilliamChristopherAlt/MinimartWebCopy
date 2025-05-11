@@ -1,0 +1,158 @@
+﻿@* File: Views/Account/Profile.cshtml *@
+@* ... (Phần HTML đầu file và cột trái hiển thị thông tin giữ nguyên như phiên bản "chỉ đọc") ... *@
+@model MinimartWeb.Models.CustomerProfileViewModel
+@using System.Text.Encodings.Web;
+@{
+    ViewData["Title"] = "Thông tin cá nhân";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var imageSrc = !string.IsNullOrEmpty(Model.ImagePath) && Model.ImagePath != "default.jpg"
+                   ? Url.Content("~/images/users/" + Model.ImagePath)
+                   : Url.Content("~/images/users/default.jpg");
+}
+
+<div class="container my-4">
+    <div class="text-center py-3 mb-4" style="background-color: #e0f2f7; border-radius: 0.3rem;">
+        <h2 class="mb-0 display-6 fw-normal">@ViewData["Title"]</h2>
+    </div>
+
+    @* Thông báo *@
+    <div class="row justify-content-center mb-3">
+        <div class="col-lg-10 col-xl-9">
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert"><i class="fas fa-check-circle me-2"></i> @TempData["SuccessMessage"]<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>
+            }
+        </div>
+    </div>
+
+    <div class="row g-4">
+        @* CỘT BÊN TRÁI: Ảnh và Thông tin cá nhân (CHỈ HIỂN THỊ) *@
+        <div class="col-lg-5 col-md-6">
+            <div class="border p-3 rounded-3 mb-4" style="background-color: #ffffff;">
+                <div class="text-center mb-4">
+                    <img id="profileImagePreview" src="@imageSrc" class="img-thumbnail rounded-circle mb-2" alt="Ảnh đại diện" style="width: 180px; height: 180px; object-fit: cover; border: 4px solid #dee2e6;">
+                </div>
+                <h4 class="mb-3 border-bottom pb-2 text-center">Thông tin chi tiết</h4>
+                <div class="mb-2 row"><label class="col-sm-4 col-form-label fw-bold text-muted">Mã KH:</label><div class="col-sm-8"><p class="form-control-plaintext py-0">@Model.CustomerId</p></div></div>
+                <div class="mb-2 row"><label class="col-sm-4 col-form-label fw-bold text-muted">Họ:</label><div class="col-sm-8"><p class="form-control-plaintext py-0">@Model.FirstName</p></div></div>
+                <div class="mb-2 row"><label class="col-sm-4 col-form-label fw-bold text-muted">Tên:</label><div class="col-sm-8"><p class="form-control-plaintext py-0">@Model.LastName</p></div></div>
+                <div class="mb-2 row"><label class="col-sm-4 col-form-label fw-bold text-muted">Tên đăng nhập:</label><div class="col-sm-8"><p class="form-control-plaintext py-0">@Model.Username</p></div></div>
+                <div class="mb-2 row"><label class="col-sm-4 col-form-label fw-bold text-muted">Email:</label><div class="col-sm-8 d-flex align-items-center"><p class="form-control-plaintext py-0 mb-0 me-2">@Model.Email</p>@if (Model.IsEmailVerified)
+                        {
+                            <i class="fas fa-check-circle text-success" title="Email đã được xác minh"></i>
+                        }
+                        else
+                        {
+                            <i class="fas fa-exclamation-triangle text-warning" title="Email chưa được xác minh"></i>
+                        }</div></div>
+                @if (!Model.IsEmailVerified)
+                {
+                    <div class="row mb-2"><div class="col-sm-8 offset-sm-4"><small class="form-text text-muted mt-0 d-block" style="font-size:0.8em"><a asp-controller="Account" asp-action="ResendVerificationOtp" asp-route-email="@Model.Email" class="text-decoration-none">Gửi lại mã OTP</a></small></div></div>
+                }
+                <div class="mb-3 row"><label class="col-sm-4 col-form-label fw-bold text-muted">Điện thoại:</label><div class="col-sm-8"><p class="form-control-plaintext py-0">@Model.PhoneNumber</p></div></div>
+            </div>
+        </div>
+
+        @* CỘT BÊN PHẢI: Biểu đồ chi tiêu *@
+        <div class="col-lg-7 col-md-6">
+            <div class="border p-3 rounded-3" style="background-color: #f8f9fa; min-height: 450px;">
+                <h4 class="mb-3 text-center">@ViewBag.ChartTitle</h4> @* Sử dụng ViewBag.ChartTitle *@
+                <div id="chartContainer" style="height: 380px; position: relative;">
+                    <canvas id="spendingChart"></canvas>
+                    <p id="noChartDataMessage" class="text-muted text-center" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display:none;">Chưa có dữ liệu chi tiêu để hiển thị.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const chartLabels = @Html.Raw(Json.Serialize(ViewBag.ChartLabels ?? new List<string>()));
+            const chartDataValues = @Html.Raw(Json.Serialize(ViewBag.ChartData ?? new List<decimal>()));
+            const noChartDataMsg = document.getElementById('noChartDataMessage');
+            const canvasChart = document.getElementById('spendingChart');
+
+            console.log("Chart Labels from ViewBag:", chartLabels);
+            console.log("Chart Data from ViewBag:", chartDataValues);
+
+            if (chartDataValues.length > 0 && chartLabels.length > 0 && canvasChart) {
+                if (noChartDataMsg) noChartDataMsg.style.display = 'none';
+                canvasChart.style.display = 'block';
+
+                // Hủy biểu đồ cũ nếu tồn tại để tránh lỗi khi refresh trang bằng AJAX (nếu có)
+                if (window.mySpendingChart instanceof Chart) {
+                    window.mySpendingChart.destroy();
+                }
+
+                window.mySpendingChart = new Chart(canvasChart.getContext('2d'), {
+                    type: 'bar', // Bạn có thể đổi thành 'line' nếu muốn biểu đồ đường
+                    data: {
+                        labels: chartLabels,
+                        datasets: [{
+                            label: 'Tổng chi (VNĐ)', // Label cho dataset
+                            data: chartDataValues,
+                            backgroundColor: 'rgba(54, 162, 235, 0.6)', // Màu cột
+                            borderColor: 'rgba(54, 162, 235, 1)',     // Màu viền cột
+                            borderWidth: 1,
+                            borderRadius: 4, // Bo góc cột
+                            hoverBackgroundColor: 'rgba(54, 162, 235, 0.8)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true, // Hiển thị chú giải (ví dụ: 'Tổng chi (VNĐ)')
+                                position: 'top',
+                            },
+                            title: {
+                                display: false // Tiêu đề chính đã có ở H4
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) { label += ': '; }
+                                        if (context.parsed.y !== null) {
+                                            label += context.parsed.y.toLocaleString('vi-VN') + ' VNĐ';
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function (value, index, values) {
+                                        return value.toLocaleString('vi-VN'); // Bỏ ' VNĐ' ở trục y cho gọn
+                                    }
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false // Ẩn đường lưới dọc
+                                }
+                            }
+                        }
+                    }
+                });
+            } else if (noChartDataMsg && canvasChart) {
+                noChartDataMsg.style.display = 'block';
+                canvasChart.style.display = 'none';
+                console.log("No chart data to display. Showing message.");
+            } else if (canvasChart) { // Không có dữ liệu và noChartDataMsg cũng không tìm thấy
+                canvasChart.style.display = 'none';
+                console.log("Canvas chart found but no data and no message element.");
+            } else {
+                console.log("Canvas chart element not found.");
+            }
+        });
+    </script>
+}

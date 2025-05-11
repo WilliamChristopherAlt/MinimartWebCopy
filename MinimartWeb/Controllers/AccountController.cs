@@ -730,6 +730,276 @@ public class AccountController : Controller
         }
         return View(model);
     }
+    [Authorize] // Yêu cầu người dùng phải đăng nhập để xem trang này
+    [HttpGet]
+    public async Task<IActionResult> Profile()
+    {
+        _logger.LogInformation("GET /Account/Profile accessed.");
+
+        // 1. Lấy CustomerID của người dùng đang đăng nhập
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int customerId))
+        {
+            _logger.LogWarning("Profile GET: User not authenticated or CustomerID claim is missing/invalid.");
+            // Có thể redirect đến trang đăng nhập hoặc trả về lỗi Unauthorized
+            return Challenge(); // Hoặc return Unauthorized(); hoặc return RedirectToAction("Login");
+        }
+
+        _logger.LogInformation("Profile GET: Attempting to load profile for CustomerID: {CustomerId}", customerId);
+
+        // 2. Truy vấn thông tin khách hàng từ CSDL
+        var customer = await _context.Customers.FindAsync(customerId);
+
+        if (customer == null)
+        {
+            _logger.LogWarning("Profile GET: Customer with ID {CustomerId} not found.", customerId);
+            return NotFound($"Không tìm thấy thông tin khách hàng với ID: {customerId}.");
+        }
+
+        // 3. Map dữ liệu từ entity Customer sang CustomerProfileViewModel
+        var viewModel = new CustomerProfileViewModel
+        {
+            CustomerId = customer.CustomerID,
+            FirstName = customer.FirstName,
+            LastName = customer.LastName,
+            Email = customer.Email,
+            IsEmailVerified = customer.IsEmailVerified,
+           // EmailVerifiedAt = customer.EmailVerifiedAt,
+            PhoneNumber = customer.PhoneNumber,
+            ImagePath = customer.ImagePath, // Đường dẫn ảnh sẽ được xử lý trong View
+            Username = customer.Username
+        };
+
+        // --- LẤY DỮ LIỆU CHO BIỂU ĐỒ CHI TIÊU 12 THÁNG (THEO THÁNG) ---
+        try
+        {
+            var today = DateTime.UtcNow.Date; // Hoặc DateTime.Now.Date nếu múi giờ server là giờ địa phương
+                                              // Ngày đầu tiên của tháng cách đây 11 tháng (để bao gồm cả tháng hiện tại là tháng thứ 12)
+            var startDateFor12Months = new DateTime(today.Year, today.Month, 1).AddMonths(-11);
+
+            _logger.LogInformation("[ChartData] Querying sales from {StartDate} to {EndDate} for CustomerID: {CustomerId} to aggregate by month.",
+                startDateFor12Months.ToString("yyyy-MM-dd"),
+                today.ToString("yyyy-MM-dd"),
+                customerId);
+
+            // Lấy tất cả SaleDetails trong khoảng 12 tháng để tính tổng theo tháng
+            var monthlySpendingDetails = await _context.Sales
+                .Where(s => s.CustomerID == customerId &&
+                            s.SaleDate >= startDateFor12Months &&
+                            s.SaleDate < today.AddDays(1) && // Đến hết ngày hôm nay
+                            s.OrderStatus == "Completed")
+                .SelectMany(s => s.SaleDetails.Select(sd => new {
+                    SaleYear = s.SaleDate.Year,
+                    SaleMonth = s.SaleDate.Month,
+                    Amount = sd.Quantity * sd.ProductPriceAtPurchase
+                }))
+                .ToListAsync();
+
+            _logger.LogInformation("[ChartData] Fetched {Count} sale detail entries for the 12-month period.", monthlySpendingDetails.Count);
+
+            var chartLabels = new List<string>();
+            var chartData = new List<decimal>();
+            decimal totalSpendingThisYear = 0; // Biến để tính tổng chi tiêu của năm hiện tại (tùy chọn)
+            int currentYearForTotal = today.Year; // Năm hiện tại để tính tổng
+
+            if (monthlySpendingDetails.Any())
+            {
+                // Nhóm dữ liệu đã lấy theo Tháng và Năm, sau đó tính tổng
+                var spendingGroupedByMonth = monthlySpendingDetails
+                    .GroupBy(x => new { x.SaleYear, x.SaleMonth })
+                    .Select(g => new
+                    {
+                        MonthYearKey = new DateTime(g.Key.SaleYear, g.Key.SaleMonth, 1),
+                        TotalAmount = g.Sum(x => x.Amount)
+                    })
+                    .OrderBy(x => x.MonthYearKey)
+                    .ToList();
+
+                // Điền dữ liệu cho 12 tháng trên biểu đồ
+                for (int i = 0; i < 12; i++)
+                {
+                    // Bắt đầu từ 11 tháng trước, tiến tới tháng hiện tại
+                    var targetMonthDate = startDateFor12Months.AddMonths(i);
+                    chartLabels.Add($"T{targetMonthDate.Month}/{targetMonthDate.ToString("yy")}");
+
+                    var spendingForThisMonth = spendingGroupedByMonth.FirstOrDefault(sbm => sbm.MonthYearKey.Year == targetMonthDate.Year && sbm.MonthYearKey.Month == targetMonthDate.Month);
+                    var monthlyTotal = spendingForThisMonth?.TotalAmount ?? 0m;
+                    chartData.Add(monthlyTotal);
+
+                    // Nếu bạn muốn tính tổng chi tiêu cho năm hiện tại (ví dụ: 2025)
+                    if (targetMonthDate.Year == currentYearForTotal)
+                    {
+                        totalSpendingThisYear += monthlyTotal;
+                    }
+                }
+                ViewBag.ChartTitle = $"Chi tiêu 12 tháng qua";
+            }
+            else
+            {
+                // Nếu không có dữ liệu, tạo nhãn trống và dữ liệu 0 cho 12 tháng
+                for (int i = 0; i < 12; i++)
+                {
+                    var monthToDisplay = startDateFor12Months.AddMonths(i);
+                    chartLabels.Add($"T{monthToDisplay.Month}/{monthToDisplay.ToString("yy")}");
+                    chartData.Add(0m);
+                }
+                ViewBag.ChartTitle = "Chưa có dữ liệu chi tiêu trong 12 tháng qua";
+            }
+
+            ViewBag.ChartLabels = chartLabels;
+            ViewBag.ChartData = chartData;
+            ViewBag.TotalSpendingThisYear = totalSpendingThisYear; // Truyền tổng chi tiêu năm nay qua ViewBag (tùy chọn)
+
+            _logger.LogInformation("[ChartData] Prepared 12-Month Chart Labels ({Count}): {Labels}", chartLabels.Count, string.Join(", ", chartLabels));
+            _logger.LogInformation("[ChartData] Prepared 12-Month Chart Data ({Count}): {DataValues}", chartData.Count, string.Join(", ", chartData.Select(d => d.ToString("N0"))));
+            if (totalSpendingThisYear > 0)
+            {
+                _logger.LogInformation("[ChartData] Total spending for year {Year}: {TotalAmount}", currentYearForTotal, totalSpendingThisYear.ToString("N0"));
+            }
+
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[ChartData] Error fetching 12-month spending data for CustomerID: {CustomerId}", customerId);
+            ViewBag.ChartLabels = Enumerable.Range(0, 12).Select(i => DateTime.UtcNow.AddMonths(i - 11).ToString("TMM/yy")).ToList();
+            ViewBag.ChartData = Enumerable.Repeat(0m, 12).ToList();
+            ViewBag.ChartTitle = "Lỗi tải dữ liệu chi tiêu";
+            ViewBag.TotalSpendingThisYear = 0m;
+        }
+        // --- KẾT THÚC LẤY DỮ LIỆU BIỂU ĐỒ ---
+
+        _logger.LogInformation("Profile GET: Profile loaded successfully for CustomerID: {CustomerId}, Username: {Username}", customerId, customer.Username);
+        return View(viewModel); // Trả về View "Profile.cshtml" với dữ liệu viewModel
+    }
+
+    // POST: /Account/Profile
+    [Authorize] // Yêu cầu người dùng phải đăng nhập
+    [HttpPost]
+    [ValidateAntiForgeryToken] // Chống tấn công CSRF
+    public async Task<IActionResult> Profile(CustomerProfileViewModel model)
+    {
+        _logger.LogInformation("POST /Account/Profile received for CustomerID from model: {ModelCustomerId}", model.CustomerId);
+
+        // 1. Xác thực người dùng và CustomerId
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int currentUserId) || currentUserId != model.CustomerId)
+        {
+            _logger.LogWarning("Profile POST: Unauthorized attempt. Logged in UserID: {CurrentUserId}, Model CustomerID: {ModelCustomerId}", userIdString, model.CustomerId);
+            return Forbid(); // Hoặc Unauthorized() - người dùng không có quyền sửa profile này
+        }
+
+        // 2. Kiểm tra ModelState
+        if (!ModelState.IsValid)
+        {
+            _logger.LogWarning("Profile POST: ModelState is invalid for CustomerID: {CustomerId}", model.CustomerId);
+            // Nếu có lỗi validation, cần load lại ImagePath vì nó không được post lại từ form
+            // Chúng ta có thể lấy từ TempData hoặc truy vấn lại nhanh nếu không muốn lộ liễu quá
+            // Hoặc đơn giản là ViewModel đã có ImagePath (nếu bạn thêm hidden input cho nó)
+            // Nếu bạn đã có <input type="hidden" asp-for="ImagePath" /> trong form thì không cần làm gì thêm ở đây cho ImagePath
+            return View(model); // Trả về view với các lỗi validation
+        }
+
+        // 3. Lấy entity Customer từ DB để cập nhật
+        var customerToUpdate = await _context.Customers.FindAsync(model.CustomerId);
+        if (customerToUpdate == null)
+        {
+            _logger.LogError("Profile POST: Customer with ID {CustomerId} not found for update.", model.CustomerId);
+            return NotFound($"Không tìm thấy khách hàng để cập nhật.");
+        }
+
+        // 4. Cập nhật các thuộc tính được phép thay đổi
+        customerToUpdate.FirstName = model.FirstName;
+        customerToUpdate.LastName = model.LastName;
+        customerToUpdate.PhoneNumber = model.PhoneNumber;
+        // Lưu ý: Email, Username, IsEmailVerified không nên được cập nhật trực tiếp từ form này.
+        // Việc thay đổi email cần có quy trình xác minh riêng.
+
+        // 5. Xử lý upload ảnh đại diện mới (nếu có)
+        if (model.NewImageFile != null && model.NewImageFile.Length > 0)
+        {
+            _logger.LogInformation("Profile POST: New image file detected for CustomerID: {CustomerId}. File name: {FileName}, Size: {FileSize}", model.CustomerId, model.NewImageFile.FileName, model.NewImageFile.Length);
+            try
+            {
+                // Đường dẫn đến thư mục lưu ảnh (ví dụ: wwwroot/images/users)
+                // Đảm bảo _webHostEnvironment đã được inject vào constructor
+                string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images", "users");
+                if (!Directory.Exists(uploadsFolder))
+                {
+                    Directory.CreateDirectory(uploadsFolder);
+                    _logger.LogInformation("Profile POST: Created directory: {UploadsFolder}", uploadsFolder);
+                }
+
+                // Xóa ảnh cũ (nếu có và không phải là ảnh mặc định)
+                if (!string.IsNullOrEmpty(customerToUpdate.ImagePath) && customerToUpdate.ImagePath != "default.jpg") // Thay "default.jpg" bằng tên ảnh mặc định của bạn
+                {
+                    var oldImagePath = Path.Combine(uploadsFolder, customerToUpdate.ImagePath);
+                    if (System.IO.File.Exists(oldImagePath))
+                    {
+                        System.IO.File.Delete(oldImagePath);
+                        _logger.LogInformation("Profile POST: Deleted old image: {OldImagePath}", oldImagePath);
+                    }
+                }
+
+                // Tạo tên file duy nhất để tránh trùng lặp
+                string uniqueFileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(model.NewImageFile.FileName);
+                string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                // Lưu file mới
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                {
+                    await model.NewImageFile.CopyToAsync(fileStream);
+                }
+                customerToUpdate.ImagePath = uniqueFileName; // Lưu tên file mới vào DB
+                _logger.LogInformation("Profile POST: New image saved as: {FilePath}", filePath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Profile POST: Error uploading new image for CustomerID: {CustomerId}", model.CustomerId);
+                ModelState.AddModelError("NewImageFile", "Lỗi tải lên ảnh đại diện. Vui lòng thử lại.");
+                // Có thể cần load lại ImagePath hiện tại của model nếu return View(model)
+                model.ImagePath = customerToUpdate.ImagePath; // Giữ lại ảnh cũ nếu upload lỗi
+                return View(model);
+            }
+        }
+
+        // 6. Lưu thay đổi vào CSDL
+        try
+        {
+            _context.Update(customerToUpdate);
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Profile POST: Profile updated successfully for CustomerID: {CustomerId}, Username: {Username}", customerToUpdate.CustomerID, customerToUpdate.Username);
+
+            TempData["SuccessMessage"] = "Thông tin cá nhân đã được cập nhật thành công!";
+            return RedirectToAction(nameof(Profile)); // Chuyển hướng về trang Profile (GET) để hiển thị thông tin mới
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogError(ex, "Profile POST: Concurrency error updating profile for CustomerID: {CustomerId}", model.CustomerId);
+            ModelState.AddModelError(string.Empty, "Lỗi lưu dữ liệu. Dữ liệu có thể đã được thay đổi bởi người khác. Vui lòng tải lại trang và thử lại.");
+            // Load lại ImagePath hiện tại
+            model.ImagePath = customerToUpdate.ImagePath;
+            return View(model);
+        }
+        catch (DbUpdateException ex) // Bắt lỗi cụ thể từ DB, ví dụ UNIQUE constraint
+        {
+            _logger.LogError(ex, "Profile POST: Database update error for CustomerID: {CustomerId}", model.CustomerId);
+            if (ex.InnerException != null && ex.InnerException.Message.Contains("UNIQUE KEY constraint", StringComparison.OrdinalIgnoreCase))
+            {
+                if (ex.InnerException.Message.Contains("PhoneNumber", StringComparison.OrdinalIgnoreCase))
+                {
+                    ModelState.AddModelError(nameof(model.PhoneNumber), "Số điện thoại này đã được sử dụng bởi một tài khoản khác.");
+                }
+                // Thêm kiểm tra cho các cột UNIQUE khác nếu cần
+            }
+            else
+            {
+                ModelState.AddModelError(string.Empty, "Đã xảy ra lỗi khi cập nhật thông tin. Vui lòng thử lại.");
+            }
+            // Load lại ImagePath hiện tại
+            model.ImagePath = customerToUpdate.ImagePath;
+            return View(model);
+        }
+    }
 
 
     // Class DTO nội bộ nhỏ (nếu bạn muốn dùng)
