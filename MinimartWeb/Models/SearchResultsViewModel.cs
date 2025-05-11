@@ -9,6 +9,7 @@ namespace MinimartWeb.ViewModels
     {
         public string Keyword { get; set; } = string.Empty;
         public List<ProductViewModel> SearchResults { get; set; } = new List<ProductViewModel>();
+        public List<ProductViewModel> RecommendedProducts { get; set; } = new List<ProductViewModel>();
         public List<ProductViewModel> OtherProducts { get; set; } = new List<ProductViewModel>();
 
         // Thuộc tính phân trang cho OtherProducts (nếu bạn muốn phân trang ở đây)

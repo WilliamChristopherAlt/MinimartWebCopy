@@ -1,30 +1,38 @@
-﻿// Trong thư mục: ViewModels
-// Tên file: CustomerProductIndexViewModel.cs
+﻿// Trong ViewModels/CustomerProductIndexViewModel.cs
+using Microsoft.AspNetCore.Mvc.Rendering;
 using System.Collections.Generic;
-using Microsoft.AspNetCore.Mvc.Rendering; // Cho SelectList
 
 namespace MinimartWeb.ViewModels
 {
     public class CustomerProductIndexViewModel
     {
-        public List<ProductViewModel> Products { get; set; } = new List<ProductViewModel>();
-
-        // Thông tin phân trang
-        public int CurrentPage { get; set; }
-        public int TotalPages { get; set; }
-        public bool HasPreviousPage => CurrentPage > 1;
-        public bool HasNextPage => CurrentPage < TotalPages;
-
-        // Thông tin sắp xếp và lọc hiện tại để giữ lại khi chuyển trang/sắp xếp
+        // --- Filter, Sort, Paging cho Kết quả chính ---
         public string? SortOrder { get; set; }
-        public string? SearchString { get; set; }
+        public string? SearchString { get; set; } // Từ khóa tìm kiếm (nếu có)
         public int? SelectedCategoryId { get; set; }
         public int? SelectedSupplierId { get; set; }
         public decimal? MinPrice { get; set; }
         public decimal? MaxPrice { get; set; }
 
-        // SelectList cho dropdown bộ lọc (sẽ được gán từ Controller)
+        public List<ProductViewModel> Products { get; set; } = new List<ProductViewModel>(); // Kết quả chính
+        public int CurrentPage { get; set; } = 1;    // Trang hiện tại cho Products
+        public int TotalPages { get; set; } = 1;     // Tổng số trang cho Products
+        public bool HasPreviousPage => CurrentPage > 1;
+        public bool HasNextPage => CurrentPage < TotalPages;
+
+        // --- Dữ liệu cho Dropdowns Filter ---
         public SelectList? Categories { get; set; }
         public SelectList? Suppliers { get; set; }
+
+        // --- Cho băng chuyền "Sản phẩm gợi ý/cùng loại" ---
+        public List<ProductViewModel> RecommendedProducts { get; set; } = new List<ProductViewModel>();
+        public string? RecommendationTitle { get; set; } // Tiêu đề cho mục gợi ý
+
+        // --- Cho lưới "Sản phẩm khác" - có phân trang riêng ---
+        public List<ProductViewModel> OtherProducts { get; set; } = new List<ProductViewModel>();
+        public int CurrentPageOther { get; set; } = 1; // Trang hiện tại cho OtherProducts
+        public int TotalPagesOther { get; set; } = 1;  // Tổng số trang cho OtherProducts
+        public bool HasPreviousPageOther => CurrentPageOther > 1;
+        public bool HasNextPageOther => CurrentPageOther < TotalPagesOther;
     }
 }

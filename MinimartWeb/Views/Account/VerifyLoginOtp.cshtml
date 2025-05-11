@@ -1,13 +1,13 @@
-﻿@model MinimartWeb.Models.VerifyOtpViewModel 
+﻿@model MinimartWeb.Models.VerifyLoginOtpViewModel 
 @{
-    ViewData["Title"] = "Xác Minh Tài Khoản";
+    ViewData["Title"] = "Xác Thực Đăng Nhập";
 }
 
 <div class="container mt-5 mb-5">
     <div class="row justify-content-center">
-        <div class="col-md-6 col-lg-5"> @* Điều chỉnh col-lg-5 cho vừa hơn *@
+        <div class="col-md-6 col-lg-5">
             <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white text-center"> @* Đổi màu header nếu muốn phân biệt *@
+                <div class="card-header bg-info text-white text-center"> @* Có thể đổi màu header khác với trang kia *@
                     <h4 class="mb-0">@ViewData["Title"]</h4>
                 </div>
                 <div class="card-body p-4">
@@ -25,15 +25,19 @@
                     }
 
                     <p class="text-center mb-3">
-                        Một mã OTP đã được gửi đến email: <strong>@ViewBag.EmailToVerify</strong>.
-                        <br />Vui lòng kiểm tra hộp thư (cả mục Spam/Junk) và nhập mã vào ô bên dưới để hoàn tất xác minh.
+                        Một mã OTP đã được gửi đến địa chỉ email: <strong>@ViewBag.VerifyingEmail</strong>.
+                        <br />Vui lòng kiểm tra và nhập mã vào ô bên dưới để hoàn tất đăng nhập.
                     </p>
 
-                    <form asp-action="VerifyOtp" method="post">
+                    <form asp-action="VerifyLoginOtp" method="post">
                         <div asp-validation-summary="ModelOnly" class="text-danger mb-3 alert alert-danger" role="alert" style="@(ViewData.ModelState.IsValid && !ViewData.ModelState.Values.Any(v => v.Errors.Any()) ? "display:none;" : "")"></div>
                         @Html.AntiForgeryToken()
 
-                        <input type="hidden" asp-for="Email" value="@ViewBag.EmailToVerify" />
+                        <input type="hidden" asp-for="Username" />
+                        <input type="hidden" asp-for="UserType" />
+                        @* EmailForDisplay có thể không cần submit lại nếu controller không dùng trực tiếp từ model POST mà từ TempData *@
+                        <input type="hidden" asp-for="EmailForDisplay" value="@ViewBag.VerifyingEmail"/>
+
 
                         <div class="mb-3">
                             <label asp-for="OtpCode" class="form-label fw-medium"></label>
@@ -43,7 +47,7 @@
 
                         <div class="d-grid mt-4">
                             <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-check-circle me-2"></i>Xác Minh Email
+                                <i class="fas fa-shield-alt me-2"></i>Xác Minh và Đăng Nhập
                             </button>
                         </div>
                     </form>
@@ -51,11 +55,11 @@
                     <div class="text-center">
                         <p class="mb-1 small">
                             Không nhận được mã?
-                            @* Link gửi lại OTP cho xác minh đăng ký *@
-                            <a asp-controller="Account" asp-action="ResendVerificationOtp" asp-route-email="@ViewBag.EmailToVerify">Gửi lại mã OTP</a>
+                            @* Link gửi lại OTP cho xác thực đăng nhập 2FA *@
+                            <a asp-controller="Account" asp-action="ResendLoginOtp" asp-route-username="@Model.Username" asp-route-userType="@Model.UserType">Gửi lại mã OTP</a>
                         </p>
                         <p class="mb-0 small">
-                            <a asp-controller="Account" asp-action="Register">Quay lại trang Đăng ký</a>
+                            <a asp-action="Login" onclick="event.preventDefault(); document.getElementById('ajaxLoginTrigger')?.click(); return false;">Thử lại với Username/Password</a>
                         </p>
                     </div>
                 </div>

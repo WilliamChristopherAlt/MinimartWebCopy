@@ -405,33 +405,48 @@
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body class="d-flex flex-column min-vh-100">
-    <header>
-        <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom box-shadow fixed-top">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index" title="Trang chủ"><img src="~/images/MiniMartlogo.png" alt="MiniMart Logo"></a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
-                <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                    <a id="menuToggleLink" class="navbar-menu-link d-none d-lg-flex me-3" href="#" role="button"> <i class="fas fa-bars me-1"></i> Menu </a>
-                    <form class="d-flex search-form my-2 my-lg-0 flex-grow-1" role="search" asp-controller="CustomerProducts" asp-action="Search" id="mainSearchForm"> <input class="form-control me-2" type="search" placeholder="Tìm kiếm sản phẩm..." aria-label="Search" name="keyword" autocomplete="off"> <button class="btn btn-warning" type="submit"> <i class="fas fa-search text-white"></i> </button> </form>
-                    <ul class="navbar-nav navbar-icons d-flex flex-row align-items-center ms-lg-auto">
-                        @if (User.Identity != null && User.Identity.IsAuthenticated && User.IsInRole("Customer"))
-                        {
-                            <li class="nav-item me-3"> <a class="nav-link" asp-controller="Cart" asp-action="Index" title="Giỏ hàng"><i class="fas fa-shopping-cart fa-lg"></i></a> </li>
-                            <li class="nav-item me-3"> <a class="nav-link" asp-controller="Notification" asp-action="Index" title="Thông báo"><i class="fas fa-bell fa-lg"></i></a> </li>
-                        }
-                        @if (User.Identity != null && User.Identity.IsAuthenticated)
-                        {
-                            <li class="nav-item"> <a id="accountDropdownToggle" class="nav-link d-flex align-items-center" href="#" role="button" title="Tài khoản"><i class="fas fa-user-circle fa-lg"></i></a> </li>
-                        }
-                        else
-                        {
-                            <li class="nav-item"> <button type="button" id="ajaxLoginTrigger" class="btn btn-outline-primary btn-sm"> <i class="fas fa-sign-in-alt me-1"></i> Đăng nhập </button> </li>
-                        }
-                    </ul>
-                </div>
+<header>
+    <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom box-shadow fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index" title="Trang chủ"><img src="~/images/MiniMartlogo.png" alt="MiniMart Logo"></a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <a id="menuToggleLink" class="navbar-menu-link d-none d-lg-flex me-3" href="#" role="button"> <i class="fas fa-bars me-1"></i> Menu </a>
+
+                @* ===== THAY ĐỔI FORM TÌM KIẾM ===== *@
+                <form class="d-flex search-form my-2 my-lg-0 flex-grow-1" role="search"
+                      asp-controller="CustomerProducts"
+                      asp-action="Index" 
+                      method="get" 
+                      id="mainSearchForm">
+                    <input class="form-control me-2" type="search" placeholder="Tìm kiếm sản phẩm..."
+                           aria-label="Search" name="searchString" @* THAY ĐỔI: Tên input là "searchString" để khớp với tham số của action Index *@
+                           autocomplete="off">
+                    <button class="btn btn-warning" type="submit">
+                        <i class="fas fa-search text-white"></i>
+                    </button>
+                </form>
+                @* ===== KẾT THÚC THAY ĐỔI FORM TÌM KIẾM ===== *@
+
+                <ul class="navbar-nav navbar-icons d-flex flex-row align-items-center ms-lg-auto">
+                    @if (User.Identity != null && User.Identity.IsAuthenticated && User.IsInRole("Customer"))
+                    {
+                        <li class="nav-item me-3"> <a class="nav-link" asp-controller="Cart" asp-action="Index" title="Giỏ hàng"><i class="fas fa-shopping-cart fa-lg"></i></a> </li>
+                        <li class="nav-item me-3"> <a class="nav-link" asp-controller="Notification" asp-action="Index" title="Thông báo"><i class="fas fa-bell fa-lg"></i></a> </li>
+                    }
+                    @if (User.Identity != null && User.Identity.IsAuthenticated)
+                    {
+                        <li class="nav-item"> <a id="accountDropdownToggle" class="nav-link d-flex align-items-center" href="#" role="button" title="Tài khoản"><i class="fas fa-user-circle fa-lg"></i></a> </li>
+                    }
+                    else
+                    {
+                        <li class="nav-item"> <button type="button" id="ajaxLoginTrigger" class="btn btn-outline-primary btn-sm"> <i class="fas fa-sign-in-alt me-1"></i> Đăng nhập </button> </li>
+                    }
+                </ul>
             </div>
-        </nav>
-    </header>
+        </div>
+    </nav>
+</header>
 
     <div id="menuSidebar" class="popup-menu shadow-sm">
         <ul> <li> <a asp-controller="Categories" asp-action="Index" class="dropdown-item"><i class="fas fa-folder fa-fw me-2"></i>Loại sản phẩm</a> </li> <li> <a asp-controller="ProductTypes" asp-action="Index" class="dropdown-item"><i class="fas fa-tags fa-fw me-2"></i>Sản phẩm (Admin View)</a> </li> @*Đã sửa Product thành ProductTypes*@ <li> <a asp-controller="Suppliers" asp-action="Index" class="dropdown-item"><i class="fas fa-truck fa-fw me-2"></i>Nhà cung cấp</a> </li> </ul>
@@ -816,6 +831,9 @@
 
     <!-- Optional: Custom site-specific JavaScript -->
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <form id="antiForgeryTokenContainer" method="post">
+        @Html.AntiForgeryToken()
+    </form>
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>

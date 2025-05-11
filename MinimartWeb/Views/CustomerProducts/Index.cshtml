@@ -1,134 +1,112 @@
 ﻿@model MinimartWeb.ViewModels.CustomerProductIndexViewModel
 @{
-    ViewData["Title"] = "Khám phá Sản phẩm";
-    var categories = Model.Categories; // Lấy từ ViewModel nếu bạn đã gán trong Controller
-    var suppliers = Model.Suppliers;   // Lấy từ ViewModel nếu bạn đã gán trong Controller
+    ViewData["Title"] = string.IsNullOrWhiteSpace(Model.SearchString) ? "Khám phá Sản phẩm" : $"Kết quả cho '{Model.SearchString}'";
+}
 
-    // Helper function để tạo Dictionary cho route data, giữ lại các filter hiện tại
-    Func<string?, int?, Dictionary<string, string>> GetRouteDataDictionary = (newSortOrder, newPage) =>
+@functions {
+    public Dictionary<string, string> GetRouteDataForMainProducts(string? newSortOrder, int? newPageFromPagination)
     {
         var routeValues = new Dictionary<string, string?>();
-
-        // Thêm sortOrder nếu được cung cấp (cho link sắp xếp) hoặc giữ lại sortOrder hiện tại (cho phân trang)
-        if (!string.IsNullOrEmpty(newSortOrder))
-        {
-            routeValues["sortOrder"] = newSortOrder;
-        }
-        else if (!string.IsNullOrEmpty(Model.SortOrder))
-        {
-            routeValues["sortOrder"] = Model.SortOrder;
-        }
-
-        // Thêm các filter hiện tại nếu chúng có giá trị
+        routeValues["sortOrder"] = !string.IsNullOrEmpty(newSortOrder) ? newSortOrder : Model.SortOrder;
         if (!string.IsNullOrEmpty(Model.SearchString)) routeValues["searchString"] = Model.SearchString;
         if (Model.SelectedCategoryId.HasValue) routeValues["categoryId"] = Model.SelectedCategoryId.Value.ToString();
         if (Model.SelectedSupplierId.HasValue) routeValues["supplierId"] = Model.SelectedSupplierId.Value.ToString();
         if (Model.MinPrice.HasValue) routeValues["minPrice"] = Model.MinPrice.Value.ToString();
         if (Model.MaxPrice.HasValue) routeValues["maxPrice"] = Model.MaxPrice.Value.ToString();
 
-        // Thêm trang hiện tại (cho phân trang) hoặc reset về trang 1 (cho sắp xếp/lọc mới)
-        if (newPage.HasValue)
-        { // Dành cho phân trang
-            routeValues["currentPage"] = newPage.Value.ToString();
-        }
-        else if (!string.IsNullOrEmpty(newSortOrder) || !string.IsNullOrEmpty(Model.SearchString) || Model.SelectedCategoryId.HasValue || Model.SelectedSupplierId.HasValue || Model.MinPrice.HasValue || Model.MaxPrice.HasValue)
+        if (!string.IsNullOrEmpty(newSortOrder))
         {
-            // Nếu là hành động sắp xếp hoặc có filter được áp dụng từ form, luôn về trang 1
-            if (ViewContext.HttpContext.Request.Method == "GET" && (ViewContext.HttpContext.Request.Query.ContainsKey("searchString") || ViewContext.HttpContext.Request.Query.ContainsKey("categoryId") /* etc. */))
-            {
-                // Kiểm tra này hơi phức tạp, mục đích là để biết đây có phải là submit form lọc không
-            }
-            else if (newPage == null && !string.IsNullOrEmpty(newSortOrder))
-            { // Nếu chỉ là sắp xếp và không có page mới
-                routeValues["currentPage"] = "1";
-            }
-            else if (newPage != null)
-            {
-                // giữ newPage đã truyền
-            }
-            else
-            { // Mặc định giữ trang hiện tại nếu không phải là lọc mới hoặc sắp xếp mới
-                routeValues["currentPage"] = Model.CurrentPage.ToString();
-            }
+            routeValues["currentPage"] = "1";
         }
-        if (newPage == null && string.IsNullOrEmpty(newSortOrder) && !routeValues.ContainsKey("currentPage"))
+        else if (newPageFromPagination.HasValue)
         {
-            routeValues["currentPage"] = Model.CurrentPage.ToString(); // Nếu không có gì thay đổi, giữ trang hiện tại
+            routeValues["currentPage"] = newPageFromPagination.Value.ToString();
         }
-
-
-        // Loại bỏ các key có giá trị null hoặc rỗng trước khi trả về Dictionary
+        else
+        {
+            routeValues["currentPage"] = Model.CurrentPage.ToString();
+        }
+        routeValues["otherPage"] = Model.CurrentPageOther.ToString();
         return routeValues.Where(kvp => !string.IsNullOrEmpty(kvp.Value)).ToDictionary(kvp => kvp.Key, kvp => kvp.Value!);
-    };
+    }
+
+    public Dictionary<string, string> GetRouteDataForOtherProducts(int newOtherPage)
+    {
+        var routeValues = new Dictionary<string, string?>();
+        if (!string.IsNullOrEmpty(Model.SortOrder)) routeValues["sortOrder"] = Model.SortOrder;
+        if (!string.IsNullOrEmpty(Model.SearchString)) routeValues["searchString"] = Model.SearchString;
+        if (Model.SelectedCategoryId.HasValue) routeValues["categoryId"] = Model.SelectedCategoryId.Value.ToString();
+        if (Model.SelectedSupplierId.HasValue) routeValues["supplierId"] = Model.SelectedSupplierId.Value.ToString();
+        if (Model.MinPrice.HasValue) routeValues["minPrice"] = Model.MinPrice.Value.ToString();
+        if (Model.MaxPrice.HasValue) routeValues["maxPrice"] = Model.MaxPrice.Value.ToString();
+        routeValues["currentPage"] = Model.CurrentPage.ToString();
+        routeValues["otherPage"] = newOtherPage.ToString();
+        return routeValues.Where(kvp => !string.IsNullOrEmpty(kvp.Value)).ToDictionary(kvp => kvp.Key, kvp => kvp.Value!);
+    }
 }
 
 <div class="container mt-4">
     <div class="row">
+        @* --- CỘT BỘ LỌC --- *@
         <div class="col-lg-3 mb-4 mb-lg-0">
-            <h5 class="mb-3 fw-bold">Bộ lọc sản phẩm</h5>
-            <form asp-action="Index" method="get" id="filterFormProductIndex">
-                <input type="hidden" name="sortOrder" value="@Model.SortOrder" />
-                <input type="hidden" name="currentPage" value="1" /> @* Luôn về trang 1 khi lọc mới *@
-
-                <div class="mb-3">
-                    <label for="searchString" class="form-label small fw-medium">Tìm theo tên/mô tả:</label>
-                    <input type="text" name="searchString" id="searchString" value="@Model.SearchString" class="form-control form-control-sm" placeholder="Nhập từ khóa..." />
-                </div>
-
-                <div class="mb-3">
-                    <label for="categoryId" class="form-label small fw-medium">Danh mục:</label>
-                    @Html.DropDownList("categoryId", categories, "Tất cả danh mục", new { @class = "form-select form-select-sm", onchange = "this.form.submit();" })
-                </div>
-
-                <div class="mb-3">
-                    <label for="supplierId" class="form-label small fw-medium">Nhà cung cấp:</label>
-                    @Html.DropDownList("supplierId", suppliers, "Tất cả nhà cung cấp", new { @class = "form-select form-select-sm", onchange = "this.form.submit();" })
-                </div>
-
-                <div class="row g-2 mb-3">
-                    <div class="col">
-                        <label for="minPrice" class="form-label small fw-medium">Giá từ:</label>
-                        <input type="number" name="minPrice" id="minPrice" value="@Model.MinPrice" class="form-control form-control-sm" placeholder="0" min="0" step="1000" />
+            <div class="sticky-top" style="top: 70px;">
+                <h5 class="mb-3 fw-bold">Bộ lọc sản phẩm</h5>
+                <form asp-action="Index" method="get" id="filterFormProductIndex">
+                    <input type="hidden" name="sortOrder" value="@Model.SortOrder" />
+                    <input type="hidden" name="currentPage" value="1" />
+                    <input type="hidden" name="otherPage" value="1" />
+                    <div class="mb-3">
+                        <label for="searchString" class="form-label small fw-medium">Tìm theo tên/mô tả:</label>
+                        <input type="text" name="searchString" id="searchString" value="@Model.SearchString" class="form-control form-control-sm" placeholder="Nhập từ khóa..." />
                     </div>
-                    <div class="col">
-                        <label for="maxPrice" class="form-label small fw-medium">Giá đến:</label>
-                        <input type="number" name="maxPrice" id="maxPrice" value="@Model.MaxPrice" class="form-control form-control-sm" placeholder="Không giới hạn" min="0" step="1000" />
+                    <div class="mb-3">
+                        <label for="categoryId" class="form-label small fw-medium">Danh mục:</label>
+                        @Html.DropDownList("categoryId", Model.Categories, "Tất cả danh mục", new { @class = "form-select form-select-sm" })
                     </div>
-                </div>
-                <div class="d-grid mb-2">
-                    <button type="submit" class="btn btn-primary btn-sm">Áp dụng lọc</button>
-                </div>
-                @if (!string.IsNullOrEmpty(Model.SearchString) || Model.SelectedCategoryId.HasValue || Model.SelectedSupplierId.HasValue || Model.MinPrice.HasValue || Model.MaxPrice.HasValue)
-                {
-                    <div class="text-center">
-                        <a asp-action="Index" asp-route-sortOrder="@Model.SortOrder" class="btn btn-outline-secondary btn-sm w-100">Xóa bộ lọc</a>
+                    <div class="mb-3">
+                        <label for="supplierId" class="form-label small fw-medium">Nhà cung cấp:</label>
+                        @Html.DropDownList("supplierId", Model.Suppliers, "Tất cả nhà cung cấp", new { @class = "form-select form-select-sm" })
                     </div>
-                }
-            </form>
+                    <div class="row g-2 mb-3">
+                        <div class="col">
+                            <label for="minPrice" class="form-label small fw-medium">Giá từ:</label>
+                            <input type="number" name="minPrice" id="minPrice" value="@Model.MinPrice" class="form-control form-control-sm" placeholder="0" min="0" step="1000" />
+                        </div>
+                        <div class="col">
+                            <label for="maxPrice" class="form-label small fw-medium">Giá đến:</label>
+                            <input type="number" name="maxPrice" id="maxPrice" value="@Model.MaxPrice" class="form-control form-control-sm" placeholder="Không giới hạn" min="0" step="1000" />
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm">Áp dụng lọc</button>
+                        @if (!string.IsNullOrEmpty(Model.SearchString) || Model.SelectedCategoryId.HasValue || Model.SelectedSupplierId.HasValue || Model.MinPrice.HasValue || Model.MaxPrice.HasValue)
+                        {
+                            <a asp-action="Index" asp-route-sortOrder="@Model.SortOrder" class="btn btn-outline-secondary btn-sm">Xóa bộ lọc</a>
+                        }
+                    </div>
+                </form>
+            </div>
         </div>
 
+        @* --- CỘT HIỂN THỊ SẢN PHẨM CHÍNH VÀ CÁC SECTION MỚI --- *@
         <div class="col-lg-9">
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
                 <h3 class="mb-0 h5 me-3">
                     @if (!string.IsNullOrEmpty(Model.SearchString))
                     {
                         <span>Kết quả cho: "<strong>@Model.SearchString</strong>"</span>
-                        @if (Model.Products.Any())
-                        {
-                            <small class="text-muted ms-2">(@Model.Products.Count sản phẩm trên trang này)</small>
-                        }
                     }
                     else if (Model.SelectedCategoryId.HasValue || Model.SelectedSupplierId.HasValue || Model.MinPrice.HasValue || Model.MaxPrice.HasValue)
                     {
                         <span>Kết quả lọc</span>
-                        @if (Model.Products.Any())
-                        {
-                            <small class="text-muted ms-2">(@Model.Products.Count sản phẩm trên trang này)</small>
-                        }
                     }
                     else
                     {
                         <span>Tất cả sản phẩm</span>
+                    }
+                    @if (ViewBag.TotalMainProductsCount != null && ViewBag.TotalMainProductsCount > 0) // Sửa điều kiện kiểm tra
+                    {
+                        <small class="text-muted ms-1">(@ViewBag.TotalMainProductsCount sản phẩm)</small>
                     }
                 </h3>
                 <div class="dropdown mt-2 mt-md-0">
@@ -140,16 +118,16 @@
                             "price_desc" => "Giá (Cao-Thấp)",
                             "date_asc" => "Cũ nhất",
                             "date_desc" => "Mới nhất",
-                            _ => "Mới nhất" // Mặc định là Mới nhất
+                            "name_asc" => "Tên (A-Z)",
+                            _ => (string.IsNullOrEmpty(Model.SearchString) ? "Tên (A-Z)" : "Liên quan nhất")
                         })
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="sortDropdownMenuButton">
-                        <li><a class="dropdown-item @(Model.SortOrder == "date_desc" || string.IsNullOrEmpty(Model.SortOrder) ? "active" : "")" asp-action="Index" asp-all-route-data="@(GetRouteDataDictionary("date_desc", 1))">Mới nhất</a></li>
-                        <li><a class="dropdown-item @(Model.SortOrder == "date_asc" ? "active" : "")" asp-action="Index" asp-all-route-data="@(GetRouteDataDictionary("date_asc", 1))">Cũ nhất</a></li>
-                        <li><a class="dropdown-item @(Model.SortOrder == "name_asc" ? "active" : "")" asp-action="Index" asp-all-route-data="@(GetRouteDataDictionary("name_asc", 1))">Tên (A-Z)</a></li>
-                        <li><a class="dropdown-item @(Model.SortOrder == "name_desc" ? "active" : "")" asp-action="Index" asp-all-route-data="@(GetRouteDataDictionary("name_desc", 1))">Tên (Z-A)</a></li>
-                        <li><a class="dropdown-item @(Model.SortOrder == "price_asc" ? "active" : "")" asp-action="Index" asp-all-route-data="@(GetRouteDataDictionary("price_asc", 1))">Giá (Thấp → Cao)</a></li>
-                        <li><a class="dropdown-item @(Model.SortOrder == "price_desc" ? "active" : "")" asp-action="Index" asp-all-route-data="@(GetRouteDataDictionary("price_desc", 1))">Giá (Cao → Thấp)</a></li>
+                        <li><a class="dropdown-item @(Model.SortOrder == "date_desc" ? "active" : "")" asp-action="Index" asp-all-route-data="@(GetRouteDataForMainProducts("date_desc", null))">Mới nhất</a></li>
+                        <li><a class="dropdown-item @(Model.SortOrder == "price_asc" ? "active" : "")" asp-action="Index" asp-all-route-data="@(GetRouteDataForMainProducts("price_asc", null))">Giá (Thấp → Cao)</a></li>
+                        <li><a class="dropdown-item @(Model.SortOrder == "price_desc" ? "active" : "")" asp-action="Index" asp-all-route-data="@(GetRouteDataForMainProducts("price_desc", null))">Giá (Cao → Thấp)</a></li>
+                        <li><a class="dropdown-item @(Model.SortOrder == "name_asc" || (string.IsNullOrEmpty(Model.SortOrder) && string.IsNullOrEmpty(ViewData["CurrentSort"]?.ToString())) ? "active" : "")" asp-action="Index" asp-all-route-data="@(GetRouteDataForMainProducts("name_asc", null))">Tên (A-Z)</a></li>
+                        <li><a class="dropdown-item @(Model.SortOrder == "name_desc" ? "active" : "")" asp-action="Index" asp-all-route-data="@(GetRouteDataForMainProducts("name_desc", null))">Tên (Z-A)</a></li>
                     </ul>
                 </div>
             </div>
@@ -159,17 +137,19 @@
                 <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3 product-grid-layout">
                     @foreach (var productViewModel in Model.Products)
                     {
-                        <partial name="_RegularProductCard" model="productViewModel" />
+                        <div class="col d-flex align-items-stretch">
+                            <partial name="_RegularProductCard" model="productViewModel" />
+                        </div>
                     }
                 </div>
 
                 @if (Model.TotalPages > 1)
                 {
-                    <nav aria-label="Page navigation" class="mt-4 d-flex justify-content-center">
+                    <nav aria-label="Page navigation for main products" class="mt-4 d-flex justify-content-center">
                         <ul class="pagination pagination-sm">
                             @if (Model.HasPreviousPage)
                             {
-                                <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="GetRouteDataDictionary(null, Model.CurrentPage - 1)">«</a></li>
+                                <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="@GetRouteDataForMainProducts(null, Model.CurrentPage - 1)">«</a></li>
                             }
                             else
                             {
@@ -180,24 +160,27 @@
                             }
                             @if (sP > 1)
                             {
-                                <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="GetRouteDataDictionary(null, 1)">1</a></li> @if (sP > 2)
-                                {
-                                    <li class="page-item disabled"><span class="page-link">...</span></li>
-                                }                  }
-                            @for (int i = sP; i <= eP; i++)
-                            {
-                                <li class="page-item @(i==Model.CurrentPage?"active":"")"><a class="page-link" asp-action="Index" asp-all-route-data="GetRouteDataDictionary(null, i)">@i</a></li>
-                            }
-                            @if (eP < Model.TotalPages)
-                            { @if (eP < Model.TotalPages - 1)
+                                <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="@GetRouteDataForMainProducts(null, 1)">1</a></li>
+                                @if (sP > 2)
                                 {
                                     <li class="page-item disabled"><span class="page-link">...</span></li>
                                 }
-                                <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="GetRouteDataDictionary(null, Model.TotalPages)">@Model.TotalPages</a></li>
+                            }
+                            @for (int i = sP; i <= eP; i++)
+                            {
+                                <li class="page-item @(i == Model.CurrentPage ? "active" : "")"><a class="page-link" asp-action="Index" asp-all-route-data="@GetRouteDataForMainProducts(null, i)">@i</a></li>
+                            }
+                            @if (eP < Model.TotalPages)
+                            {
+                                @if (eP < Model.TotalPages - 1)
+                                {
+                                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                                }
+                                <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="@GetRouteDataForMainProducts(null, Model.TotalPages)">@Model.TotalPages</a></li>
                             }
                             @if (Model.HasNextPage)
                             {
-                                <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="GetRouteDataDictionary(null, Model.CurrentPage + 1)">»</a></li>
+                                <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="@GetRouteDataForMainProducts(null, Model.CurrentPage + 1)">»</a></li>
                             }
                             else
                             {
@@ -209,206 +192,172 @@
             }
             else
             {
-                <div class="alert alert-info text-center mt-4" role="alert"> Không có sản phẩm nào phù hợp với tiêu chí lọc/tìm kiếm của bạn. </div>
+                <div class="alert alert-info text-center mt-4" role="alert">
+                    Không có sản phẩm nào phù hợp với tiêu chí của bạn.
+                </div>
             }
-        </div>
-    </div>
-</div>
+
+            @if (Model.RecommendedProducts.Any())
+            { // Đảm bảo khối if này được đóng đúng
+                <hr class="my-5">
+                <section class="recommended-products-section mb-5">
+                    <h3 class="mb-3 h4 fw-bold">@Model.RecommendationTitle</h3>
+                    <div class="swiper recommended-swiper-index">
+                        <div class="swiper-wrapper">
+                            @foreach (var product in Model.RecommendedProducts)
+                            {
+                                <div class="swiper-slide">
+                                    <partial name="_HotDealProductCard" model="product" />
+                                </div>
+                            }
+                        </div>
+                        <div class="swiper-button-next recommended-next-index"></div>
+                        <div class="swiper-button-prev recommended-prev-index"></div>
+                        <div class="swiper-pagination recommended-pagination-index"></div>
+                    </div>
+                </section>
+            } @* ĐÓNG KHỐI IF CHO RECOMMENDEDPRODUCTS *@
+
+            @if (Model.OtherProducts.Any())
+            { // Đảm bảo khối if này được đóng đúng
+                <hr class="my-5">
+                <section class="other-products-section" id="otherProductsIndexGrid">
+                    <h3 class="mb-3 h4 fw-bold">Khám phá thêm</h3>
+                    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3 product-grid-layout">
+                        @foreach (var product in Model.OtherProducts)
+                        {
+                            <div class="col d-flex align-items-stretch">
+                                <partial name="_RegularProductCard" model="product" />
+                            </div>
+                        }
+                    </div>
+
+                    @if (Model.TotalPagesOther > 1)
+                    { // Đảm bảo khối if này được đóng đúng
+                        <nav aria-label="Page navigation for other products" class="mt-4 d-flex justify-content-center">
+                            <ul class="pagination pagination-sm">
+                                @if (Model.HasPreviousPageOther)
+                                {
+                                    <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="@GetRouteDataForOtherProducts(Model.CurrentPageOther - 1)">« Trước</a></li>
+                                }
+                                else
+                                {
+                                    <li class="page-item disabled"><span class="page-link">« Trước</span></li>
+                                }
+
+                                @{
+                                    int maxPagesOther = 5; int startPageOther = Math.Max(1, Model.CurrentPageOther - (maxPagesOther / 2)); int endPageOther = Math.Min(Model.TotalPagesOther, startPageOther + maxPagesOther - 1); if (endPageOther - startPageOther + 1 < maxPagesOther) startPageOther = Math.Max(1, endPageOther - maxPagesOther + 1);
+                                }
+                                @if (startPageOther > 1)
+                                {
+                                    <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="@GetRouteDataForOtherProducts(1)">1</a></li>
+                                    @if (startPageOther > 2)
+                                    {
+                                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                                    }
+                                }
+                                @for (int i = startPageOther; i <= endPageOther; i++)
+                                {
+                                    <li class="page-item @(i == Model.CurrentPageOther ? "active" : "")"><a class="page-link" asp-action="Index" asp-all-route-data="@GetRouteDataForOtherProducts(i)">@i</a></li>
+                                }
+                                @if (endPageOther < Model.TotalPagesOther)
+                                {
+                                    @if (endPageOther < Model.TotalPagesOther - 1)
+                                    {
+                                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                                    }
+                                    <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="@GetRouteDataForOtherProducts(Model.TotalPagesOther)">@Model.TotalPagesOther</a></li>
+                                }
+
+                                @if (Model.HasNextPageOther)
+                                {
+                                    <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="@GetRouteDataForOtherProducts(Model.CurrentPageOther + 1)">Sau »</a></li>
+                                }
+                                else
+                                {
+                                    <li class="page-item disabled"><span class="page-link">Sau »</span></li>
+                                }
+                            </ul>
+                        </nav>
+                    } @* ĐÓNG KHỐI IF CHO Model.TotalPagesOther > 1 *@
+                </section> @* ĐÓNG SECTION CHO OTHERPRODUCTS *@
+            } @* ĐÓNG KHỐI IF CHO Model.OtherProducts.Any() *@
+            else if (!string.IsNullOrWhiteSpace(Model.SearchString))
+            {
+                <p class="text-center text-muted mt-4">Không có sản phẩm nào khác để hiển thị.</p>
+            }
+        </div> @* ĐÓNG div col-lg-9 *@
+    </div> @* ĐÓNG div row *@
+</div> @* ĐÓNG div container *@
+
 
 @section Styles {
+    @* CSS từ câu trả lời trước của bạn (đã bao gồm CSS cho card lớn và card carousel) *@
     <style>
         /* --- CARD SẢN PHẨM CHUNG --- */
-        .product-card {
-            border: 1px solid #f0f0f0;
-            transition: all .2s ease-in-out;
-            display: flex;
-            flex-direction: column;
-            background-color: #fff;
-            border-radius: 8px;
-            overflow: hidden;
-        }
+        .product-card { border: 1px solid #f0f0f0; transition: all .2s ease-in-out; display: flex; flex-direction: column; background-color: #fff; border-radius: 8px; overflow: hidden; height: 100%; }
+        .product-card:hover { box-shadow: 0 6px 18px rgba(0,0,0,.1) !important; transform: translateY(-4px); }
+        .product-card-img-link { display: block; overflow: hidden; border-bottom: 1px solid #f0f0f0; position: relative; }
+        .product-card-img { width: 100%; height: 100%; object-fit: contain; transition: transform .3s ease; padding: 8px; }
+        .product-card:hover .product-card-img { transform: scale(1.05); }
+        .product-card-body { padding: .75rem; flex-grow: 1; display: flex; flex-direction: column; }
+        .product-card-footer { margin-top: auto; padding-top: .5rem; border-top: 1px solid #f0f0f0;}
+        .product-card .product-action-btn i { margin-right: .4rem; }
 
-            .product-card:hover {
-                box-shadow: 0 6px 18px rgba(0,0,0,.1) !important;
-                transform: translateY(-4px);
-            }
+        /* --- CAROUSEL (_HotDealProductCard) --- */
+        .recommended-products-section .product-card-img-link { height: 140px; }
+        .recommended-products-section .product-card-body { text-align: center; }
+        .recommended-products-section .product-card-title { font-size: .85rem; font-weight: 500; color: #333; margin-bottom: .2rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; min-height: 2.6em; }
+        .recommended-products-section .product-card-price { font-size: .95rem; font-weight: 700; color: #dc3545; margin-bottom: .1rem; }
+        .recommended-products-section .product-card-sold { font-size: .7rem; color: #6c757d; margin-bottom: .4rem; }
+        .recommended-products-section .product-action-btn { font-size: 0.75rem; padding: 0.3rem 0.5rem; }
+        .recommended-products-section .d-flex.gap-2 { gap: 0.3rem !important; }
 
-        .product-card-img-link {
-            display: block;
-            overflow: hidden;
-            border-bottom: 1px solid #f0f0f0;
-            height: 160px; /* Chiều cao ảnh cho card nhỏ trong carousel */
-            position: relative;
-        }
-
-        .product-card-img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            transition: transform .3s ease;
-            padding: 8px;
-        }
-
-        .product-card:hover .product-card-img {
-            transform: scale(1.05);
-        }
-
-        .product-card-body {
-            padding: .75rem;
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* --- CAROUSEL SPECIFIC STYLES (HotDeal & Recommended dùng chung _HotDealProductCard) --- */
-        .hot-deals-section .product-card-body,
-        .recommended-products-section .product-card-body {
-            text-align: center;
-        }
-
-        .hot-deals-section .product-card-title,
-        .recommended-products-section .product-card-title {
-            font-size: .85rem;
-            font-weight: 500;
-            color: #333;
-            margin-bottom: .2rem;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            min-height: 2.6em; /* Cho 2 dòng */
-        }
-
-        .hot-deals-section .product-card-price,
-        .recommended-products-section .product-card-price {
-            font-size: .95rem;
-            font-weight: 700;
-            color: #dc3545;
-            margin-bottom: .1rem;
-        }
-
-        .hot-deals-section .product-card-sold,
-        .recommended-products-section .product-card-sold {
-            font-size: .7rem;
-            color: #6c757d;
-            margin-bottom: .4rem;
-        }
-
-        .hot-deals-section .product-action-btn,
-        .recommended-products-section .product-action-btn {
-            font-size: 0.7rem;
-            padding: 0.3rem 0.4rem; /* Nút nhỏ hơn */
-        }
-
-        .hot-deals-section .d-grid, .recommended-products-section .d-grid,
-        .hot-deals-section .d-flex.gap-2, .recommended-products-section .d-flex.gap-2 {
-            gap: 0.3rem !important; /* Giảm khoảng cách giữa 2 nút */
-        }
-
-
-        /* --- REGULAR PRODUCTS CARD (_RegularProductCard) --- */
-        #regularProductsContainer .product-card-img-link {
-            height: 180px;
-        }
-        /* Ảnh có thể to hơn chút */
-        #regularProductsContainer .product-card-title-full {
-            font-size: 1rem;
-            font-weight: 600;
-            color: #212529;
-            margin-bottom: .3rem;
-            display: -webkit-box;
-            -webkit-line-clamp: 1;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        #regularProductsContainer .product-card-desc-full {
-            font-size: .85rem;
-            color: #6c757d;
-            margin-bottom: .5rem;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            min-height: 2.6em;
-        }
-
-        #regularProductsContainer .product-card-price-unit-full {
-            font-size: .95rem;
-            font-weight: 700;
-            color: #212529;
-            margin-bottom: .2rem;
-        }
-
-        #regularProductsContainer .product-card-stock-full {
-            font-size: .8rem;
-            color: #198754;
-            margin-bottom: .75rem;
-        }
-
-        #regularProductsContainer .product-action-btn {
-            font-size: .8rem;
-            padding: .35rem .5rem;
-        }
-
-
-        /* --- FOOTER & NÚT CHUNG --- */
-        .product-card-footer {
-            margin-top: auto;
-            padding-top: .5rem;
-        }
-
-        .product-card .product-action-btn i {
-            margin-right: .4rem;
-        }
+        /* --- REGULAR PRODUCTS GRID (_RegularProductCard) --- */
+        .product-grid-layout .product-card-img-link { height: 180px; }
+        .product-grid-layout .product-card-title-full { font-size: 1rem; font-weight: 600; color: #212529; margin-bottom: .3rem; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; min-height: 1.5em; /* Cho 1 dòng */ }
+        .product-grid-layout .product-card-desc-full { font-size: .85rem; color: #6c757d; margin-bottom: .5rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; min-height: 2.6em; }
+        .product-grid-layout .product-card-price-unit-full { font-size: .95rem; font-weight: 700; color: #212529; margin-bottom: .2rem; }
+        .product-grid-layout .product-card-original-price-full { font-size: .8rem; color: #6c757d; text-decoration: line-through; margin-left: .4rem; }
+        .product-grid-layout .product-card-stock-full { font-size: .8rem; color: #198754; margin-bottom: .75rem; }
+        .product-grid-layout .product-action-btn { font-size: .8rem; padding: .35rem .5rem; }
 
         /* --- SWIPER --- */
-        .swiper-slide {
-            display: flex;
-            justify-content: center;
-            padding-bottom: 40px; /* Không gian cho pagination */
-            height: auto !important;
-            box-sizing: border-box;
-            padding-left: 5px;
-            padding-right: 5px;
-        }
-        /* Bỏ .col bên trong swiper-slide nếu có, để card tự co giãn */
-        .swiper-pagination-bullet-active {
-            background-color: #ffc107 !important;
-        }
-
-        .swiper-button-next, .swiper-button-prev {
-            color: #ff8800 !important;
-            transform: scale(.75);
-            top: 45%;
-        }
-            /* Điều chỉnh vị trí nút */
-            .swiper-button-next::after, .swiper-button-prev::after {
-                font-size: 1.6rem !important;
-            }
+        .swiper-slide { display: flex; justify-content: center; height: auto !important; box-sizing: border-box; padding: 0 4px 30px 4px; /* padding-bottom cho pagination */ }
+        .recommended-products-section .swiper-slide .product-card { width: 100%; height: 100%; } /* Card trong Swiper full width/height của slide */
+        .swiper-pagination-bullet-active { background-color: #ffc107 !important; }
+        .swiper-button-next, .swiper-button-prev { color: #ff8800 !important; transform: scale(.7); top: 40%; } /* Điều chỉnh lại top */
+        .swiper-button-next::after, .swiper-button-prev::after { font-size: 1.5rem !important; }
     </style>
 }
-@section Scripts {
-    <script>
-        // Nếu bạn muốn tự động submit form khi thay đổi dropdown mà không cần nút "Áp dụng lọc"
-        // document.addEventListener('DOMContentLoaded', function() {
-        //     const filterForm = document.getElementById('filterFormProductIndex');
-        //     const categorySelect = document.getElementById('categoryId');
-        //     const supplierSelect = document.getElementById('supplierId');
 
-        //     if (filterForm && categorySelect) {
-        //         categorySelect.addEventListener('change', function() {
-        //             filterForm.submit();
-        //         });
-        //     }
-        //     if (filterForm && supplierSelect) {
-        //         supplierSelect.addEventListener('change', function() {
-        //             filterForm.submit();
-        //         });
-        //     }
-        // });
+@section Scripts {
+    @* Đảm bảo SwiperJS đã được include ở _Layout.cshtml hoặc ở đây nếu chỉ dùng ở trang này *@
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const recommendedSwiperIndex = document.querySelector('.recommended-swiper-index');
+            if (recommendedSwiperIndex) {
+                const recommendedSlides = recommendedSwiperIndex.querySelectorAll('.swiper-slide');
+                if (recommendedSlides.length > 0) {
+                    new Swiper(recommendedSwiperIndex, {
+                        slidesPerView: 2.2, spaceBetween: 10, grabCursor: true,
+                        loop: recommendedSlides.length > 6, 
+                        pagination: { el: '.recommended-pagination-index', clickable: true, },
+                        navigation: { nextEl: '.recommended-next-index', prevEl: '.recommended-prev-index', },
+                        breakpoints: { 
+                            576: { slidesPerView: 3.2, spaceBetween: 10 }, 
+                            768: { slidesPerView: 4.2, spaceBetween: 12 }, 
+                            992: { slidesPerView: 5.2, spaceBetween: 15 }, 
+                            1200: { slidesPerView: 6.2, spaceBetween: 15 } 
+                        }
+                    });
+                } else {
+                    console.log("Recommended Swiper Index: No slides found to initialize.");
+                }
+            } else {
+                 console.log("Recommended Swiper Index element not found.");
+            }
+        });
     </script>
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
 }
