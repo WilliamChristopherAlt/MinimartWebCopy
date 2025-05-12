@@ -281,9 +281,12 @@ public class CustomerProductsController : Controller
     }
 
     [AllowAnonymous]
-    public async Task<IActionResult> Details(int? id)
+    public async Task<IActionResult> Details(int? id) // id ở đây là ProductTypeID
     {
-        if (id == null) { _logger.LogWarning("Details - null ID."); return NotFound(); }
+        if (id == null) { _logger.LogWarning("Details - null ID."); return NotFound("Yêu cầu ID sản phẩm."); } // Sửa lại thông báo NotFound
+
+        _logger.LogInformation("Details GET: Requested for ProductID: {ProductID}", id.Value);
+
         try
         {
             var productType = await _context.ProductTypes
@@ -292,18 +295,67 @@ public class CustomerProductsController : Controller
                 .Include(p => p.Supplier)
                 .Include(p => p.ProductTags).ThenInclude(pt => pt.Tag)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(m => m.ProductTypeID == id.Value);
+                .FirstOrDefaultAsync(m => m.ProductTypeID == id.Value && m.IsActive); // Thêm m.IsActive nếu chỉ muốn hiển thị sản phẩm active
 
-            if (productType == null) { _logger.LogWarning("Details - ProductType ID {Id} not found.", id); return NotFound(); }
+            if (productType == null) { _logger.LogWarning("Details - ProductType ID {Id} not found or not active.", id.Value); return NotFound($"Sản phẩm ID {id.Value} không tồn tại hoặc không hoạt động."); }
 
-            int? customerIdView = User.Identity?.IsAuthenticated == true ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0") : (int?)null;
-            if (customerIdView == 0) customerIdView = null;
+            // --- XÁC ĐỊNH CustomerID CHO VIEW HISTORY ---
+            int? customerIdView = null; // Khởi tạo là null
+            if (User.Identity != null && User.Identity.IsAuthenticated)
+            {
+                // Chỉ lấy CustomerID nếu người dùng có vai trò là "Customer"
+                if (User.IsInRole("Customer"))
+                {
+                    var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    if (int.TryParse(userIdString, out int parsedCustomerId))
+                    {
+                        // Quan trọng: Kiểm tra xem CustomerID này có thực sự tồn tại trong bảng Customers không
+                        var customerExists = await _context.Customers.AnyAsync(c => c.CustomerID == parsedCustomerId);
+                        if (customerExists)
+                        {
+                            customerIdView = parsedCustomerId;
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Details: CustomerID {ParsedCustomerId} từ claims không tồn tại trong bảng Customers.", parsedCustomerId);
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Details: Không thể parse CustomerID từ claims cho người dùng đã xác thực vai trò Customer: {UserName}", User.Identity.Name);
+                    }
+                }
+                // Nếu User.IsInRole("Employee") hoặc vai trò khác, customerIdView sẽ vẫn là null
+            }
+            // Nếu người dùng chưa đăng nhập, customerIdView cũng sẽ là null
+
+
             string? sessionIdView = HttpContext.Session.GetString("UserSessionId");
+            // Nếu chưa có sessionId, tạo mới (nếu bạn muốn theo dõi cả khách vãng lai qua session)
+            if (string.IsNullOrEmpty(sessionIdView))
+            {
+                sessionIdView = Guid.NewGuid().ToString();
+                HttpContext.Session.SetString("UserSessionId", sessionIdView);
+                _logger.LogInformation("Details: New UserSessionId created for ViewHistory: {SessionId}", sessionIdView);
+            }
+
+
+            // Logic lưu ViewHistory của bạn
             if (customerIdView.HasValue || !string.IsNullOrEmpty(sessionIdView))
             {
-                _context.ViewHistories.Add(new ViewHistory { CustomerID = customerIdView, SessionID = customerIdView.HasValue ? null : sessionIdView, ProductTypeID = productType.ProductTypeID, ViewTimestamp = DateTime.UtcNow });
+                // Đoạn này của bạn: SessionID = customerIdView.HasValue ? null : sessionIdView
+                // Nếu customerIdView có giá trị (đã đăng nhập là Customer), thì SessionID trong ViewHistory sẽ là null.
+                // Nếu customerIdView là null (chưa đăng nhập hoặc là Employee), thì SessionID sẽ được sử dụng.
+                // Điều này có vẻ hợp lý.
+                _context.ViewHistories.Add(new ViewHistory
+                {
+                    CustomerID = customerIdView,
+                    SessionID = customerIdView.HasValue ? null : sessionIdView,
+                    ProductTypeID = productType.ProductTypeID,
+                    ViewTimestamp = DateTime.UtcNow
+                });
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("View history saved for ProductID: {ProdId}, CustID: {CustId}, SessID: {SessId}", productType.ProductTypeID, customerIdView, sessionIdView);
+                _logger.LogInformation("View history saved for ProductID: {ProdId}, CustID: {CustId}, SessID: {SessId}", productType.ProductTypeID, customerIdView.HasValue ? customerIdView.Value.ToString() : "N/A", sessionIdView);
             }
 
             var productViewModelForDetail = new ProductViewModel
@@ -321,10 +373,18 @@ public class CustomerProductsController : Controller
             };
 
             var excludedFromRecs = new List<int> { productType.ProductTypeID };
-            var recommendedProductsVM = await _recommendationService.GetRecommendationsAsync(customerIdView, sessionIdView, excludedFromRecs, 7);
+            var recommendedProductsVM = await _recommendationService.GetRecommendationsAsync(
+                                                customerIdView, // Sẽ là null nếu Employee hoặc Guest
+                                                sessionIdView,  // Sẽ luôn có giá trị
+                                                excludedFromRecs,
+                                                7);
 
             var allExcludedIdsForDetailPage = new HashSet<int>(excludedFromRecs);
-            recommendedProductsVM.ForEach(rp => allExcludedIdsForDetailPage.Add(rp.Id));
+            if (recommendedProductsVM != null)
+            { // Kiểm tra null cho recommendedProductsVM
+                recommendedProductsVM.ForEach(rp => allExcludedIdsForDetailPage.Add(rp.Id));
+            }
+
 
             var otherProductsDetailVM = await _context.ProductTypes
                 .Where(p => p.IsActive && p.StockAmount > 0 && !allExcludedIdsForDetailPage.Contains(p.ProductTypeID))
@@ -332,14 +392,24 @@ public class CustomerProductsController : Controller
                 .ThenByDescending(p => p.DateAdded)
                 .Take(_otherProductsOnDetailPage)
                 .Include(p => p.MeasurementUnit)
-                .Select(p => new ProductViewModel { Id = p.ProductTypeID, Name = p.ProductName, Price = p.Price, ImagePath = p.ImagePath, MeasurementUnitName = p.MeasurementUnit.UnitName ?? "N/A", StockAmount = p.StockAmount, IsActive = p.IsActive, DateAdded = p.DateAdded })
+                .Select(p => new ProductViewModel
+                { // Đảm bảo map đầy đủ các trường của ProductViewModel
+                    Id = p.ProductTypeID,
+                    Name = p.ProductName,
+                    Price = p.Price,
+                    ImagePath = p.ImagePath,
+                    MeasurementUnitName = p.MeasurementUnit.UnitName ?? "N/A",
+                    StockAmount = p.StockAmount,
+                    IsActive = p.IsActive,
+                    DateAdded = p.DateAdded
+                })
                 .ToListAsync();
 
             var viewModel = new ProductDetailViewModel
             {
-                Product = productType, // Thuộc tính Product trong ProductDetailViewModel là ProductViewModel
-                RecommendedProducts = recommendedProductsVM,
-                OtherProducts = otherProductsDetailVM
+                Product = productType, // Sử dụng productViewModelForDetail đã được map
+                RecommendedProducts = recommendedProductsVM ?? new List<ProductViewModel>(),
+                OtherProducts = otherProductsDetailVM ?? new List<ProductViewModel>()
             };
             return View(viewModel);
         }

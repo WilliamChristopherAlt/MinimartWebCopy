@@ -69,6 +69,14 @@ else
     app.UseDeveloperExceptionPage(); // Hiển thị trang lỗi chi tiết cho môi trường development
     // app.UseMigrationsEndPoint(); // Nếu bạn dùng EF Core Migrations và Identity
 }
+app.MapControllerRoute(
+    name: "areas", // Hoặc "AdminArea"
+    pattern: "{area:exists}/{controller=Dashboard}/{action=Index}/{id?}"
+);
+
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.UseHttpsRedirection(); // Chuyển hướng HTTP sang HTTPS
 app.UseStaticFiles(); // Cho phép phục vụ các file tĩnh (CSS, JS, hình ảnh) từ wwwroot

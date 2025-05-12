@@ -1,0 +1,165 @@
+﻿@model MinimartWeb.Models.EmployeeProfileViewModel
+@using System.Text.Encodings.Web; // Cho JavaScriptEncoder
+@{
+    ViewData["Title"] = "Thông tin cá nhân Nhân viên";
+    // Layout có thể là _AdminLayout.cshtml nếu bạn đã tạo và cấu hình _ViewStart cho area/controller này
+    // Hoặc _Layout.cshtml nếu dùng chung
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var imageSrcForDisplay = !string.IsNullOrEmpty(Model.ImagePath) && Model.ImagePath != "default_employee.jpg"
+                             ? Url.Content("~/images/employees/" + Model.ImagePath) // Thư mục ảnh nhân viên
+                             : Url.Content("~/images/employees/default_employee.jpg"); // Ảnh mặc định cho nhân viên
+}
+
+<div class="container my-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-9 col-xl-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white text-center py-3">
+                    <h3 class="mb-0">Hồ sơ Nhân viên</h3>
+                    <p class="text-light mb-0 small">Xem và cập nhật thông tin của bạn</p>
+                </div>
+                <div class="card-body p-4 p-md-5">
+                    @if (TempData["SuccessMessage"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle me-2"></i> @TempData["SuccessMessage"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+                    @if (TempData["InfoMessage"] != null)
+                    {
+                        <div class="alert alert-info alert-dismissible fade show" role="alert">
+                            <i class="fas fa-info-circle me-2"></i> @TempData["InfoMessage"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+                    @if (ViewData.ModelState[string.Empty] != null && ViewData.ModelState[string.Empty].Errors.Any())
+                    {
+                        <div class="alert alert-danger">@foreach (var error in ViewData.ModelState[string.Empty].Errors)
+                            {
+                                <p class="mb-0">@error.ErrorMessage</p>
+                            }</div>
+                    }
+
+
+                    <form asp-action="EmployeeProfile" method="post" enctype="multipart/form-data">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="EmployeeId" />
+                        @* Giữ lại ImagePath hiện tại để nếu không upload ảnh mới và có lỗi validation, ảnh cũ vẫn được dùng *@
+                        <input type="hidden" asp-for="ImagePath" />
+
+                        <div class="row mb-4 align-items-center">
+                            <div class="col-md-4 text-center">
+                                <img id="employeeImagePreview" src="@imageSrcForDisplay" class="img-thumbnail rounded-circle"
+                                     alt="Ảnh đại diện nhân viên" style="width: 150px; height: 150px; object-fit: cover; border: 3px solid #adb5bd;">
+                                <div class="mt-2">
+                                    <label for="newImageFileInputEmployee" class="btn btn-sm btn-outline-secondary w-100">
+                                        <i class="fas fa-camera me-1"></i> Thay đổi ảnh
+                                    </label>
+                                    <input asp-for="NewImageFile" type="file" class="form-control d-none" id="newImageFileInputEmployee" accept="image/*" onchange="previewEmployeeImage(event)" />
+                                    <span asp-validation-for="NewImageFile" class="text-danger d-block small mt-1"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <h4 class="mt-md-0 mt-3">@Model.FirstName @Model.LastName</h4>
+                                <p class="text-muted mb-1"><i class="fas fa-user-tag fa-fw me-1"></i> Chức vụ: @Model.RoleName</p>
+                                <p class="text-muted mb-1"><i class="fas fa-user-circle fa-fw me-1"></i> Tên đăng nhập: @Model.Username</p>
+                                <p class="mb-1">
+                                    <i class="fas fa-envelope fa-fw me-1 text-muted"></i> Email công ty: <span class="fw-medium">@Model.Email</span>
+                                    @if (Model.IsEmployeeEmailVerified)
+                                    {
+                                        <i class="fas fa-check-circle text-success ms-1" title="Email đã được xác minh lúc @Model.EmployeeEmailVerifiedAt?.ToString("dd/MM/yyyy HH:mm")"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-exclamation-triangle text-warning ms-1" title="Email chưa xác minh"></i>
+                                        @* TODO: Thêm link/button gửi lại OTP xác minh email cho nhân viên nếu cần *@
+                                    }
+                                </p>
+                                <p class="text-muted mb-0"><i class="fas fa-toggle-@(Model.IsAccountActive ? "on text-success" : "off text-danger") fa-fw me-1"></i> Trạng thái TK: @(Model.IsAccountActive ? "Hoạt động" : "Bị khóa")</p>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+                        <h5 class="mb-3">Thông tin cá nhân & liên hệ</h5>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label asp-for="PhoneNumber" class="form-label fw-medium"></label>
+                                <input asp-for="PhoneNumber" class="form-control" placeholder="Nhập SĐT cá nhân..." />
+                                <span asp-validation-for="PhoneNumber" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Gender" class="form-label fw-medium"></label>
+                                <input asp-for="Gender" class="form-control" readonly />
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="BirthDate" class="form-label fw-medium"></label>
+                                <input asp-for="BirthDate" type="text" value="@Model.BirthDate.ToString("dd/MM/yyyy")" class="form-control" readonly />
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="CitizenID" class="form-label fw-medium"></label>
+                                <input asp-for="CitizenID" class="form-control" readonly />
+                            </div>
+                            <div class="col-md-12">
+                                <label asp-for="HireDate" class="form-label fw-medium"></label>
+                                <input asp-for="HireDate" type="text" value="@Model.HireDate.ToString("dd/MM/yyyy HH:mm")" class="form-control" readonly />
+                            </div>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-top">
+                            <h5 class="mb-3 text-danger">Xác nhận thay đổi</h5>
+                            <div class="mb-3">
+                                <label asp-for="CurrentPasswordForUpdate" class="form-label fw-medium"></label>
+                                <input asp-for="CurrentPasswordForUpdate" type="password" class="form-control" autocomplete="current-password" placeholder="Nhập mật khẩu để lưu thay đổi SĐT/Ảnh" />
+                                <span asp-validation-for="CurrentPasswordForUpdate" class="text-danger small"></span>
+                                <small class="form-text text-muted">Chỉ cần nhập mật khẩu nếu bạn thay đổi Số điện thoại hoặc Ảnh đại diện.</small>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save me-2"></i> Cập nhật thông tin
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="text-center mt-4">
+                        <a asp-controller="Account" asp-action="ChangePassword" class="btn btn-link">Đổi mật khẩu tài khoản</a>
+                        @* Nếu nhân viên này có quyền Admin/Staff, có thể thêm link về trang Dashboard Admin *@
+                        @if (User.IsInRole("Admin") || User.IsInRole("Staff"))
+                        {
+                            <span class="mx-1 text-muted">|</span>
+                            <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index" class="btn btn-link">Về trang quản trị</a>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+    <script>
+        function previewEmployeeImage(event) {
+            const reader = new FileReader();
+            const output = document.getElementById('employeeImagePreview');
+            // Lấy src ảnh gốc từ chính thẻ img khi hàm được gọi, phòng trường hợp Model.ImagePath chưa kịp update nếu có lỗi postback
+            const originalImageSrcEmp = output ? output.getAttribute('data-original-src') || output.src : "@Html.Raw(JavaScriptEncoder.Default.Encode(imageSrcForDisplay))";
+            if (output && !output.getAttribute('data-original-src')) {
+                 output.setAttribute('data-original-src', output.src); // Lưu ảnh gốc lần đầu
+            }
+
+            reader.onload = function () { if (output) { output.src = reader.result; } }
+            if (event.target.files && event.target.files[0]) {
+                reader.readAsDataURL(event.target.files[0]);
+            } else {
+                 if (output) {output.src = originalImageSrcEmp;} // Reset về ảnh gốc nếu hủy chọn file
+            }
+        }
+    </script>
+}
