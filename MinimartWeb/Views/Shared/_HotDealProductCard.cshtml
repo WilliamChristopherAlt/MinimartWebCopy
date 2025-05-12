@@ -6,12 +6,14 @@
 <div class="col">
     <div class="card h-100 product-card product-card-hotdeal">
         <a asp-controller="CustomerProducts" asp-action="Details" asp-route-id="@Model.Id" class="product-card-img-link">
-            <img src="@(string.IsNullOrEmpty(Model.ImagePath) ? "/images/placeholder.png" : $"/images/products/{Model.ImagePath}")" class="card-img-top product-card-img" loading="lazy" alt="@Model.Name">
+            <img src="@(string.IsNullOrEmpty(Model.ImagePath) ? "/images/placeholder.png" : $"/images/products/{Model.ImagePath}")"
+                 class="card-img-top product-card-img" loading="lazy" alt="@Model.Name">
         </a>
         <div class="product-card-body text-center">
             <div>
                 <h6 class="product-card-title justify-content-center">
-                    <a asp-controller="CustomerProducts" asp-action="Details" asp-route-id="@Model.Id" class="text-dark text-decoration-none" title="@Model.Name">@Model.Name</a>
+                    <a asp-controller="CustomerProducts" asp-action="Details" asp-route-id="@Model.Id"
+                       class="text-dark text-decoration-none" title="@Model.Name">@Model.Name</a>
                 </h6>
 
                 <p class="product-card-price mb-1">@FormatCurrency(Model.Price)</p>
@@ -20,35 +22,105 @@
                     <p class="product-card-sold mb-2">Đã bán: @Model.TotalUnitsSold</p>
                 }
             </div>
-            @* <div class="product-card-footer mt-3"> *@
-            @*     @if (Model.StockAmount > 0 && Model.IsActive) *@
-            @*     { *@
-            @*         <!-- Add to Cart --> *@
-            @*         <form asp-controller="Cart" asp-action="AddToCart" method="post" class="mb-2"> *@
-            @*             <input type="hidden" name="productId" value="@Model.Id" /> *@
-            @*             <input type="hidden" name="quantity" value="1" /> *@
-            @*             <button type="submit" class="btn btn-outline-secondary w-100" title="Thêm vào giỏ"> *@
-            @*                 <i class="fas fa-cart-plus me-1"></i> Thêm vào giỏ *@
-            @*             </button> *@
-            @*         </form> *@
+            <div class="product-card-footer mt-3">
+                @if (Model.StockAmount > 0 && Model.IsActive)
+                {
+                    <!-- Add to Cart -->
+                    <form method="post" class="form-add-to-cart mb-2">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="productId" value="@Model.Id" />
+                        <input type="hidden" name="quantity" value="1" />
+                        <button type="button" class="btn btn-outline-secondary btn-sm w-100 add-to-cart-btn">
+                            <i class="fas fa-cart-plus me-1"></i> Thêm vào giỏ
+                        </button>
+                    </form>
 
-            @*         <!-- Buy Now --> *@
-            @*         <form asp-controller="Cart" asp-action="BuyNow" method="post"> *@
-            @*             <input type="hidden" name="productId" value="@Model.Id" /> *@
-            @*             <input type="hidden" name="quantity" value="1" /> *@
-            @*             <button type="submit" class="btn btn-outline-warning w-100" title="Mua ngay"> *@
-            @*                 <i class="fas fa-bolt me-1"></i> Mua ngay *@
-            @*             </button> *@
-            @*         </form> *@
-
-
-            @*     } *@
-            @*     else *@
-            @*     { *@
-            @*         <button type="button" class="btn btn-secondary w-100" disabled>Hết hàng</button> *@
-            @*     } *@
-            @* </div> *@
-
+                    <!-- Buy Now -->
+                    <form method="post" class="form-buy-now mb-2">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="productId" value="@Model.Id" />
+                        <input type="hidden" name="quantity" value="1" id="quantity_@Model.Id" />
+                        <button type="button" class="btn btn-outline-warning btn-sm w-100 buy-now-btn">
+                            <i class="fas fa-bolt me-1"></i> Mua ngay
+                        </button>
+                    </form>
+                }
+                else
+                {
+                    <button type="button" class="btn btn-secondary btn-sm w-100" disabled>Hết hàng</button>
+                }
+            </div>
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            function showToast(message, isError = false) {
+                const toast = document.createElement("div");
+                toast.className = `toast align-items-center text-white ${isError ? 'bg-danger' : 'bg-success'} border-0`;
+                toast.style.position = "fixed";
+                toast.style.bottom = "1rem";
+                toast.style.right = "1rem";
+                toast.style.zIndex = "9999";
+                toast.role = "alert";
+                toast.innerHTML = `
+                    <div class="d-flex">
+                        <div class="toast-body">${message}</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>`;
+                document.body.appendChild(toast);
+                const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+                bsToast.show();
+                setTimeout(() => toast.remove(), 4000);
+            }
+
+            // Add to Cart handler
+            document.querySelectorAll(".add-to-cart-btn").forEach(button => {
+                button.addEventListener("click", function () {
+                    const form = this.closest("form");
+                    const formData = new FormData(form);
+
+                    fetch("/Cart/AddToCart", {
+                        method: "POST",
+                        headers: { "RequestVerificationToken": form.querySelector('input[name="__RequestVerificationToken"]').value },
+                        body: new URLSearchParams([...formData])
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        showToast(data.message, !data.success);
+                    })
+                    .catch(() => {
+                        showToast("Không thể thêm vào giỏ hàng.", true);
+                    });
+                });
+            });
+
+            // Buy Now handler
+            document.querySelectorAll(".buy-now-btn").forEach(button => {
+                button.addEventListener("click", function () {
+                    const form = this.closest("form");
+                    const formData = new FormData(form);
+
+                    fetch("/Cart/BuyNow", {
+                        method: "POST",
+                        headers: { "RequestVerificationToken": form.querySelector('input[name="__RequestVerificationToken"]').value },
+                        body: new URLSearchParams([...formData])
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success && data.redirectUrl) {
+                            window.location.href = data.redirectUrl;
+                        } else {
+                            showToast(data.message || "Không thể mua ngay.", true);
+                        }
+                    })
+                    .catch(() => {
+                        showToast("Lỗi khi xử lý mua ngay.", true);
+                    });
+                });
+            });
+        });
+    </script>
+}
