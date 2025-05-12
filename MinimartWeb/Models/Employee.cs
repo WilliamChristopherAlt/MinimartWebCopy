@@ -63,6 +63,8 @@ namespace MinimartWeb.Model
 
         // Navigation properties
         public EmployeeRole Role { get; set; }
+        // Trong class Employee
+        public virtual EmployeeAccount? EmployeeAccount { get; set; }
 
         public ICollection<Sale> Sales { get; set; } = new HashSet<Sale>();
     }

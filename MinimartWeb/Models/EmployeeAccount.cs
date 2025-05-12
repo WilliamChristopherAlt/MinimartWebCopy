@@ -55,6 +55,7 @@ namespace MinimartWeb.Model
                                                         // Thêm ? để cho phép Employee là null nếu EmployeeID là nullable (mặc dù trong trường hợp này EmployeeID là Required)
                                                         // Tuy nhiên, vì EmployeeID là NOT NULL, Employee không nên là nullable trừ khi có lý do đặc biệt
 
+
         public virtual ICollection<OtpRequest> OtpRequests { get; set; } = new HashSet<OtpRequest>(); // Collection các OtpRequest liên quan
     }
 }
