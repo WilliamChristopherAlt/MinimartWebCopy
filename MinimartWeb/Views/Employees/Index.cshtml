@@ -1,101 +1,66 @@
 ﻿@model IEnumerable<MinimartWeb.Model.Employee>
-
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Danh sách nhân viên";
 }
 
-<h1>Index</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold text-primary">Danh sách nhân viên</h2>
+    <a asp-action="Create" class="btn btn-success">
+        <i class="fas fa-plus me-1"></i> Thêm nhân viên mới
+    </a>
+</div>
 
-<p>
-    <a asp-action="Create">Create New</a>
-</p>
-<table class="table">
-    <thead>
-        <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.FirstName)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.LastName)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Email)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.PhoneNumber)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Gender)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.BirthDate)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.CitizenID)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Salary)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.HireDate)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ImagePath)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Role)
-            </th>
-            <th></th>
+<table class="table table-bordered table-hover align-middle">
+    <thead class="table-dark text-center">
+        <tr style="height: 70px;">
+            <th>Họ</th>
+            <th>Tên</th>
+            <th>Email</th>
+            <th>Điện thoại</th>
+            <th>Giới tính</th>
+            <th>Ngày sinh</th>
+            <th>CCCD</th>
+            <th>Lương</th>
+            <th>Ngày vào làm</th>
+            <th style="width: 120px;">Ảnh</th>
+            <th>Vai trò</th>
+            <th>Hành động</th>
         </tr>
     </thead>
     <tbody>
         @foreach (var item in Model)
         {
-            <tr>
-                <td>
-                    @Html.DisplayFor(modelItem => item.FirstName)
+            <tr style="min-height: 120px;">
+                <td class="align-middle">@item.FirstName</td>
+                <td class="align-middle">@item.LastName</td>
+                <td class="align-middle">@item.Email</td>
+                <td class="align-middle">@item.PhoneNumber</td>
+                <td class="align-middle">@item.Gender</td>
+                <td class="align-middle">@item.BirthDate.ToString("dd/MM/yyyy")</td>
+                <td class="align-middle">@item.CitizenID</td>
+                <td class="align-middle text-end">
+                    @(item.Salary.HasValue ? item.Salary.Value.ToString("N0") + " đ" : "N/A")
+
                 </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.LastName)
+                <td class="align-middle">@item.HireDate.ToString("dd/MM/yyyy")</td>
+                <td class="align-middle text-center">
+                    <img src="@Url.Content("~/images/users/" + (string.IsNullOrEmpty(item.ImagePath) ? "default.jpg" : item.ImagePath))"
+                         alt="Ảnh đại diện"
+                         class="rounded-circle shadow-sm"
+                         style="width: 70px; height: 70px; object-fit: cover;" />
                 </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.Email)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.PhoneNumber)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.Gender)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.BirthDate)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.CitizenID)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.Salary)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.HireDate)
-                </td>
-                <td>
-                    @if (!string.IsNullOrEmpty(item.ImagePath))
-                    {
-                        <img src="@Url.Content("~/images/users/" + item.ImagePath)" alt="Profile Image" width="50" height="50" />
-                    }
-                    else
-                    {
-                        <img src="~/images/users/default.jpg" alt="Default Profile Image" width="50" height="50" />
-                    }
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.Role.RoleName)
-                </td>
-                <td>
-                    <a asp-action="Edit" asp-route-id="@item.EmployeeID">Edit</a> |
-                    <a asp-action="Details" asp-route-id="@item.EmployeeID">Details</a> |
-                    <a asp-action="Delete" asp-route-id="@item.EmployeeID">Delete</a>
+                <td class="align-middle">@item.Role?.RoleName</td>
+                <td class="align-middle text-center text-nowrap">
+                    <a asp-action="Edit" asp-route-id="@item.EmployeeID" class="btn btn-sm btn-outline-primary me-1" title="Chỉnh sửa">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <a asp-action="Details" asp-route-id="@item.EmployeeID" class="btn btn-sm btn-outline-info me-1" title="Chi tiết">
+                        <i class="fas fa-info-circle"></i>
+                    </a>
+                    <a asp-action="Delete" asp-route-id="@item.EmployeeID" class="btn btn-sm btn-outline-danger" title="Xóa"
+                       onclick="return confirm('Bạn có chắc chắn muốn xóa nhân viên này?');">
+                        <i class="fas fa-trash-alt"></i>
+                    </a>
                 </td>
             </tr>
         }

@@ -1,53 +1,47 @@
 ﻿@model IEnumerable<MinimartWeb.Model.Supplier>
 
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Danh sách nhà cung cấp";
 }
 
-<h1>Index</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold text-primary">Danh sách nhà cung cấp</h2>
+    <a asp-action="Create" class="btn btn-success">
+        <i class="fas fa-plus me-1"></i> Thêm nhà cung cấp
+    </a>
+</div>
 
-<p>
-    <a asp-action="Create">Create New</a>
-</p>
-<table class="table">
-    <thead>
-        <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.SupplierName)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.SupplierPhoneNumber)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.SupplierAddress)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.SupplierEmail)
-            </th>
-            <th></th>
+<table class="table table-bordered table-hover align-middle">
+    <thead class="table-dark text-center">
+        <tr style="height: 70px;">
+            <th>Tên nhà cung cấp</th>
+            <th>Số điện thoại</th>
+            <th>Địa chỉ</th>
+            <th>Email</th>
+            <th>Hành động</th>
         </tr>
     </thead>
     <tbody>
-@foreach (var item in Model) {
-        <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.SupplierName)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.SupplierPhoneNumber)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.SupplierAddress)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.SupplierEmail)
-            </td>
-            <td>
-                <a asp-action="Edit" asp-route-id="@item.SupplierID">Edit</a> |
-                <a asp-action="Details" asp-route-id="@item.SupplierID">Details</a> |
-                <a asp-action="Delete" asp-route-id="@item.SupplierID">Delete</a>
-            </td>
-        </tr>
-}
+        @foreach (var item in Model)
+        {
+            <tr style="min-height: 70px;">
+                <td class="align-middle">@item.SupplierName</td>
+                <td class="align-middle">@item.SupplierPhoneNumber</td>
+                <td class="align-middle">@item.SupplierAddress</td>
+                <td class="align-middle">@item.SupplierEmail</td>
+                <td class="align-middle text-center text-nowrap">
+                    <a asp-action="Edit" asp-route-id="@item.SupplierID" class="btn btn-sm btn-outline-primary me-1" title="Chỉnh sửa">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <a asp-action="Details" asp-route-id="@item.SupplierID" class="btn btn-sm btn-outline-info me-1" title="Chi tiết">
+                        <i class="fas fa-info-circle"></i>
+                    </a>
+                    <a asp-action="Delete" asp-route-id="@item.SupplierID" class="btn btn-sm btn-outline-danger" title="Xóa"
+                       onclick="return confirm('Bạn có chắc chắn muốn xóa nhà cung cấp này?');">
+                        <i class="fas fa-trash-alt"></i>
+                    </a>
+                </td>
+            </tr>
+        }
     </tbody>
 </table>

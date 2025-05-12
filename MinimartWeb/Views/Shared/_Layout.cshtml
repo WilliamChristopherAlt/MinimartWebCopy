@@ -487,9 +487,23 @@
             <li class="dropdown-header text-center">Xin chào, @User.Identity.Name!</li>
             <li><hr class="dropdown-divider"></li>
             <li>
-                <a class="dropdown-item" asp-controller="Account" asp-action="Profile">
-                    <i class="fas fa-user fa-fw me-2"></i>Thông tin cá nhân
-                </a>
+                @if (User.IsInRole("Customer") || User.IsInRole("User"))
+                {
+                <li>
+                    <a class="dropdown-item" asp-controller="Account" asp-action="Profile">
+                        <i class="fas fa-user fa-fw me-2"></i>Thông tin cá nhân
+                    </a>
+                </li>
+                }
+                else if (User.IsInRole("Admin") || User.IsInRole("Staff"))
+                {
+                <li>
+                    <a class="dropdown-item" asp-controller="Account" asp-action="EmployeeProfile">
+                        <i class="fas fa-user-tie fa-fw me-2"></i>Thông tin nhân viên
+                    </a>
+                </li>
+                }
+
             </li>
 
             @if (User.IsInRole("Customer") || User.IsInRole("User"))

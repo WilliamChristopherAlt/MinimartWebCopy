@@ -247,11 +247,12 @@ namespace MinimartWeb.Controllers
 
             Console.WriteLine($"\n[DEBUG] Sale updated successfully. Redirecting to ConfirmOrder. SaleID={sale.SaleID}\n");
 
-            return Json(new {
-    success = true,
-    redirectUrl = Url.Action("ConfirmOrder", new { saleId = sale.SaleID }),
-    message = $"⚡ <strong>{product.ProductName}</strong> has been redirected to confirmation."
-});
+            return Json(new
+            {
+                success = true,
+                redirectUrl = Url.Action("ConfirmOrder", new { saleId = sale.SaleID }),
+                message = $"⚡ <strong>{product.ProductName}</strong> has been redirected to confirmation."
+            });
 
         }
 

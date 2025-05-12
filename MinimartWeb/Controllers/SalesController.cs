@@ -28,14 +28,38 @@ namespace MinimartWeb.Controllers
             _logger = logger;
         }
 
-        // GET: Sales (ADMIN VIEW)
-        [Authorize(Roles = "Admin,Staff")] // Hoặc chỉ "Admin" tùy theo phân quyền của bạn
+        [Authorize(Roles = "Admin,Staff")]
         public async Task<IActionResult> Index()
         {
-            _logger.LogInformation("Admin/Staff accessing Sales Index.");
-            var applicationDbContext = _context.Sales.Include(s => s.Customer).Include(s => s.Employee).Include(s => s.PaymentMethod);
-            return View(await applicationDbContext.ToListAsync());
+            var sales = await _context.Sales
+                .Include(s => s.SaleDetails)
+                .Include(s => s.Customer)
+                .Include(s => s.Employee)
+                .Include(s => s.PaymentMethod)
+                .ToListAsync();
+
+            var currentYear = DateTime.Now.Year;
+            var grouped = sales
+                .Where(s => s.SaleDate.Year == currentYear)
+                .GroupBy(s => s.SaleDate.Month)
+                .OrderBy(g => g.Key)
+                .Select(g => new
+                {
+                    Month = g.Key,
+                    Count = g.Count(),
+                    Revenue = g.Sum(s => s.SaleDetails.Sum(d => d.Quantity * d.ProductPriceAtPurchase))
+                })
+                .ToList();
+
+            var chartData = grouped.Select(g => new { g.Month, g.Count, g.Revenue }).ToList();
+            ViewBag.ChartJson = Newtonsoft.Json.JsonConvert.SerializeObject(chartData);
+            ViewBag.TotalRevenue = chartData.Sum(g => g.Revenue).ToString("N0") + " đ";
+            ViewBag.TotalOrders = chartData.Sum(g => g.Count);
+            ViewBag.PeakMonth = "Tháng " + chartData.OrderByDescending(g => g.Revenue).First().Month;
+
+            return View(sales);
         }
+
 
         // GET: Sales/Details/5 (ADMIN VIEW)
         [Authorize(Roles = "Admin,Staff")] // Hoặc chỉ "Admin"

@@ -1,71 +1,53 @@
 ﻿@model IEnumerable<MinimartWeb.Model.Customer>
-
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Danh sách khách hàng";
 }
 
-<h1>Index</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold text-primary">Danh sách khách hàng</h2>
+    <a asp-action="Create" class="btn btn-success">
+        <i class="fas fa-user-plus me-1"></i> Thêm khách hàng mới
+    </a>
+</div>
 
-<p>
-    <a asp-action="Create">Create New</a>
-</p>
-<table class="table">
-    <thead>
-        <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.FirstName)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.LastName)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Email)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.PhoneNumber)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ImagePath)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Username)
-            </th>
-            <th></th>
+<table class="table table-bordered table-hover align-middle">
+    <thead class="table-dark text-center">
+        <tr style="height: 70px;">
+            <th>Họ</th>
+            <th>Tên</th>
+            <th>Email</th>
+            <th>Điện thoại</th>
+            <th style="width: 120px;">Ảnh</th>
+            <th>Tên đăng nhập</th>
+            <th>Hành động</th>
         </tr>
     </thead>
     <tbody>
         @foreach (var item in Model)
         {
-            <tr>
-                <td>
-                    @Html.DisplayFor(modelItem => item.FirstName)
+            <tr style="min-height: 100px;">
+                <td class="align-middle">@item.FirstName</td>
+                <td class="align-middle">@item.LastName</td>
+                <td class="align-middle">@item.Email</td>
+                <td class="align-middle">@item.PhoneNumber</td>
+                <td class="align-middle text-center">
+                    <img src="@Url.Content("~/images/users/" + (string.IsNullOrEmpty(item.ImagePath) ? "default.jpg" : item.ImagePath))"
+                         alt="Ảnh đại diện"
+                         class="rounded-circle shadow-sm"
+                         style="width: 70px; height: 70px; object-fit: cover;" />
                 </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.LastName)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.Email)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.PhoneNumber)
-                </td>
-                <td>
-                    @if (!string.IsNullOrEmpty(item.ImagePath))
-                    {
-                        <img src="@Url.Content("~/images/users/" + item.ImagePath)" alt="Profile Image" width="50" height="50" />
-                    }
-                    else
-                    {
-                        <img src="~/images/users/default.jpg" alt="Default Profile Image" width="50" height="50" />
-                    }
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.Username)
-                </td>
-                <td>
-                    <a asp-action="Edit" asp-route-id="@item.CustomerID">Edit</a> |
-                    <a asp-action="Details" asp-route-id="@item.CustomerID">Details</a> |
-                    <a asp-action="Delete" asp-route-id="@item.CustomerID">Delete</a>
+                <td class="align-middle">@item.Username</td>
+                <td class="align-middle text-center text-nowrap">
+                    <a asp-action="Edit" asp-route-id="@item.CustomerID" class="btn btn-sm btn-outline-primary me-1" title="Chỉnh sửa">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <a asp-action="Details" asp-route-id="@item.CustomerID" class="btn btn-sm btn-outline-info me-1" title="Chi tiết">
+                        <i class="fas fa-info-circle"></i>
+                    </a>
+                    <a asp-action="Delete" asp-route-id="@item.CustomerID" class="btn btn-sm btn-outline-danger" title="Xóa"
+                       onclick="return confirm('Bạn có chắc chắn muốn xóa khách hàng này?');">
+                        <i class="fas fa-trash-alt"></i>
+                    </a>
                 </td>
             </tr>
         }

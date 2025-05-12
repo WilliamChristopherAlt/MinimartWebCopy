@@ -1,98 +1,83 @@
 ﻿@model IEnumerable<MinimartWeb.Model.ProductType>
-
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Danh sách sản phẩm";
 }
 
-<h1>Index</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold text-primary">Danh sách sản phẩm</h2>
+    <a asp-action="Create" class="btn btn-success">
+        <i class="fas fa-plus me-1"></i> Thêm sản phẩm mới
+    </a>
+</div>
 
-<p>
-    <a asp-action="Create">Create New</a>
-</p>
-<table class="table">
-    <thead>
-        <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.ProductName)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ProductDescription)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Price)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.StockAmount)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ExpirationDurationDays)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.IsActive)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.DateAdded)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ImagePath)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Category)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Supplier)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.MeasurementUnit)
-            </th>
-            <th></th>
+<table class="table table-bordered table-hover table-striped align-middle">
+    <thead class="table-dark text-center">
+        <tr style="height: 70px;">
+            <th>Tên sản phẩm</th>
+            <th style="width: 180px;">Mô tả</th> <!-- LIMIT width -->
+            <th>Giá</th>
+            <th>Tồn kho</th>
+            <th>HSD (ngày)</th>
+            <th>Trạng thái</th>
+            <th>Ngày thêm</th>
+            <th style="width: 160px;">Ảnh</th> <!-- WIDER image -->
+            <th>Danh mục</th>
+            <th>Nhà cung cấp</th>
+            <th>Đơn vị</th>
+            <th>Hành động</th>
         </tr>
     </thead>
     <tbody>
-@foreach (var item in Model) {
-        <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.ProductName)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.ProductDescription)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Price)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.StockAmount)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.ExpirationDurationDays)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.IsActive)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.DateAdded)
-            </td>
-            <td>
-                @if (!string.IsNullOrEmpty(item.ImagePath))
-                {
-                    <img src="~/images/products/@item.ImagePath" alt="@item.ProductName" style="max-height:100px;" />
-                }
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Category.CategoryName)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Supplier.SupplierName)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.MeasurementUnit.UnitName)
-            </td>
-            <td>
-                <a asp-action="Edit" asp-route-id="@item.ProductTypeID">Edit</a> |
-                <a asp-action="Details" asp-route-id="@item.ProductTypeID">Details</a> |
-                <a asp-action="Delete" asp-route-id="@item.ProductTypeID">Delete</a>
-            </td>
-        </tr>
-}
+        @foreach (var item in Model)
+        {
+            <tr style="height: 200px;">
+                <!-- INCREASE HEIGHT -->
+                <td class="align-middle">@item.ProductName</td>
+                <td class="align-middle small text-muted" style="max-width: 200px; white-space: normal; word-wrap: break-word;">
+                    @item.ProductDescription
+                </td>
+                <td class="align-middle text-end text-danger fw-semibold">@item.Price.ToString("N0") đ</td>
+                <td class="align-middle text-center">@item.StockAmount</td>
+                <td class="align-middle text-center">@item.ExpirationDurationDays</td>
+                <td class="align-middle text-center">
+                    @if (item.IsActive)
+                    {
+                        <span class="badge bg-success">Hiển thị</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">Ẩn</span>
+                    }
+                </td>
+                <td class="align-middle">@item.DateAdded.ToString("dd/MM/yyyy")</td>
+                <td class="align-middle text-center">
+                    @if (!string.IsNullOrEmpty(item.ImagePath))
+                    {
+                        <img src="~/images/products/@item.ImagePath"
+                             alt="@item.ProductName"
+                             class="img-thumbnail"
+                             style="max-height: 120px; width: auto;" />
+                    }
+                    else
+                    {
+                        <span class="text-muted small fst-italic">Không có ảnh</span>
+                    }
+                </td>
+                <td class="align-middle">@item.Category?.CategoryName</td>
+                <td class="align-middle">@item.Supplier?.SupplierName</td>
+                <td class="align-middle">@item.MeasurementUnit?.UnitName</td>
+                <td class="align-middle text-center text-nowrap">
+                    <a asp-action="Edit" asp-route-id="@item.ProductTypeID" class="btn btn-sm btn-outline-primary me-1">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <a asp-action="Details" asp-route-id="@item.ProductTypeID" class="btn btn-sm btn-outline-info me-1">
+                        <i class="fas fa-info-circle"></i>
+                    </a>
+                    <a asp-action="Delete" asp-route-id="@item.ProductTypeID" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bạn có chắc chắn muốn xóa?');">
+                        <i class="fas fa-trash-alt"></i>
+                    </a>
+                </td>
+            </tr>
+        }
     </tbody>
 </table>

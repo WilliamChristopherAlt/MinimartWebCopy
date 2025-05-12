@@ -1,77 +1,125 @@
 ﻿@model IEnumerable<MinimartWeb.Model.Sale>
-
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Thống kê & Danh sách đơn hàng";
+    var chartJson = ViewBag.ChartJson ?? "[]";
+    var totalRevenue = ViewBag.TotalRevenue;
+    var peakMonth = ViewBag.PeakMonth;
+    var totalOrders = ViewBag.TotalOrders;
 }
 
-<h1>Index</h1>
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-white bg-success mb-3">
+            <div class="card-header">Tổng doanh thu</div>
+            <div class="card-body">
+                <h5 class="card-title fw-bold">@totalRevenue</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-primary mb-3">
+            <div class="card-header">Tổng số đơn hàng</div>
+            <div class="card-body">
+                <h5 class="card-title fw-bold">@totalOrders</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-danger mb-3">
+            <div class="card-header">Tháng cao điểm</div>
+            <div class="card-body">
+                <h5 class="card-title fw-bold">@peakMonth</h5>
+            </div>
+        </div>
+    </div>
+</div>
 
-<p>
-    <a asp-action="Create">Create New</a>
-</p>
-<table class="table">
-    <thead>
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <canvas id="salesChart" height="100"></canvas>
+    </div>
+</div>
+
+<table class="table table-bordered table-hover align-middle">
+    <thead class="table-dark text-center">
         <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.SaleDate)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.DeliveryAddress)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.DeliveryTime)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.IsPickup)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.OrderStatus)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Customer)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Employee)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.PaymentMethod)
-            </th>
-            <th></th>
+            <th>Ngày đặt</th>
+            <th>Địa chỉ giao</th>
+            <th>Thời gian giao</th>
+            <th>Nhận tại cửa hàng</th>
+            <th>Trạng thái</th>
+            <th>Khách hàng</th>
+            <th>Nhân viên</th>
+            <th>Thanh toán</th>
+            <th>Hành động</th>
         </tr>
     </thead>
     <tbody>
-@foreach (var item in Model) {
-        <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.SaleDate)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.DeliveryAddress)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.DeliveryTime)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.IsPickup)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.OrderStatus)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Customer.Email)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Employee.CitizenID)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.PaymentMethod.MethodName)
-            </td>
-            <td>
-                <a asp-action="Edit" asp-route-id="@item.SaleID">Edit</a> |
-                <a asp-action="Details" asp-route-id="@item.SaleID">Details</a> |
-                <a asp-action="Delete" asp-route-id="@item.SaleID">Delete</a>
-            </td>
-        </tr>
-}
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.SaleDate.ToString("dd/MM/yyyy")</td>
+                <td>@item.DeliveryAddress</td>
+                <td>@item.DeliveryTime.ToString("HH:mm")</td>
+                <td class="text-center">@((item.IsPickup ? "✓" : "✗"))</td>
+                <td><span class="badge bg-info">@item.OrderStatus</span></td>
+                <td>@item.Customer?.Email</td>
+                <td>@item.Employee?.CitizenID</td>
+                <td>@item.PaymentMethod?.MethodName</td>
+                <td class="text-nowrap text-center">
+                    <a asp-action="Edit" asp-route-id="@item.SaleID" class="btn btn-sm btn-outline-primary me-1"><i class="fas fa-edit"></i></a>
+                    <a asp-action="Details" asp-route-id="@item.SaleID" class="btn btn-sm btn-outline-info me-1"><i class="fas fa-info-circle"></i></a>
+                    <a asp-action="Delete" asp-route-id="@item.SaleID" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bạn có chắc muốn xóa đơn này?');"><i class="fas fa-trash-alt"></i></a>
+                </td>
+            </tr>
+        }
     </tbody>
 </table>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const stats = @Html.Raw(chartJson);
+        const labels = stats.map(d => 'Tháng ' + d.Month);
+        const counts = stats.map(d => d.Count);
+        const revenues = stats.map(d => d.Revenue);
+
+        new Chart(document.getElementById('salesChart'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Số đơn hàng',
+                        data: counts,
+                        backgroundColor: 'rgba(54,162,235,0.7)'
+                    },
+                    {
+                        label: 'Doanh thu (VNĐ)',
+                        data: revenues,
+                        backgroundColor: 'rgba(255,99,132,0.7)'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: value => value.toLocaleString('vi-VN') + ' đ'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `${ctx.dataset.label}: ${ctx.raw.toLocaleString('vi-VN')} đ`
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+}

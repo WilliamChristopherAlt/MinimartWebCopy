@@ -2,8 +2,7 @@
 @using System.Text.Encodings.Web; // Cho JavaScriptEncoder
 @{
     ViewData["Title"] = "Thông tin cá nhân Nhân viên";
-    // Layout có thể là _AdminLayout.cshtml nếu bạn đã tạo và cấu hình _ViewStart cho area/controller này
-    // Hoặc _Layout.cshtml nếu dùng chung
+
     Layout = "~/Views/Shared/_Layout.cshtml";
 
     var imageSrcForDisplay = !string.IsNullOrEmpty(Model.ImagePath) && Model.ImagePath != "default_employee.jpg"

@@ -1823,7 +1823,7 @@ public class AccountController : Controller
                 .Where(s => s.CustomerID == customerId &&
                             s.SaleDate >= startDateFor12Months &&
                             s.SaleDate < today.AddDays(1) && // Đến hết ngày hôm nay
-                            s.OrderStatus == "Completed")
+                            s.OrderStatus == "Hoàn thành")
                 .SelectMany(s => s.SaleDetails.Select(sd => new {
                     SaleYear = s.SaleDate.Year,
                     SaleMonth = s.SaleDate.Month,
