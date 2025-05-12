@@ -33,31 +33,39 @@
             <div class="product-card-footer mt-3">
                 @if (Model.StockAmount > 0 && Model.IsActive)
                 {
-                    <!-- Add to Cart -->
-                    <form method="post" class="form-add-to-cart mb-2">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="productId" value="@Model.Id" />
-                        <input type="hidden" name="quantity" value="1" />
-                        <button type="button" class="btn btn-outline-secondary btn-sm w-100 add-to-cart-btn">
-                            <i class="fas fa-cart-plus me-1"></i> Thêm vào giỏ
-                        </button>
-                    </form>
+                    @if (User.Identity != null && User.Identity.IsAuthenticated && (User.IsInRole("Admin") || User.IsInRole("Staff")))
+                    {
+                        <!-- Do not render buttons for Admin or Staff -->
+                    }
+                    else
+                    {
+                        <!-- Add to Cart -->
+                        <form method="post" class="form-add-to-cart mb-2">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="productId" value="@Model.Id" />
+                            <input type="hidden" name="quantity" value="1" />
+                            <button type="button" class="btn btn-outline-secondary btn-sm w-100 add-to-cart-btn">
+                                <i class="fas fa-cart-plus me-1"></i> Thêm vào giỏ
+                            </button>
+                        </form>
 
-                    <!-- Buy Now -->
-                    <form method="post" class="form-buy-now mb-2">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="productId" value="@Model.Id" />
-                        <input type="hidden" name="quantity" value="1" id="quantity_@Model.Id" />
-                        <button type="button" class="btn btn-outline-warning btn-sm w-100 buy-now-btn">
-                            <i class="fas fa-bolt me-1"></i> Mua ngay
-                        </button>
-                    </form>
+                        <!-- Buy Now -->
+                        <form method="post" class="form-buy-now mb-2">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="productId" value="@Model.Id" />
+                            <input type="hidden" name="quantity" value="1" id="quantity_@Model.Id" />
+                            <button type="button" class="btn btn-outline-warning btn-sm w-100 buy-now-btn">
+                                <i class="fas fa-bolt me-1"></i> Mua ngay
+                            </button>
+                        </form>
+                    }
                 }
                 else
                 {
                     <button type="button" class="btn btn-secondary btn-sm w-100" disabled>Hết hàng</button>
                 }
             </div>
+
         </div>
     </div>
 </div>

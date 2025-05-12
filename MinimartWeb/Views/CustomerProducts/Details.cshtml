@@ -86,44 +86,49 @@
                 <input type="hidden" name="productId" value="@Model.Product.ProductTypeID" />
                 <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString.Value)" />
 
-                <div class="row g-3 align-items-center mb-3">
-                    <div class="col-md-4 col-lg-3">
-                        <label for="quantity_@Model.Product.ProductTypeID" class="form-label small mb-1 d-block">Số lượng:</label>
-                        <div class="input-group input-group-sm" style="width: 120px;">
-                            <button class="btn btn-outline-secondary" type="button" onclick="updateQuantityOnDetailPage(@Model.Product.ProductTypeID, -1, @((int)Model.Product.StockAmount))">-</button>
-                            @{
-                                var isContinuous = Model.Product?.MeasurementUnit?.IsContinuous ?? false;
-                                var minVal = isContinuous ? "0.01" : "1";
-                                var stepVal = isContinuous ? "0.01" : "1";
-                                var unitName = Model.Product?.MeasurementUnit?.UnitName ?? "đơn vị";
-                            }
-                            <input type="number"
-                                   name="quantity"
-                                   id="quantity_@Model.Product.ProductTypeID"
-                                   class="form-control text-center"
-                                   value="1"
-                                   min="@minVal"
-                                   max="@Model.Product.StockAmount"
-                                   step="@stepVal"
-                                   aria-label="Số lượng" />
+                @if (User.Identity != null && User.Identity.IsAuthenticated && (User.IsInRole("Admin") || User.IsInRole("Staff")))
+                {
+                    <div class="text-muted small">Chức năng mua hàng không khả dụng với vai trò của bạn.</div>
+                }
+                else
+                {
+                    <div class="row g-3 align-items-center mb-3">
+                        <div class="col-md-4 col-lg-3">
+                            <label for="quantity_@Model.Product.ProductTypeID" class="form-label small mb-1 d-block">Số lượng:</label>
+                            <div class="input-group input-group-sm" style="width: 120px;">
+                                <button class="btn btn-outline-secondary" type="button" onclick="updateQuantityOnDetailPage(@Model.Product.ProductTypeID, -1, @((int)Model.Product.StockAmount))">-</button>
+                                @{
+                                    var isContinuous = Model.Product?.MeasurementUnit?.IsContinuous ?? false;
+                                    var minVal = isContinuous ? "0.01" : "1";
+                                    var stepVal = isContinuous ? "0.01" : "1";
+                                }
+                                <input type="number"
+                                       name="quantity"
+                                       id="quantity_@Model.Product.ProductTypeID"
+                                       class="form-control text-center"
+                                       value="1"
+                                       min="@minVal"
+                                       max="@Model.Product.StockAmount"
+                                       step="@stepVal"
+                                       aria-label="Số lượng" />
+                                <button class="btn btn-outline-secondary" type="button" onclick="updateQuantityOnDetailPage(@Model.Product.ProductTypeID, 1, @((int)Model.Product.StockAmount))">+</button>
+                            </div>
+                        </div>
+                        <div class="col-md-8 col-lg-9">
+                            <div class="d-flex gap-2 mt-md-3">
+                                <button type="button" class="btn btn-outline-warning flex-grow-1 product-action-btn add-to-cart-ajax">
+                                    <i class="fas fa-cart-plus me-1"></i> Thêm vào giỏ
+                                </button>
 
-                            <button class="btn btn-outline-secondary" type="button" onclick="updateQuantityOnDetailPage(@Model.Product.ProductTypeID, 1, @((int)Model.Product.StockAmount))">+</button>
+                                <button type="button" class="btn btn-danger flex-grow-1 product-action-btn"
+                                        onclick="submitBuyNow(@Model.Product.ProductTypeID)">
+                                    <i class="fas fa-bolt me-1"></i> Mua ngay
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-8 col-lg-9">
-                        <div class="d-flex gap-2 mt-md-3">
-                            @* Điều chỉnh margin top cho desktop *@ <button type="button" class="btn btn-outline-warning flex-grow-1 product-action-btn add-to-cart-ajax">
-                                <i class="fas fa-cart-plus me-1"></i> Thêm vào giỏ
-                            </button>
+                }
 
-                            <button type="button" class="btn btn-danger flex-grow-1 product-action-btn"
-                                    onclick="submitBuyNow(@Model.Product.ProductTypeID)">
-                                <i class="fas fa-bolt me-1"></i> Mua ngay
-                            </button>
-
-                        </div>
-                    </div>
-                </div>
             </form>
         }
         else

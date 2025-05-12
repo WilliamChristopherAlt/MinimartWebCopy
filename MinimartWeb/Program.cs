@@ -59,16 +59,21 @@ builder.Services.AddScoped<IRecommendationService, RecommendationService>(); // 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Home/Error"); // Middleware xử lý lỗi cho môi trường production
-    app.UseHsts(); // Thêm header Strict-Transport-Security
-}
-else
-{
-    app.UseDeveloperExceptionPage(); // Hiển thị trang lỗi chi tiết cho môi trường development
-    // app.UseMigrationsEndPoint(); // Nếu bạn dùng EF Core Migrations và Identity
-}
+//if (!app.Environment.IsDevelopment())
+//{
+//    app.UseExceptionHandler("/Home/Error"); // Middleware xử lý lỗi cho môi trường production
+//    app.UseHsts(); // Thêm header Strict-Transport-Security
+//}
+//else
+//{
+//    app.UseDeveloperExceptionPage(); // Hiển thị trang lỗi chi tiết cho môi trường development
+//    // app.UseMigrationsEndPoint(); // Nếu bạn dùng EF Core Migrations và Identity
+//}
+
+// Always show detailed errors (NOT FOR PRODUCTION!)
+app.UseDeveloperExceptionPage();
+
+
 app.MapControllerRoute(
     name: "areas", // Hoặc "AdminArea"
     pattern: "{area:exists}/{controller=Dashboard}/{action=Index}/{id?}"
