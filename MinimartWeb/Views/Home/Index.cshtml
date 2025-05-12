@@ -336,7 +336,10 @@
                     spaceBetween: 10,
                     grabCursor: true,
                     loop: false, // disable loop when showing only a few items
-                    autoplay: false,
+                    autoplay: {
+                        delay: 4000, // 4 seconds
+                        disableOnInteraction: false // keeps autoplay running after user interaction
+                    },
                     pagination: { el: '.hot-deal-pagination', clickable: true },
                     navigation: { nextEl: '.hot-deal-next', prevEl: '.hot-deal-prev' },
                     breakpoints: {
@@ -358,7 +361,11 @@
                     spaceBetween: 10,
                     grabCursor: true,
                     loop: false,
-                    autoplay: false,
+                     autoplay: {
+                        delay: 4000, // 4 seconds
+                        disableOnInteraction: false // keeps autoplay running after user interaction
+                    },
+
                     pagination: { el: '.recommended-pagination', clickable: true },
                     navigation: { nextEl: '.recommended-next', prevEl: '.recommended-prev' },
                     breakpoints: {
