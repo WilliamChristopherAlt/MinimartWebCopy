@@ -235,6 +235,7 @@ public class AccountController : Controller
             string role;
             string displayName;
 
+            // 👉 Customer login
             if (model.UserType == "Customer")
             {
                 var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Username == model.Username);
@@ -253,6 +254,7 @@ public class AccountController : Controller
                 new Claim(ClaimTypes.Role, role)
             }, CookieAuthenticationDefaults.AuthenticationScheme, ClaimTypes.Name, ClaimTypes.Role);
             }
+            // 👉 Employee login
             else if (model.UserType == "Employee")
             {
                 var account = await _context.EmployeeAccounts
@@ -266,8 +268,16 @@ public class AccountController : Controller
                     return BadRequest(new { success = false, message = "Tên đăng nhập hoặc mật khẩu không đúng." });
                 }
 
-                //role = account.Employee.Role.RoleName; // e.g., "Admin", "Staff"
-                role = "Admin"; // e.g., "Admin", "Staff"
+                // 🔥 **Role Assignment Logic**
+                if (account.Employee.Role.RoleName == "Quản trị viên")
+                {
+                    role = "Admin";
+                }
+                else
+                {
+                    role = "Staff";
+                }
+
                 displayName = account.Username;
 
                 identity = new ClaimsIdentity(new[]
@@ -296,6 +306,7 @@ public class AccountController : Controller
             return StatusCode(500, new { success = false, message = "Lỗi hệ thống. Vui lòng thử lại." });
         }
     }
+
 
     // --- [HttpGet] VerifyLoginOtp: Hiển thị form nhập OTP 2FA khi đăng nhập ---
     [AllowAnonymous]
@@ -633,7 +644,7 @@ public class AccountController : Controller
     }
 
     // === KẾT THÚC DÁN CODE SETTINGS (POST) VÀO ĐÂY ===
-    
+
     // GET: /Account/ChangePassword
     [Authorize(Roles = "Customer")] // Hoặc chỉ [Authorize] nếu không phân quyền chi tiết
     [HttpGet]
@@ -1800,7 +1811,7 @@ public class AccountController : Controller
             LastName = customer.LastName,
             Email = customer.Email,
             IsEmailVerified = customer.IsEmailVerified,
-           // EmailVerifiedAt = customer.EmailVerifiedAt,
+            // EmailVerifiedAt = customer.EmailVerifiedAt,
             PhoneNumber = customer.PhoneNumber,
             ImagePath = customer.ImagePath, // Đường dẫn ảnh sẽ được xử lý trong View
             Username = customer.Username

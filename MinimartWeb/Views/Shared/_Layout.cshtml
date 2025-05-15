@@ -447,7 +447,6 @@
         </nav>
     </header>
 
-    @* Menu Sidebar và Account Dropdown giữ nguyên như code bạn cung cấp *@
     <div id="menuSidebar" class="popup-menu shadow-sm">
         <ul>
             <!-- Always visible links -->
@@ -462,23 +461,32 @@
                 </a>
             </li>
 
-            <!-- Additional links for Admin and Staff -->
-            @if (User.Identity != null && User.Identity.IsAuthenticated && (User.IsInRole("Admin") || User.IsInRole("Staff")))
-            {
-                <li><a asp-controller="Categories" asp-action="Index" class="dropdown-item"><i class="fas fa-folder fa-fw me-2"></i>Loại sản phẩm</a></li>
-                <li><a asp-controller="EmployeeRoles" asp-action="Index" class="dropdown-item"><i class="fas fa-id-badge fa-fw me-2"></i>Vai trò NV</a></li>
-                <li><a asp-controller="Employees" asp-action="Index" class="dropdown-item"><i class="fas fa-user-tie fa-fw me-2"></i>Nhân viên</a></li>
-                <li><a asp-controller="EmployeeAccounts" asp-action="Index" class="dropdown-item"><i class="fas fa-users-cog fa-fw me-2"></i>Tài khoản NV</a></li>
-                <li><a asp-controller="Measurements" asp-action="Index" class="dropdown-item"><i class="fas fa-ruler fa-fw me-2"></i>Đơn vị đo</a></li>
-                <li><a asp-controller="OTPTypes" asp-action="Index" class="dropdown-item"><i class="fas fa-key fa-fw me-2"></i>Loại OTP</a></li>
-                <li><a asp-controller="PaymentMethods" asp-action="Index" class="dropdown-item"><i class="fas fa-credit-card fa-fw me-2"></i>Phương thức thanh toán</a></li>
-                <li><a asp-controller="ProductTypes" asp-action="Index" class="dropdown-item"><i class="fas fa-tags fa-fw me-2"></i>Loại sản phẩm</a></li>
-                <li><a asp-controller="Suppliers" asp-action="Index" class="dropdown-item"><i class="fas fa-truck fa-fw me-2"></i>Nhà cung cấp</a></li>
-                <li><a asp-controller="Tags" asp-action="Index" class="dropdown-item"><i class="fas fa-tag fa-fw me-2"></i>Thẻ</a></li>
-                <li><a asp-controller="Sales" asp-action="Index" class="dropdown-item"><i class="fas fa-shopping-cart fa-fw me-2"></i>Đơn hàng</a></li>
+            @{
+                if (User.Identity != null && User.Identity.IsAuthenticated && User.IsInRole("Admin"))
+                {
+                    <li><a asp-controller="Categories" asp-action="Index" class="dropdown-item"><i class="fas fa-folder fa-fw me-2"></i>Loại sản phẩm</a></li>
+                    <li><a asp-controller="EmployeeRoles" asp-action="Index" class="dropdown-item"><i class="fas fa-id-badge fa-fw me-2"></i>Vai trò NV</a></li>
+                    <li><a asp-controller="Employees" asp-action="Index" class="dropdown-item"><i class="fas fa-user-tie fa-fw me-2"></i>Nhân viên</a></li>
+                    <li><a asp-controller="EmployeeAccounts" asp-action="Index" class="dropdown-item"><i class="fas fa-users-cog fa-fw me-2"></i>Tài khoản NV</a></li>
+                    <li><a asp-controller="Measurements" asp-action="Index" class="dropdown-item"><i class="fas fa-ruler fa-fw me-2"></i>Đơn vị đo</a></li>
+                    <li><a asp-controller="OTPTypes" asp-action="Index" class="dropdown-item"><i class="fas fa-key fa-fw me-2"></i>Loại OTP</a></li>
+                    <li><a asp-controller="PaymentMethods" asp-action="Index" class="dropdown-item"><i class="fas fa-credit-card fa-fw me-2"></i>Phương thức thanh toán</a></li>
+                    <li><a asp-controller="ProductTypes" asp-action="Index" class="dropdown-item"><i class="fas fa-tags fa-fw me-2"></i>Loại sản phẩm</a></li>
+                    <li><a asp-controller="Suppliers" asp-action="Index" class="dropdown-item"><i class="fas fa-truck fa-fw me-2"></i>Nhà cung cấp</a></li>
+                    <li><a asp-controller="Tags" asp-action="Index" class="dropdown-item"><i class="fas fa-tag fa-fw me-2"></i>Thẻ</a></li>
+                    <li><a asp-controller="Sales" asp-action="Index" class="dropdown-item"><i class="fas fa-shopping-cart fa-fw me-2"></i>Đơn hàng</a></li>
+                }
+                else if (User.Identity != null && User.Identity.IsAuthenticated && User.IsInRole("Staff"))
+                {
+                    <li><a asp-controller="Categories" asp-action="Index" class="dropdown-item"><i class="fas fa-folder fa-fw me-2"></i>Loại sản phẩm</a></li>
+                    <li><a asp-controller="ProductTypes" asp-action="Index" class="dropdown-item"><i class="fas fa-tags fa-fw me-2"></i>Loại sản phẩm</a></li>
+                    <li><a asp-controller="Suppliers" asp-action="Index" class="dropdown-item"><i class="fas fa-truck fa-fw me-2"></i>Nhà cung cấp</a></li>
+                }
             }
         </ul>
     </div>
+
+
 
 
     @if (User.Identity != null && User.Identity.IsAuthenticated)
