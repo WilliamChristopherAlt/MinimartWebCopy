@@ -57,5 +57,9 @@ namespace MinimartWeb.Model
 
 
         public virtual ICollection<OtpRequest> OtpRequests { get; set; } = new HashSet<OtpRequest>(); // Collection các OtpRequest liên quan
+
+        [Required] // Vì trong DB bạn set NOT NULL DEFAULT 0
+        public bool Is2FAEnabled { get; set; }
+        // Thuộc tính này sẽ được EF map với cột Is2FAEnabled trong bảng EmployeeAccounts
     }
 }

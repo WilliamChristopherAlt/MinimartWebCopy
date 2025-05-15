@@ -1,97 +1,113 @@
-﻿@model MinimartWeb.Models.VerifyOtpGeneralViewModel
+﻿@* File: Views/Account/VerifyOtpGeneral.cshtml *@
+@model MinimartWeb.Models.VerifyOtpGeneralViewModel
 @{
-    ViewData["Title"] = "Xác thực OTP";
+    // Lấy thông tin từ ViewBag, với giá trị mặc định nếu ViewBag null
+    ViewData["Title"] = ViewBag.PageTitle ?? "Xác thực OTP";
     Layout = "~/Views/Shared/_Layout.cshtml";
 
-    string pageSubTitle = "Vui lòng nhập mã OTP đã được gửi.";
-    string submitButtonText = "Xác nhận";
-    string backLinkAction = "Index"; // Mặc định
-    string backLinkController = "Home"; // Mặc định
-    string backLinkText = "Quay về Trang chủ";
+    string pageSubTitle = Model.VerificationDetail; // Ưu tiên Model.VerificationDetail
+    string submitButtonText = ViewBag.SubmitButtonText ?? "Xác nhận";
+    string backLinkAction = ViewBag.BackLinkAction ?? "Index";
+    string backLinkController = ViewBag.BackLinkController ?? "Home";
+    string backLinkText = ViewBag.BackLinkText ?? "Quay về Trang chủ";
+    string cardHeaderClass = ViewBag.CardHeaderClass ?? "bg-primary text-white";
 
-    if (Model.Purpose == "ChangePassword")
+    // Fallback cho pageSubTitle nếu Model.VerificationDetail trống
+    if (string.IsNullOrEmpty(pageSubTitle))
     {
-        pageSubTitle = "Xác nhận thay đổi mật khẩu của bạn.";
-        backLinkAction = "ChangePassword";
-        backLinkController = "Account";
-        backLinkText = "Quay lại trang đổi mật khẩu";
-    }
-    else if (Model.Purpose == "ChangeEmail_NewEmailVerification")
-    {
-        pageSubTitle = "Xác minh địa chỉ email mới của bạn.";
-        backLinkAction = "RequestChangeEmail";
-        backLinkController = "Account";
-        backLinkText = "Quay lại yêu cầu đổi email";
-    }
-    else if (Model.Purpose == "InitialEmailVerification" || ViewBag.PurposeContext == "Register")
-    { // Giả sử bạn có thể dùng ViewBag cho Register OTP
-        pageSubTitle = "Xác minh tài khoản của bạn.";
-        backLinkAction = "Register"; // Hoặc action Resend nếu thất bại nhiều lần
-        backLinkController = "Account";
-        backLinkText = "Gửi lại OTP / Quay lại đăng ký";
+        if (Model.Purpose == "ChangePassword") { pageSubTitle = "Xác nhận thay đổi mật khẩu của bạn."; }
+        else if (Model.Purpose == "ConfirmEmailChangeRequest_FromOldEmail") { pageSubTitle = $"Nhập OTP gửi đến {Model.Email} để xác nhận yêu cầu đổi email."; }
+        else if (Model.Purpose == "VerifyNewEmailAddress") { pageSubTitle = $"Nhập OTP gửi đến {Model.Email} để xác minh email mới."; }
+        else if (Model.Purpose == "InitialEmailVerification") { pageSubTitle = $"Nhập OTP gửi đến {Model.Email} để xác minh tài khoản."; }
+        else { pageSubTitle = "Vui lòng nhập mã OTP đã được gửi."; }
     }
 }
 
 <div class="container my-5">
     <div class="row justify-content-center">
-        <div class="col-lg-5 col-md-7">
-            <div class="card shadow-sm">
-                <div class="card-header bg-success text-white text-center py-3">
-                    @* Màu sắc có thể thay đổi tùy purpose *@
+        <div class="col-lg-5 col-md-7 col-sm-9">
+            <div class="card shadow-lg border-0 rounded-lg">
+                <div class="card-header @cardHeaderClass text-center py-3">
                     <h4 class="mb-0">@ViewData["Title"]</h4>
                 </div>
                 <div class="card-body p-4 p-md-5">
-                    @if (!string.IsNullOrEmpty(Model.VerificationDetail))
+                    @if (!string.IsNullOrEmpty(pageSubTitle))
                     {
-                        <div class="alert alert-info small py-2 mb-3 text-center">@Html.Raw(Model.VerificationDetail)</div>
-                    }
-                    else
-                    {
-                        <p class="text-muted text-center mb-3">@pageSubTitle</p>
+                        <div class="alert alert-light border-info small py-3 mb-4 text-center" role="alert">
+                            @Html.Raw(pageSubTitle)
+                        </div>
                     }
 
                     @if (TempData["ErrorMessage"] != null)
                     {
-                        <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+                        <div class="alert alert-danger text-center small py-2 mb-3">@Html.Raw(TempData["ErrorMessage"])</div>
                     }
-                    @if (TempData["InfoMessage"] != null)
+                    @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty] != null && ViewData.ModelState[string.Empty].Errors.Any())
                     {
-                        <div class="alert alert-info">@TempData["InfoMessage"]</div>
+                        <div class="alert alert-danger text-center small py-2 mb-3" role="alert">
+                            @foreach (var error in ViewData.ModelState[string.Empty].Errors)
+                            {
+                                <p class="mb-0">@error.ErrorMessage</p>
+                            }
+                        </div>
                     }
 
-                    <form asp-action="VerifyOtpForAction" method="post">
+                    <form asp-action="VerifyOtpForAction" method="post" id="verifyOtpForm">
                         @Html.AntiForgeryToken()
                         <input type="hidden" asp-for="Purpose" />
-                        <input type="hidden" asp-for="VerificationDetail" />
+                        @* Email và VerificationDetail được đọc lại từ TempData trong action POST, không cần submit lại từ form nếu không muốn user sửa. *@
+                        @* Nếu muốn hiển thị Email trên form (chỉ đọc), có thể thêm: *@
+                        @* @if (!string.IsNullOrEmpty(Model.Email) && (Model.Purpose == "ConfirmEmailChangeRequest_FromOldEmail" || Model.Purpose == "VerifyNewEmailAddress" || Model.Purpose == "InitialEmailVerification"))
+                        {
+                        <p class="text-center text-muted small mb-3">Mã OTP sẽ được/đã được gửi tới: <strong>@Model.Email</strong></p>
+                        } *@
 
-                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert" style="@(ViewData.ModelState.IsValid ? "display:none;" : "")"></div>
 
                         <div class="mb-3">
-                            <label asp-for="OtpCode" class="form-label visually-hidden"></label>
-                            <input asp-for="OtpCode" class="form-control form-control-lg text-center fw-bold"
-                                   placeholder="X X X X X X"
+                            <label asp-for="OtpCode" class="form-label visually-hidden">Mã OTP</label>
+                            <input asp-for="OtpCode" class="form-control form-control-lg text-center fw-bolder"
+                                   placeholder="X  X  X  X  X  X"
                                    maxlength="6"
                                    autocomplete="one-time-code"
                                    autofocus
-                                   style="letter-spacing: 0.5em; font-size: 1.5rem;" />
-                            <span asp-validation-for="OtpCode" class="text-danger d-block text-center mt-2 small"></span>
+                                   inputmode="numeric"
+                                   pattern="[0-9]*"
+                                   style="letter-spacing: 0.8em; font-size: 1.75rem; border-color: #0D6EFD; box-shadow: 0 0 0 0.25rem rgba(13,110,253,.25);" />
+                            <span asp-validation-for="OtpCode" class="text-danger d-block text-center mt-2 small fw-medium"></span>
                         </div>
                         <div class="d-grid mt-4">
-                            <button type="submit" class="btn btn-success btn-lg">
+                            <button type="submit" class="btn @cardHeaderClass.Split(' ')[0] btn-lg">
                                 <i class="fas fa-check-circle me-2"></i> @submitButtonText
                             </button>
                         </div>
                     </form>
                     <div class="text-center mt-4">
-                        <a asp-action="@backLinkAction" asp-controller="@backLinkController" class="btn btn-link">@backLinkText</a>
+                        <a asp-action="@backLinkAction" asp-controller="@backLinkController" class="btn btn-link btn-sm">
+                            @Html.Raw(backLinkText)
+                        </a>
+                        @if (Model.Purpose == "InitialEmailVerification" && !string.IsNullOrEmpty(Model.Email))
+                        {
+                            <span class="mx-1 text-muted small">|</span>
+                            <a asp-controller="Account" asp-action="ResendVerificationOtp" asp-route-email="@Model.Email" class="btn btn-link btn-sm">Gửi lại OTP</a>
+                        }
+                        @* Thêm link gửi lại OTP cho các purpose khác nếu cần *@
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
 @section Scripts {
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+    <script>
+        const otpInput = document.getElementById('OtpCode');
+        if (otpInput) {
+            otpInput.addEventListener('input', function () {
+                this.value = this.value.replace(/[^0-9]/g, '');
+            });
+        }
+    </script>
 }

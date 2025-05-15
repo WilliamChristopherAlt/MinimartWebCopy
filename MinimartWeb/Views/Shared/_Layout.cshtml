@@ -548,6 +548,26 @@
     {
         <div id="ajaxLoginPanel" class="login-panel-overlay"><div class="login-panel"><button type="button" class="btn-close login-panel-close" aria-label="Close"></button><div class="login-role-selector"><button id="ajaxCustomerLoginBtn" class="role-btn active" data-role="Customer">Khách hàng</button><button id="ajaxEmployeeLoginBtn" class="role-btn" data-role="Employee">Nhân viên</button></div><h2 class="login-title">Đăng nhập</h2><form id="ajaxLoginForm" method="post" action="@Url.Action("Login", "Account")" novalidate>@Html.AntiForgeryToken()<input type="hidden" id="ajaxLoginRole" name="UserType" value="Customer" /><div id="ajaxLoginErrorSummary" class="alert alert-danger my-2" role="alert" style="display: none; font-size: 0.9rem; padding: .5rem .75rem;"></div><div class="form-group"><label for="ajaxUsername" class="form-label">Tên đăng nhập</label><input type="text" name="Username" class="form-control" id="ajaxUsername" required autocomplete="username"><span class="text-danger d-block mt-1 small" data-valmsg-for="Username"></span></div><div class="form-group"><label for="ajaxPassword" class="form-label">Mật khẩu</label><input type="password" name="Password" class="form-control" id="ajaxPassword" required autocomplete="current-password"><span class="text-danger d-block mt-1 small" data-valmsg-for="Password"></span></div><div class="login-options"><div class="form-check"><input type="checkbox" class="form-check-input" id="ajaxRememberMe" name="RememberMe" value="true"><label class="form-check-label" for="ajaxRememberMe">Ghi nhớ tôi</label></div><a href="@Url.Action("ForgotPassword", "Account")" class="forgot-password-link">Quên mật khẩu?</a></div><button type="submit" id="ajaxLoginSubmitBtn" class="btn btn-primary btn-login"><i class="fas fa-sign-in-alt"></i> Đăng nhập</button><div class="register-prompt">Chưa có tài khoản? <a href="@Url.Action("Register", "Account")" class="register-link">Đăng ký</a></div></form></div></div>
     }
+    <!-- Universal Confirmation Modal (ví dụ: cho 2FA, Logout, Delete) -->
+    <div class="modal fade" id="universalConfirmModal" tabindex="-1" aria-labelledby="universalConfirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header" id="universalConfirmModalHeader">
+                    @* ID để JS có thể đổi màu header *@
+                    <h5 class="modal-title" id="universalConfirmModalLabel">Xác nhận hành động</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="universalConfirmModalMessage">Bạn có chắc chắn muốn tiếp tục?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-primary" id="universalConfirmModalButton">Xác nhận</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @* Kết thúc Modal *@
 
     <!-- ===== THAY ĐỔI QUAN TRỌNG: Scripts ===== -->
     @* 1. Tải jQuery TRƯỚC Bootstrap và các script khác *@

@@ -1,13 +1,11 @@
 ﻿@model MinimartWeb.Models.EmployeeProfileViewModel
-@using System.Text.Encodings.Web; // Cho JavaScriptEncoder
+@using System.Text.Encodings.Web;
 @{
     ViewData["Title"] = "Thông tin cá nhân Nhân viên";
-
-    Layout = "~/Views/Shared/_Layout.cshtml";
-
+    Layout = "~/Views/Shared/_Layout.cshtml"; // Đảm bảo Layout đúng và có định nghĩa universalConfirmModal
     var imageSrcForDisplay = !string.IsNullOrEmpty(Model.ImagePath) && Model.ImagePath != "default_employee.jpg"
-                             ? Url.Content("~/images/employees/" + Model.ImagePath) // Thư mục ảnh nhân viên
-                             : Url.Content("~/images/employees/default_employee.jpg"); // Ảnh mặc định cho nhân viên
+                             ? Url.Content("~/images/employees/" + Model.ImagePath)
+                             : Url.Content("~/images/employees/default_employee.jpg");
 }
 
 <div class="container my-4">
@@ -19,6 +17,7 @@
                     <p class="text-light mb-0 small">Xem và cập nhật thông tin của bạn</p>
                 </div>
                 <div class="card-body p-4 p-md-5">
+                    @* --- PHẦN THÔNG BÁO --- *@
                     @if (TempData["SuccessMessage"] != null)
                     {
                         <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -33,111 +32,118 @@
                             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
                     }
-                    @if (ViewData.ModelState[string.Empty] != null && ViewData.ModelState[string.Empty].Errors.Any())
+                    @if (TempData["ErrorMessage_2FA_Employee"] != null)
                     {
-                        <div class="alert alert-danger">@foreach (var error in ViewData.ModelState[string.Empty].Errors)
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-triangle me-2"></i> @TempData["ErrorMessage_2FA_Employee"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+                    @if (ViewData.ModelState.TryGetValue(string.Empty, out var generalErrorsProfile) && generalErrorsProfile.Errors.Any())
+                    {
+                        <div class="alert alert-danger mb-3" role="alert">
+                            @foreach (var error in generalErrorsProfile.Errors)
                             {
                                 <p class="mb-0">@error.ErrorMessage</p>
-                            }</div>
+                            }
+                        </div>
                     }
 
 
-                    <form asp-action="EmployeeProfile" method="post" enctype="multipart/form-data">
+                    @* --- FORM CẬP NHẬT THÔNG TIN CÁ NHÂN --- *@
+                    <form asp-controller="Account" asp-action="EmployeeProfile" method="post" enctype="multipart/form-data" id="updateEmployeeProfileForm">
                         @Html.AntiForgeryToken()
                         <input type="hidden" asp-for="EmployeeId" />
-                        @* Giữ lại ImagePath hiện tại để nếu không upload ảnh mới và có lỗi validation, ảnh cũ vẫn được dùng *@
                         <input type="hidden" asp-for="ImagePath" />
+                        @* <input type="hidden" asp-for="AccountId" /> *@
+
 
                         <div class="row mb-4 align-items-center">
-                            <div class="col-md-4 text-center">
-                                <img id="employeeImagePreview" src="@imageSrcForDisplay" class="img-thumbnail rounded-circle"
-                                     alt="Ảnh đại diện nhân viên" style="width: 150px; height: 150px; object-fit: cover; border: 3px solid #adb5bd;">
-                                <div class="mt-2">
-                                    <label for="newImageFileInputEmployee" class="btn btn-sm btn-outline-secondary w-100">
-                                        <i class="fas fa-camera me-1"></i> Thay đổi ảnh
-                                    </label>
-                                    <input asp-for="NewImageFile" type="file" class="form-control d-none" id="newImageFileInputEmployee" accept="image/*" onchange="previewEmployeeImage(event)" />
-                                    <span asp-validation-for="NewImageFile" class="text-danger d-block small mt-1"></span>
-                                </div>
-                            </div>
-                            <div class="col-md-8">
-                                <h4 class="mt-md-0 mt-3">@Model.FirstName @Model.LastName</h4>
-                                <p class="text-muted mb-1"><i class="fas fa-user-tag fa-fw me-1"></i> Chức vụ: @Model.RoleName</p>
-                                <p class="text-muted mb-1"><i class="fas fa-user-circle fa-fw me-1"></i> Tên đăng nhập: @Model.Username</p>
-                                <p class="mb-1">
-                                    <i class="fas fa-envelope fa-fw me-1 text-muted"></i> Email công ty: <span class="fw-medium">@Model.Email</span>
-                                    @if (Model.IsEmployeeEmailVerified)
+                            <div class="col-md-4 text-center"><img id="employeeImagePreview" src="@imageSrcForDisplay" class="img-thumbnail rounded-circle" alt="Ảnh đại diện nhân viên" style="width: 150px; height: 150px; object-fit: cover; border: 3px solid #adb5bd;"><div class="mt-2"><label for="newImageFileInputEmployee" class="btn btn-sm btn-outline-secondary w-100"><i class="fas fa-camera me-1"></i> Thay đổi ảnh</label><input asp-for="NewImageFile" type="file" class="form-control d-none" id="newImageFileInputEmployee" accept="image/jpeg, image/png" onchange="previewEmployeeImage(event)" /><span asp-validation-for="NewImageFile" class="text-danger d-block small mt-1"></span></div></div>
+                            <div class="col-md-8"><h4 class="mt-md-0 mt-3">@Model.FirstName @Model.LastName</h4><p class="text-muted mb-1"><i class="fas fa-user-tag fa-fw me-1"></i> Chức vụ: @Model.RoleName</p><p class="text-muted mb-1"><i class="fas fa-user-circle fa-fw me-1"></i> Tên đăng nhập: @Model.Username</p><p class="mb-1"><i class="fas fa-envelope fa-fw me-1 text-muted"></i> Email công ty: <span class="fw-medium">@Model.Email</span> @if (Model.IsEmployeeEmailVerified)
                                     {
                                         <i class="fas fa-check-circle text-success ms-1" title="Email đã được xác minh lúc @Model.EmployeeEmailVerifiedAt?.ToString("dd/MM/yyyy HH:mm")"></i>
                                     }
                                     else
                                     {
                                         <i class="fas fa-exclamation-triangle text-warning ms-1" title="Email chưa xác minh"></i>
-                                        @* TODO: Thêm link/button gửi lại OTP xác minh email cho nhân viên nếu cần *@
-                                    }
-                                </p>
-                                <p class="text-muted mb-0"><i class="fas fa-toggle-@(Model.IsAccountActive ? "on text-success" : "off text-danger") fa-fw me-1"></i> Trạng thái TK: @(Model.IsAccountActive ? "Hoạt động" : "Bị khóa")</p>
-                            </div>
+                                    }</p><p class="text-muted mb-0"><i class="fas fa-toggle-@(Model.IsAccountActive ? "on text-success" : "off text-danger") fa-fw me-1"></i> Trạng thái TK: @(Model.IsAccountActive ? "Hoạt động" : "Bị khóa")</p></div>
                         </div>
-
-                        <hr class="my-4">
-                        <h5 class="mb-3">Thông tin cá nhân & liên hệ</h5>
-
+                        <hr class="my-4"><h5 class="mb-3">Thông tin cá nhân & liên hệ (Có thể chỉnh sửa)</h5>
                         <div class="row g-3">
-                            <div class="col-md-6">
-                                <label asp-for="PhoneNumber" class="form-label fw-medium"></label>
-                                <input asp-for="PhoneNumber" class="form-control" placeholder="Nhập SĐT cá nhân..." />
-                                <span asp-validation-for="PhoneNumber" class="text-danger small"></span>
-                            </div>
-                            <div class="col-md-6">
-                                <label asp-for="Gender" class="form-label fw-medium"></label>
-                                <input asp-for="Gender" class="form-control" readonly />
-                            </div>
-                            <div class="col-md-6">
-                                <label asp-for="BirthDate" class="form-label fw-medium"></label>
-                                <input asp-for="BirthDate" type="text" value="@Model.BirthDate.ToString("dd/MM/yyyy")" class="form-control" readonly />
-                            </div>
-                            <div class="col-md-6">
-                                <label asp-for="CitizenID" class="form-label fw-medium"></label>
-                                <input asp-for="CitizenID" class="form-control" readonly />
-                            </div>
-                            <div class="col-md-12">
-                                <label asp-for="HireDate" class="form-label fw-medium"></label>
-                                <input asp-for="HireDate" type="text" value="@Model.HireDate.ToString("dd/MM/yyyy HH:mm")" class="form-control" readonly />
-                            </div>
+                            <div class="col-md-6"><label asp-for="PhoneNumber" class="form-label fw-medium"></label><input asp-for="PhoneNumber" class="form-control" placeholder="Nhập SĐT cá nhân..." /><span asp-validation-for="PhoneNumber" class="text-danger small"></span></div>
+                            <div class="col-md-6"><label asp-for="Gender" class="form-label fw-medium"></label><input asp-for="Gender" class="form-control" readonly /></div>
+                            <div class="col-md-6"><label asp-for="BirthDate" class="form-label fw-medium"></label><input asp-for="BirthDate" type="text" value="@Model.BirthDate.ToString("dd/MM/yyyy")" class="form-control" readonly /></div>
+                            <div class="col-md-6"><label asp-for="CitizenID" class="form-label fw-medium"></label><input asp-for="CitizenID" class="form-control" readonly /></div>
+                            <div class="col-md-12"><label asp-for="HireDate" class="form-label fw-medium"></label><input asp-for="HireDate" type="text" value="@Model.HireDate.ToString("dd/MM/yyyy HH:mm")" class="form-control" readonly /></div>
                         </div>
-
-                        <div class="mt-4 pt-3 border-top">
-                            <h5 class="mb-3 text-danger">Xác nhận thay đổi</h5>
-                            <div class="mb-3">
-                                <label asp-for="CurrentPasswordForUpdate" class="form-label fw-medium"></label>
-                                <input asp-for="CurrentPasswordForUpdate" type="password" class="form-control" autocomplete="current-password" placeholder="Nhập mật khẩu để lưu thay đổi SĐT/Ảnh" />
-                                <span asp-validation-for="CurrentPasswordForUpdate" class="text-danger small"></span>
-                                <small class="form-text text-muted">Chỉ cần nhập mật khẩu nếu bạn thay đổi Số điện thoại hoặc Ảnh đại diện.</small>
-                            </div>
-                        </div>
-
-                        <div class="d-grid gap-2 mt-4">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="fas fa-save me-2"></i> Cập nhật thông tin
-                            </button>
-                        </div>
+                        <div class="mt-4 pt-3 border-top"><h5 class="mb-3 text-danger">Xác nhận thay đổi thông tin cá nhân</h5><div class="mb-3"><label asp-for="CurrentPasswordForUpdate" class="form-label fw-medium"></label><input asp-for="CurrentPasswordForUpdate" type="password" class="form-control" autocomplete="current-password" placeholder="Nhập mật khẩu để lưu thay đổi SĐT/Ảnh" /><span asp-validation-for="CurrentPasswordForUpdate" class="text-danger small"></span><small class="form-text text-muted">Chỉ cần nhập mật khẩu nếu bạn thay đổi Số điện thoại hoặc Ảnh đại diện.</small></div></div>
+                        <div class="d-grid gap-2 mt-4"><button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-save me-2"></i> Cập nhật thông tin</button></div>
                     </form>
+
+                    @* --- PHẦN BẬT/TẮT XÁC THỰC HAI YẾU TỐ --- *@
+                    <hr class="my-5">
+                    <h5 class="mb-3"><i class="fas fa-user-shield fa-fw me-2"></i>Bảo mật tài khoản (2FA)</h5>
+                    <div class="card shadow-sm">
+                        <div class="card-header">Xác thực hai yếu tố qua Email</div>
+                        <div class="card-body">
+                            @* Form này sẽ được submit bởi JavaScript sau khi modal xác nhận *@
+                            <form asp-controller="Account" asp-action="ToggleEmployee2FA" method="post" id="toggleEmployee2FAForm" style="display: none;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="employeeId" value="@Model.EmployeeId" />
+                                <input type="hidden" name="enable" id="employee2FAEnableActionValue" value="@(Model.Is2FAEnabled ? "false" : "true")" />
+                                <input type="hidden" name="passwordFor2FAChange" id="hiddenPasswordFor2FAChangeEmployee" />
+                            </form>
+
+                            @if (Model.Is2FAEnabled)
+                            {
+                                <div class="alert alert-info py-2 px-3 mb-3 small">
+                                    <i class="fas fa-shield-alt text-success"></i> Xác thực hai yếu tố đang <strong class="text-success">BẬT</strong>.
+                                    <p class="mb-0">Một mã OTP sẽ được gửi đến email của bạn mỗi khi đăng nhập.</p>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-warning py-2 px-3 mb-3 small">
+                                    <i class="fas fa-exclamation-triangle text-warning"></i> Xác thực hai yếu tố đang <strong class="text-warning">TẮT</strong>.
+                                    <p class="mb-0">Bật tính năng này để tăng cường bảo mật cho tài khoản của bạn.</p>
+                                </div>
+                            }
+
+                            <div class="mb-3">
+                                <label for="visiblePasswordFor2FAEmployee" class="form-label">Mật khẩu hiện tại để xác nhận:</label>
+                                <input id="visiblePasswordFor2FAEmployee" type="password" class="form-control" autocomplete="new-password" />
+                                <small class="form-text text-muted">Nhập mật khẩu hiện tại của bạn để xác nhận thay đổi cài đặt 2FA.</small>
+                            </div>
+
+                            @if (Model.Is2FAEnabled)
+                            {
+                                <button type="button" class="btn btn-danger trigger-2fa-modal-employee" data-action="disable">
+                                    <i class="fas fa-ban me-1"></i> Tắt 2FA
+                                </button>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn btn-success trigger-2fa-modal-employee" data-action="enable">
+                                    <i class="fas fa-check-circle me-1"></i> Bật 2FA
+                                </button>
+                            }
+                        </div>
+                    </div>
 
                     <div class="text-center mt-4">
                         <a asp-controller="Account" asp-action="ChangePassword" class="btn btn-link">Đổi mật khẩu tài khoản</a>
-                        @* Nếu nhân viên này có quyền Admin/Staff, có thể thêm link về trang Dashboard Admin *@
-                        @if (User.IsInRole("Admin") || User.IsInRole("Staff"))
+                        @if (User.IsInRole("Admin") || User.IsInRole("Quản trị viên") || User.IsInRole("Giám sát") || User.IsInRole("Staff"))
                         {
                             <span class="mx-1 text-muted">|</span>
                             <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index" class="btn btn-link">Về trang quản trị</a>
                         }
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+                </div> @* card-body chính *@
+            </div> @* card chính *@
+        </div> @* col chính *@
+    </div> @* row chính *@
+</div> @* container *@
 
 @section Scripts {
     @{
@@ -147,18 +153,111 @@
         function previewEmployeeImage(event) {
             const reader = new FileReader();
             const output = document.getElementById('employeeImagePreview');
-            // Lấy src ảnh gốc từ chính thẻ img khi hàm được gọi, phòng trường hợp Model.ImagePath chưa kịp update nếu có lỗi postback
-            const originalImageSrcEmp = output ? output.getAttribute('data-original-src') || output.src : "@Html.Raw(JavaScriptEncoder.Default.Encode(imageSrcForDisplay))";
-            if (output && !output.getAttribute('data-original-src')) {
-                 output.setAttribute('data-original-src', output.src); // Lưu ảnh gốc lần đầu
-            }
+            // Đảm bảo originalImageSrcEmp được định nghĩa đúng cách nếu imageSrcForDisplay có thể là null/empty
+            const defaultImageOnError = "@Url.Content("~/images/employees/default_employee.jpg")";
+            const imageSrcFromModel = "@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(Model.ImagePath ?? string.Empty))" || defaultImagePath;
+            const originalImageSrcEmp = output ? output.getAttribute('data-original-src') || imageSrcFromModel : imageSrcFromModel;
 
+            if (output && !output.getAttribute('data-original-src')) {
+                output.setAttribute('data-original-src', output.src || imageSrcFromModel); // Lưu lại src hiện tại
+            }
             reader.onload = function () { if (output) { output.src = reader.result; } }
             if (event.target.files && event.target.files[0]) {
                 reader.readAsDataURL(event.target.files[0]);
             } else {
-                 if (output) {output.src = originalImageSrcEmp;} // Reset về ảnh gốc nếu hủy chọn file
+                if (output) { output.src = originalImageSrcEmp; }
             }
         }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // === PHẦN XỬ LÝ MODAL CHUNG CHO 2FA ===
+            const universalModalElement = document.getElementById('universalConfirmModal');
+            if (!universalModalElement) {
+                console.error("Lỗi nghiêm trọng: Modal 'universalConfirmModal' không tìm thấy trong _Layout.cshtml. Tính năng xác nhận 2FA sẽ không hoạt động.");
+                return; // Không thể tiếp tục nếu modal không tồn tại
+            }
+            const universalConfirmModal = new bootstrap.Modal(universalModalElement);
+            const modalTitleElement = document.getElementById('universalConfirmModalLabel');
+            const modalMessageElement = document.getElementById('universalConfirmModalMessage');
+            const modalConfirmButton = document.getElementById('universalConfirmModalButton');
+            const modalHeader = document.getElementById('universalConfirmModalHeader');
+
+            // Tham chiếu đến form 2FA ẩn và các input của nó
+            const hidden2FAFormEmployee = document.getElementById('toggleEmployee2FAForm');
+            const hiddenEnableInputEmployee = document.getElementById('employee2FAEnableActionValue');
+            const hiddenPasswordInputEmployee = document.getElementById('hiddenPasswordFor2FAChangeEmployee');
+            const visiblePasswordInputEmployee = document.getElementById('visiblePasswordFor2FAEmployee');
+
+            // Gắn sự kiện cho các nút trigger modal 2FA của Employee
+            document.querySelectorAll('.trigger-2fa-modal-employee').forEach(button => {
+                button.addEventListener('click', function () {
+                    if (!visiblePasswordInputEmployee || visiblePasswordInputEmployee.value.trim() === '') {
+                        alert('Vui lòng nhập mật khẩu hiện tại để xác nhận thay đổi 2FA.');
+                        if (visiblePasswordInputEmployee) visiblePasswordInputEmployee.focus();
+                        return;
+                    }
+
+                    const action = this.getAttribute('data-action'); // "enable" or "disable"
+                    let confirmUserMessage = '';
+                    let modalButtonClasses = ['btn']; // Bắt đầu với class 'btn' cơ bản
+                    let modalHeaderClasses = ['modal-header']; // Bắt đầu với class 'modal-header' cơ bản
+
+                    if (action === 'enable') {
+                        confirmUserMessage = 'Bạn có chắc chắn muốn BẬT Xác thực hai yếu tố không?';
+                        modalButtonClasses.push('btn-success'); // Thêm class màu
+                        modalHeaderClasses.push('bg-success', 'text-white');
+                        if (hiddenEnableInputEmployee) hiddenEnableInputEmployee.value = 'true';
+                    } else if (action === 'disable') {
+                        confirmUserMessage = 'Bạn có chắc chắn muốn TẮT Xác thực hai yếu tố không?';
+                        modalButtonClasses.push('btn-danger');
+                        modalHeaderClasses.push('bg-danger', 'text-white');
+                        if (hiddenEnableInputEmployee) hiddenEnableInputEmployee.value = 'false';
+                    } else {
+                        console.error("Hành động không xác định cho nút 2FA: ", action);
+                        return;
+                    }
+
+                    if (modalTitleElement) modalTitleElement.textContent = 'Xác nhận Thay đổi 2FA';
+                    if (modalMessageElement) modalMessageElement.textContent = confirmUserMessage;
+
+                    if (modalConfirmButton) {
+                        modalConfirmButton.className = ''; // Xóa hết class cũ
+                        modalButtonClasses.forEach(cls => modalConfirmButton.classList.add(cls)); // Thêm các class mới
+                        modalConfirmButton.textContent = 'Xác nhận';
+                    }
+
+                    if (modalHeader) {
+                        modalHeader.className = ''; // Xóa hết class cũ
+                        modalHeaderClasses.forEach(cls => modalHeader.classList.add(cls)); // Thêm các class mới
+                    }
+
+                    if (hiddenPasswordInputEmployee && visiblePasswordInputEmployee) {
+                        hiddenPasswordInputEmployee.value = visiblePasswordInputEmployee.value; // Sao chép mật khẩu
+                    }
+
+                    universalConfirmModal.show();
+                });
+            });
+
+            // Xử lý khi nút "Xác nhận" trong modal chung được nhấn (CHỈ cho hành động 2FA của Employee)
+            if (modalConfirmButton && hidden2FAFormEmployee) {
+                // Gán sự kiện submit form 2FA khi nút xác nhận của modal được click
+                // Quan trọng: Đảm bảo rằng sự kiện này chỉ được gán một lần hoặc được quản lý cẩn thận
+                // nếu modal này được dùng cho nhiều mục đích khác nhau trên cùng một trang.
+                // Một cách là gán lại onclick mỗi khi modal được mở cho mục đích 2FA.
+                modalConfirmButton.onclick = function () {
+                    if (hidden2FAFormEmployee.checkValidity()) { // Kiểm tra validation cơ bản của form ẩn
+                        hidden2FAFormEmployee.submit();
+                    } else {
+                        console.error("Form 2FA ẩn không hợp lệ.");
+                        // Có thể hiển thị một thông báo lỗi chung hơn ở đây nếu cần
+                        alert("Có lỗi xảy ra, không thể gửi yêu cầu. Vui lòng thử làm mới trang.");
+                    }
+                    universalConfirmModal.hide();
+                    // Reset onclick để modal có thể được dùng cho hành động khác mà không tự submit form này
+                    modalConfirmButton.onclick = null;
+                };
+            }
+        });
     </script>
 }

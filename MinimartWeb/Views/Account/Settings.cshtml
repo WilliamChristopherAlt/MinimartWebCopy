@@ -2,7 +2,7 @@
 @using System.Text.Encodings.Web;
 @{
     ViewData["Title"] = "Cài đặt tài khoản";
-    Layout = "~/Views/Shared/_Layout.cshtml";
+    Layout = "~/Views/Shared/_Layout.cshtml"; // Đảm bảo Layout đúng và có định nghĩa universalConfirmModal
 
     var imageSrcForDisplay = !string.IsNullOrEmpty(Model.ImagePath) && Model.ImagePath != "default.jpg"
                              ? Url.Content("~/images/users/" + Model.ImagePath)
@@ -22,24 +22,33 @@
                     {
                         <div class="alert alert-success alert-dismissible fade show" role="alert">@TempData["SuccessMessage"]<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>
                     }
-                    
+                    @if (TempData["ErrorMessage_Settings"] != null) // Key TempData riêng cho lỗi từ form Settings
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">@TempData["ErrorMessage_Settings"]<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>
+                    }
+                    @if (TempData["ErrorMessage_2FA_Settings"] != null) // Key TempData riêng cho lỗi từ form 2FA
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">@TempData["ErrorMessage_2FA_Settings"]<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>
+                    }
+
                     <form asp-action="Settings" method="post" enctype="multipart/form-data">
                         @Html.AntiForgeryToken()
-                        <input type="hidden" asp-for="CustomerId" />
+                        @* CustomerId không cần thiết ở đây nếu action POST Settings lấy từ Claims *@
+                        @* <input type="hidden" asp-for="CustomerId" /> *@
 
-                        @if (ViewData.ModelState[string.Empty] != null && ViewData.ModelState[string.Empty].Errors.Any())
+                        @if (ViewData.ModelState.TryGetValue(string.Empty, out var generalErrorsSettings) && generalErrorsSettings.Errors.Any())
                         {
-                             <div class="alert alert-danger mb-3" role="alert">
-                                @foreach (var error in ViewData.ModelState[string.Empty].Errors) { <p class="mb-0">@error.ErrorMessage</p> }
+                            <div class="alert alert-danger mb-3" role="alert">
+                                @foreach (var error in generalErrorsSettings.Errors)
+                                {
+                                    <p class="mb-0">@error.ErrorMessage</p>
+                                }
                             </div>
                         }
-                        
+
                         <h5 class="mb-3">Thông tin cá nhân</h5>
                         <div class="row mb-4 align-items-center">
-                            @* ... (Phần hiển thị/upload ảnh) ... *@
-                            <div class="col-md-4 text-center text-md-start">
-                                <img id="settingImagePreview" src="@imageSrcForDisplay" class="img-thumbnail rounded-circle" alt="Ảnh đại diện" style="width: 120px; height: 120px; object-fit: cover;">
-                            </div>
+                            <div class="col-md-4 text-center text-md-start"><img id="settingImagePreview" src="@imageSrcForDisplay" class="img-thumbnail rounded-circle" alt="Ảnh đại diện" style="width: 120px; height: 120px; object-fit: cover;"></div>
                             <div class="col-md-8">
                                 <label asp-for="NewImageFile" class="form-label"></label>
                                 <input asp-for="NewImageFile" type="file" class="form-control form-control-sm" id="settingNewImageFile" accept="image/jpeg, image/png, image/gif" onchange="previewSettingImage(event)" />
@@ -47,26 +56,14 @@
                                 <small class="form-text text-muted">Để trống nếu không muốn thay đổi ảnh.</small>
                             </div>
                         </div>
-                        
                         <div class="row g-3">
-                            @* ... (Các input cho FirstName, LastName, Username (readonly), Email (readonly), PhoneNumber) ... *@
-                            <div class="col-md-6">
-                                <label asp-for="FirstName" class="form-label fw-medium"></label>
-                                <input asp-for="FirstName" class="form-control" />
-                                <span asp-validation-for="FirstName" class="text-danger" style="font-size:0.9em;"></span>
-                            </div>
-                            <div class="col-md-6">
-                                <label asp-for="LastName" class="form-label fw-medium"></label>
-                                <input asp-for="LastName" class="form-control" />
-                                <span asp-validation-for="LastName" class="text-danger" style="font-size:0.9em;"></span>
-                            </div>
+                            <div class="col-md-6"><label asp-for="FirstName" class="form-label fw-medium"></label><input asp-for="FirstName" class="form-control" /><span asp-validation-for="FirstName" class="text-danger" style="font-size:0.9em;"></span></div>
+                            <div class="col-md-6"><label asp-for="LastName" class="form-label fw-medium"></label><input asp-for="LastName" class="form-control" /><span asp-validation-for="LastName" class="text-danger" style="font-size:0.9em;"></span></div>
                             <div class="col-12"><label asp-for="Username" class="form-label fw-medium"></label><input asp-for="Username" class="form-control" readonly /></div>
                             <div class="col-12"><label asp-for="Email" class="form-label fw-medium"></label><input asp-for="Email" class="form-control" readonly /></div>
                             <div class="col-12"><label asp-for="PhoneNumber" class="form-label fw-medium"></label><input asp-for="PhoneNumber" class="form-control" /><span asp-validation-for="PhoneNumber" class="text-danger" style="font-size:0.9em;"></span></div>
-
-
                             <div class="col-12 mt-3">
-                                 <hr class="my-3">
+                                <hr class="my-3">
                                 <h5 class="mb-3 text-danger">Xác nhận thay đổi thông tin</h5>
                                 <label asp-for="CurrentPassword" class="form-label fw-medium"></label>
                                 <input asp-for="CurrentPassword" type="password" class="form-control" autocomplete="current-password" />
@@ -74,44 +71,181 @@
                                 <small class="form-text text-muted">Nhập mật khẩu hiện tại của bạn để lưu các thay đổi thông tin cá nhân trên.</small>
                             </div>
                         </div>
-
-                        <div class="d-grid gap-2 mt-4">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="fas fa-save me-2"></i> Lưu thay đổi thông tin
-                            </button>
-                        </div>
+                        <div class="d-grid gap-2 mt-4"><button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-save me-2"></i> Lưu thay đổi thông tin</button></div>
                     </form>
 
-                    <hr class="my-4"> @* Đường kẻ phân cách *@
-
-                    <h5 class="mb-3">Bảo mật tài khoản</h5>
-                    <div class="d-grid gap-2 d-sm-flex justify-content-sm-start">
-                        <a asp-controller="Account" asp-action="ChangePassword" class="btn btn-outline-secondary">
-                            <i class="fas fa-key me-2"></i> Đổi mật khẩu
-                        </a>
-                        <a asp-controller="Account" asp-action="RequestChangeEmail" class="btn btn-outline-info">
-                            <i class="fas fa-envelope-open-text me-2"></i> Thay đổi Email
-                        </a>
+                    <hr class="my-4">
+                    <h5 class="mb-3">Tùy chọn bảo mật khác</h5>
+                    <div class="d-grid gap-2 d-sm-flex justify-content-sm-start mb-4">
+                        <a asp-controller="Account" asp-action="ChangePassword" class="btn btn-outline-secondary"><i class="fas fa-key me-2"></i> Đổi mật khẩu</a>
+                        <a asp-controller="Account" asp-action="RequestChangeEmail" class="btn btn-outline-info"><i class="fas fa-envelope-open-text me-2"></i> Thay đổi Email</a>
                     </div>
-                     <div class="text-center mt-4">
+
+                    @* --- PHẦN BẬT/TẮT XÁC THỰC HAI YẾU TỐ CHO CUSTOMER --- *@
+                    <hr class="my-4">
+                    <h5 class="mb-3"><i class="fas fa-user-shield fa-fw me-2"></i>Xác thực hai yếu tố (2FA)</h5>
+                    <div class="card shadow-sm">
+                        <div class="card-header">Xác thực hai yếu tố qua Email</div>
+                        <div class="card-body">
+                            @* Form này sẽ được submit bởi JavaScript sau khi modal xác nhận *@
+                            <form asp-controller="Account" asp-action="ToggleCustomer2FA" method="post" id="toggleCustomer2FAForm" style="display: none;">
+                                @* Ẩn form này *@
+                                @Html.AntiForgeryToken()
+                                @* Không cần CustomerId ở đây nếu action POST lấy từ Claims *@
+                                <input type="hidden" name="enable" id="customer2FAEnableActionValue" value="@(Model.Is2FAEnabled ? "false" : "true")" />
+                                <input type="hidden" name="passwordForChange2FAStatus" id="hiddenPasswordFor2FAChangeCustomer" />
+                            </form>
+
+                            @if (Model.Is2FAEnabled)
+                            {
+                                <div class="alert alert-info py-2 px-3 mb-3 small">
+                                    <i class="fas fa-shield-alt text-success"></i> Xác thực hai yếu tố đang <strong class="text-success">BẬT</strong>.
+                                    <p class="mb-0">Một mã OTP sẽ được gửi đến email của bạn mỗi khi đăng nhập.</p>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-warning py-2 px-3 mb-3 small">
+                                    <i class="fas fa-exclamation-triangle text-warning"></i> Xác thực hai yếu tố đang <strong class="text-warning">TẮT</strong>.
+                                    <p class="mb-0">Bật tính năng này để tăng cường bảo mật cho tài khoản của bạn.</p>
+                                </div>
+                            }
+
+                            <div class="mb-3">
+                                <label for="visiblePasswordFor2FACustomer" class="form-label">Mật khẩu hiện tại để xác nhận:</label>
+                                <input id="visiblePasswordFor2FACustomer" type="password" class="form-control" autocomplete="new-password" />
+                                <small class="form-text text-muted">Nhập mật khẩu hiện tại của bạn để xác nhận thay đổi cài đặt 2FA.</small>
+                            </div>
+
+                            @if (Model.Is2FAEnabled)
+                            {
+                                <button type="button" class="btn btn-danger trigger-2fa-modal-customer" data-action="disable">
+                                    <i class="fas fa-ban me-1"></i> Tắt 2FA
+                                </button>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn btn-success trigger-2fa-modal-customer" data-action="enable">
+                                    <i class="fas fa-check-circle me-1"></i> Bật 2FA
+                                </button>
+                            }
+                        </div>
+                    </div>
+                    <div class="text-center mt-4">
                         <a asp-controller="Account" asp-action="Profile" class="btn btn-link">Xem trang cá nhân công khai</a>
                     </div>
-                </div> @* đóng card-body *@
-            </div> @* đóng card *@
-        </div> @* đóng col *@
-    </div> @* đóng row *@
-</div> @* đóng container *@
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
-    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
     <script>
         function previewSettingImage(event) {
             const reader = new FileReader();
             const output = document.getElementById('settingImagePreview');
-            const originalImageSrc = "@Html.Raw(JavaScriptEncoder.Default.Encode(imageSrcForDisplay))";
-            reader.onload = function () { if (output) { output.src = reader.result; } }
-            if (event.target.files && event.target.files[0]) { reader.readAsDataURL(event.target.files[0]); }
-            else { if (output) {output.src = originalImageSrc;} }
-        }
+            const defaultImageOnError = "@Url.Content("~/images/users/default.jpg")"; // Ảnh mặc định cho Customer
+            const imageSrcFromModel = "@Html.Raw(JavaScriptEncoder.Default.Encode(Model.ImagePath ?? string.Empty))" || defaultImageOnError;
+            const originalImageSrc = output ? (output.getAttribute('data-original-src') || output.src || imageSrcFromModel) : imageSrcFromModel;
+
+            if (output && !output.getAttribute('data-original-src')) {
+                    output.setAttribute('data-original-src', output.src || imageSrcFromModel);
+                    }
+                    reader.onload = function () { if (output) { output.src = reader.result; } }
+                    if (event.target.files && event.target.files[0]) {
+                        reader.readAsDataURL(event.target.files[0]);
+                    } else {
+                        if (output) { output.src = originalImageSrc; }
+                    }
+                }
+
+                document.addEventListener('DOMContentLoaded', function () {
+                    // === PHẦN XỬ LÝ MODAL CHUNG CHO 2FA CỦA CUSTOMER ===
+                    const universalModalElement_Cust = document.getElementById('universalConfirmModal'); // Dùng chung ID modal
+                    if (!universalModalElement_Cust) {
+                        console.error("Lỗi: Modal 'universalConfirmModal' không tìm thấy. Tính năng xác nhận 2FA Customer sẽ không hoạt động.");
+                        return;
+                    }
+                    const universalConfirmModal_Cust = new bootstrap.Modal(universalModalElement_Cust);
+                    const modalTitleElement_Cust = document.getElementById('universalConfirmModalLabel');
+                    const modalMessageElement_Cust = document.getElementById('universalConfirmModalMessage');
+                    const modalConfirmButton_Cust = document.getElementById('universalConfirmModalButton');
+                    const modalHeader_Cust = document.getElementById('universalConfirmModalHeader');
+
+                    const hidden2FAFormCustomer = document.getElementById('toggleCustomer2FAForm'); // ID của form 2FA Customer
+                    const hiddenEnableInputCustomer = document.getElementById('customer2FAEnableActionValue'); // ID của input 'enable'
+                    const hiddenPasswordInputCustomer = document.getElementById('hiddenPasswordFor2FAChangeCustomer'); // ID của input ẩn mật khẩu
+                    const visiblePasswordInputCustomer = document.getElementById('visiblePasswordFor2FACustomer'); // ID của input mật khẩu hiển thị
+
+                    document.querySelectorAll('.trigger-2fa-modal-customer').forEach(button => {
+                        button.addEventListener('click', function() {
+                            if (!visiblePasswordInputCustomer || visiblePasswordInputCustomer.value.trim() === '') {
+                                alert('Vui lòng nhập mật khẩu hiện tại để xác nhận thay đổi 2FA.');
+                                if (visiblePasswordInputCustomer) visiblePasswordInputCustomer.focus();
+                                return;
+                            }
+
+                            const action = this.getAttribute('data-action');
+                            let confirmUserMessage = '';
+                            let modalButtonClasses = ['btn'];
+                            let modalHeaderClasses = ['modal-header'];
+
+                            if (action === 'enable') {
+                                confirmUserMessage = 'Bạn có chắc chắn muốn BẬT Xác thực hai yếu tố không?';
+                                modalButtonClasses.push('btn-success');
+                                modalHeaderClasses.push('bg-success', 'text-white');
+                                if(hiddenEnableInputCustomer) hiddenEnableInputCustomer.value = 'true';
+                            } else if (action === 'disable') {
+                                confirmUserMessage = 'Bạn có chắc chắn muốn TẮT Xác thực hai yếu tố không?';
+                                modalButtonClasses.push('btn-danger');
+                                modalHeaderClasses.push('bg-danger', 'text-white');
+                                if(hiddenEnableInputCustomer) hiddenEnableInputCustomer.value = 'false';
+                            } else { return; }
+
+                            if(modalTitleElement_Cust) modalTitleElement_Cust.textContent = 'Xác nhận Thay đổi 2FA';
+                            if(modalMessageElement_Cust) modalMessageElement_Cust.textContent = confirmUserMessage;
+
+                            if(modalConfirmButton_Cust) {
+                                modalConfirmButton_Cust.className = '';
+                                modalButtonClasses.forEach(cls => modalConfirmButton_Cust.classList.add(cls));
+                                modalConfirmButton_Cust.textContent = 'Xác nhận';
+                            }
+                            if(modalHeader_Cust) {
+                                modalHeader_Cust.className = '';
+                                modalHeaderClasses.forEach(cls => modalHeader_Cust.classList.add(cls));
+                            }
+
+                            if(hiddenPasswordInputCustomer && visiblePasswordInputCustomer) {
+                                hiddenPasswordInputCustomer.value = visiblePasswordInputCustomer.value;
+                            }
+                            // Lưu trữ hành động hiện tại để nút confirm của modal biết phải làm gì
+                            universalModalElement_Cust.setAttribute('data-current-form-id-to-submit', 'toggleCustomer2FAForm');
+                            universalConfirmModal_Cust.show();
+                        });
+                    });
+
+                    // Xử lý chung cho nút "Xác nhận" của modal
+                    if (modalConfirmButton_Cust) {
+                        modalConfirmButton_Cust.onclick = function() {
+                            const formIdToSubmit = universalModalElement_Cust.getAttribute('data-current-form-id-to-submit');
+                            if (formIdToSubmit) {
+                                const formToSubmit = document.getElementById(formIdToSubmit);
+                                if (formToSubmit && formToSubmit.checkValidity()) {
+                                    formToSubmit.submit();
+                                } else if (formToSubmit) {
+                                    console.error("Form " + formIdToSubmit + " không hợp lệ.");
+                                    alert("Có lỗi xảy ra với dữ liệu form. Vui lòng thử lại.");
+                                }
+                            }
+                            universalConfirmModal_Cust.hide();
+                            universalModalElement_Cust.removeAttribute('data-current-form-id-to-submit'); // Reset
+                            modalConfirmButton_Cust.onclick = null; // Quan trọng: Reset để tránh gọi lại ngoài ý muốn
+                        };
+                    }
+                });
     </script>
 }

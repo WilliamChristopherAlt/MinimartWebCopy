@@ -17,63 +17,64 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Authentication & Authorization
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options => {
-        options.LoginPath = "/Account/Login"; // Trang sẽ redirect đến nếu chưa đăng nhập và cố truy cập trang yêu cầu AuthN
-        options.AccessDeniedPath = "/Account/AccessDenied"; // Trang sẽ redirect đến nếu bị từ chối quyền (AuthZ)
-        options.ExpireTimeSpan = TimeSpan.FromDays(7); // Thời gian cookie tồn tại (ví dụ 7 ngày)
-        options.SlidingExpiration = true; // Gia hạn cookie nếu người dùng hoạt động
+        options.LoginPath = "/Account/Login";
+        options.AccessDeniedPath = "/Account/AccessDenied";
+        options.ExpireTimeSpan = TimeSpan.FromDays(7);
+        options.SlidingExpiration = true;
     });
-// Bỏ FallbackPolicy nếu muốn trang chủ và các trang khác công khai theo mặc định
-//builder.Services.AddAuthorization(options => {
-//     options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
-// });
 builder.Services.AddAuthorization(); // Cần thiết để các attribute [Authorize] hoạt động
 
 // Session
 builder.Services.AddDistributedMemoryCache(); // Cần thiết cho session lưu trong bộ nhớ
 builder.Services.AddSession(options => {
-    options.IdleTimeout = TimeSpan.FromMinutes(30); // Thời gian session không hoạt động trước khi hết hạn
-    options.Cookie.HttpOnly = true; // Giúp bảo vệ cookie khỏi truy cập bằng JavaScript phía client
-    options.Cookie.IsEssential = true; // Đảm bảo cookie session được tạo ngay cả khi người dùng chưa đồng ý với cookie policy (quan trọng cho GDPR)
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
 });
 
-// Logger (thường đã được đăng ký mặc định, nhưng để rõ ràng thì có thể thêm)
+// Logger
 builder.Services.AddLogging(loggingBuilder =>
 {
     loggingBuilder.AddConfiguration(builder.Configuration.GetSection("Logging"));
     loggingBuilder.AddConsole();
     loggingBuilder.AddDebug();
-    // Thêm các provider logging khác nếu cần (ví dụ: file, Application Insights)
 });
 
-// === ĐĂNG KÝ DỊCH VỤ EMAIL ===
-// Đăng ký IEmailSender và triển khai EmailSender của nó.
-// AddTransient: Một instance mới của EmailSender sẽ được tạo mỗi khi IEmailSender được yêu cầu.
-// Điều này phù hợp cho EmailSender vì nó không thường giữ trạng thái phức tạp giữa các lần gửi.
+// Email Service
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 
-
 // Custom Services
-builder.Services.AddScoped<IRecommendationService, RecommendationService>(); // Đăng ký service gợi ý
+builder.Services.AddScoped<IRecommendationService, RecommendationService>();
 
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-//if (!app.Environment.IsDevelopment())
-//{
-//    app.UseExceptionHandler("/Home/Error"); // Middleware xử lý lỗi cho môi trường production
-//    app.UseHsts(); // Thêm header Strict-Transport-Security
-//}
-//else
-//{
-//    app.UseDeveloperExceptionPage(); // Hiển thị trang lỗi chi tiết cho môi trường development
-//    // app.UseMigrationsEndPoint(); // Nếu bạn dùng EF Core Migrations và Identity
-//}
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Home/Error"); // Middleware xử lý lỗi cho môi trường production
+    app.UseHsts(); // Thêm header Strict-Transport-Security
+}
+else
+{
+    app.UseDeveloperExceptionPage(); // Hiển thị trang lỗi chi tiết cho môi trường development
+    // app.UseMigrationsEndPoint(); // Nếu bạn dùng EF Core Migrations và Identity
+}
 
-// Always show detailed errors (NOT FOR PRODUCTION!)
-app.UseDeveloperExceptionPage();
+// app.UseDeveloperExceptionPage(); // Nếu bạn muốn luôn thấy lỗi chi tiết (tạm thời khi debug)
 
+app.UseHttpsRedirection(); // Chuyển hướng HTTP sang HTTPS
+app.UseStaticFiles(); // Cho phép phục vụ các file tĩnh (CSS, JS, hình ảnh) từ wwwroot
 
+app.UseRouting(); // Thêm middleware định tuyến (phải trước UseAuthentication/Authorization/Session và Map...)
+
+// Thứ tự quan trọng của các middleware xác thực, phân quyền và session:
+app.UseAuthentication(); // Middleware xác thực (kiểm tra cookie, thiết lập ClaimsPrincipal)
+app.UseAuthorization();  // Middleware phân quyền (kiểm tra vai trò, policy dựa trên ClaimsPrincipal)
+
+app.UseSession();        // Middleware Session (cho TempData và các tính năng session khác)
+
+// Map Endpoints (Controllers, Razor Pages, etc.)
 app.MapControllerRoute(
     name: "areas", // Hoặc "AdminArea"
     pattern: "{area:exists}/{controller=Dashboard}/{action=Index}/{id?}"
@@ -83,18 +84,6 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-app.UseHttpsRedirection(); // Chuyển hướng HTTP sang HTTPS
-app.UseStaticFiles(); // Cho phép phục vụ các file tĩnh (CSS, JS, hình ảnh) từ wwwroot
-
-app.UseRouting(); // Thêm middleware định tuyến
-
-app.UseSession(); // QUAN TRỌNG: Đặt UseSession() trước UseAuthentication và UseAuthorization nếu session được dùng trong logic xác thực/phân quyền
-
-app.UseAuthentication(); // Thêm middleware xác thực (kiểm tra cookie, v.v.)
-app.UseAuthorization(); // Thêm middleware phân quyền (kiểm tra vai trò, policy)
-
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+// app.MapRazorPages(); // Bỏ comment nếu bạn có sử dụng Razor Pages
 
 app.Run();

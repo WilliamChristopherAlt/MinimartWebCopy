@@ -52,6 +52,9 @@ namespace MinimartWeb.Model
 
         [Display(Name = "Thời điểm xác minh Email")]
         public DateTime? EmailVerifiedAt { get; set; }
+        [Required] // Vì trong DB bạn set NOT NULL DEFAULT 0
+        public bool Is2FAEnabled { get; set; }
+        // Thuộc tính này sẽ được EF map với cột Is2FAEnabled trong bảng Customers
 
 
         // === NAVIGATION PROPERTIES CẦN THÊM/SỬA ===
