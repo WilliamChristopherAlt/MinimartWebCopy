@@ -588,16 +588,16 @@ public class AccountController : Controller
                 }
 
                 // 🔥 **Role Assignment Logic**
-                if (account.Employee.Role.RoleName == "Quản trị viên")
-                {
-                    role = "Admin";
-                }
-                else
-                {
-                    role = "Staff";
-                }
+                //if (account.Employee.Role.RoleName == "Quản trị viên")
+                //{
+                //    role= "Admin";
+                //}
+                //else
+                //{
+                //    role = "Staff";
+                //}
 
-                displayName = account.Username;
+                //displayName = account.Username;
                 if (account.Employee == null)
                 { /* ... lỗi dữ liệu ... */ return StatusCode(500, new { success = false, message = "Lỗi dữ liệu hệ thống (E01)." }); }
                 if (!account.IsActive)
