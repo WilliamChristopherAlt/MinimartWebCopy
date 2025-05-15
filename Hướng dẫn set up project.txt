@@ -7,7 +7,7 @@
 
 Thông tin đăng nhập sẵn có: 
 Nhân viên với username: alice, bob, charlie có mật khẩu 123
-Khách hàng với username anhnguyen, binhtran, cuongle có mật khẩu 123
+Khách hàng với username annguyen, binhtran, cuongle có mật khẩu 123
 
 
 Chạy file delete_design.sql rồi chạy design.sql và data.sql nếu cần reset csdl

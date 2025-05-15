@@ -573,6 +573,7 @@ public class AccountController : Controller
 
                 _logger.LogInformation("Customer {Username} authenticated. 2FA Enabled: {Is2FAEnabled}", usernameForDisplayAndClaims, is2FAEnabledForThisUser);
             }
+            // 👉 Employee login
             else if (model.UserType == "Employee")
             {
                 var account = await _context.EmployeeAccounts.AsNoTracking()
@@ -586,6 +587,17 @@ public class AccountController : Controller
                     return BadRequest(new { success = false, message = "Tên đăng nhập hoặc mật khẩu không đúng." });
                 }
 
+                // 🔥 **Role Assignment Logic**
+                if (account.Employee.Role.RoleName == "Quản trị viên")
+                {
+                    role = "Admin";
+                }
+                else
+                {
+                    role = "Staff";
+                }
+
+                displayName = account.Username;
                 if (account.Employee == null)
                 { /* ... lỗi dữ liệu ... */ return StatusCode(500, new { success = false, message = "Lỗi dữ liệu hệ thống (E01)." }); }
                 if (!account.IsActive)
