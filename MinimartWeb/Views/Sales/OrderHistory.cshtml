@@ -5,6 +5,15 @@
 }
 
 <div class="container my-4">
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger">
+            @TempData["ErrorMessage"]
+        </div>
+    }
+
+
+
     <div class="text-center py-3 mb-4" style="background-color: #f0f8ff; border-radius: 0.3rem;">
         <h2 class="mb-0 display-6 fw-normal">@ViewData["Title"]</h2>
     </div>

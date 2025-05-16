@@ -234,7 +234,13 @@ public class AccountController : Controller
             ClaimsIdentity identity;
             string role;
             string displayName;
+            int userId = 0;
+            int? customerId = null;
+            int? employeeAccountId = null;
+            string userIp = HttpContext.Connection.RemoteIpAddress.ToString();
+            bool isNewDevice = false;
 
+            // 👉 Customer Login
             if (model.UserType == "Customer")
             {
                 var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Username == model.Username);
@@ -245,14 +251,37 @@ public class AccountController : Controller
 
                 role = "Customer";
                 displayName = customer.Username;
+                userId = customer.CustomerID;
+                customerId = customer.CustomerID;
 
+                // 📝 Create identity for authentication
                 identity = new ClaimsIdentity(new[]
                 {
                 new Claim(ClaimTypes.NameIdentifier, customer.CustomerID.ToString()),
                 new Claim(ClaimTypes.Name, customer.Username),
                 new Claim(ClaimTypes.Role, role)
             }, CookieAuthenticationDefaults.AuthenticationScheme, ClaimTypes.Name, ClaimTypes.Role);
+
+                // 🔎 Log the login attempt
+                var existingAttempt = await _context.LoginAttempts
+                    .FirstOrDefaultAsync(l => l.CustomerID == customer.CustomerID && l.IPAddress == userIp);
+
+                if (existingAttempt == null)
+                {
+                    isNewDevice = true;
+                }
+
+                _context.LoginAttempts.Add(new LoginAttempt
+                {
+                    CustomerID = customer.CustomerID,
+                    AttemptTime = DateTime.UtcNow,
+                    IsSuccessful = true,
+                    IPAddress = userIp
+                });
+
+                await _context.SaveChangesAsync();
             }
+            // 👉 Employee Login (Admin or Staff)
             else if (model.UserType == "Employee")
             {
                 var account = await _context.EmployeeAccounts
@@ -266,28 +295,66 @@ public class AccountController : Controller
                     return BadRequest(new { success = false, message = "Tên đăng nhập hoặc mật khẩu không đúng." });
                 }
 
-                //role = account.Employee.Role.RoleName; // e.g., "Admin", "Staff"
-                role = "Admin"; // e.g., "Admin", "Staff"
+                role = account.Employee.Role.RoleName == "Quản trị viên" ? "Admin" : "Staff";
                 displayName = account.Username;
+                userId = account.EmployeeID;
+                employeeAccountId = account.AccountID;
 
+                // 📝 Create identity for authentication
                 identity = new ClaimsIdentity(new[]
                 {
                 new Claim(ClaimTypes.NameIdentifier, account.EmployeeID.ToString()),
                 new Claim(ClaimTypes.Name, account.Username),
                 new Claim(ClaimTypes.Role, role)
             }, CookieAuthenticationDefaults.AuthenticationScheme, ClaimTypes.Name, ClaimTypes.Role);
+
+                // 🔎 Log the login attempt for Employee
+                var existingAttempt = await _context.LoginAttempts
+                    .FirstOrDefaultAsync(l => l.EmployeeAccountID == account.AccountID && l.IPAddress == userIp);
+
+                if (existingAttempt == null)
+                {
+                    isNewDevice = true;
+                }
+
+                _context.LoginAttempts.Add(new LoginAttempt
+                {
+                    EmployeeAccountID = account.AccountID,
+                    AttemptTime = DateTime.UtcNow,
+                    IsSuccessful = true,
+                    IPAddress = userIp
+                });
+
+                await _context.SaveChangesAsync();
             }
             else
             {
                 return BadRequest(new { success = false, message = "Loại người dùng không hợp lệ." });
             }
 
-            var principal = new ClaimsPrincipal(identity);
+            // 🔥 If it's a new device, create a Security Alert Notification
+            if (isNewDevice)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    CustomerID = customerId,
+                    EmployeeAccountID = employeeAccountId,
+                    Title = "Phát hiện đăng nhập từ thiết bị mới",
+                    Message = $"Một thiết bị mới đã đăng nhập vào tài khoản của bạn từ IP: {userIp} lúc {DateTime.UtcNow:dd/MM/yyyy HH:mm}. Nếu không phải bạn, hãy kiểm tra ngay.",
+                    CreatedAt = DateTime.UtcNow,
+                    IsRead = false,
+                    NotificationType = NotificationType.SecurityAlert.GetDisplayName()
+                });
+                await _context.SaveChangesAsync();
+            }
 
+            // 🔒 Sign in the user
+            var principal = new ClaimsPrincipal(identity);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal,
                 new AuthenticationProperties { IsPersistent = model.RememberMe });
 
             _logger.LogInformation("User {Username} signed in with role {Role}", displayName, role);
+
             return Ok(new { success = true, redirectUrl = Url.Action("Index", "Home") });
         }
         catch (Exception ex)
@@ -633,7 +700,7 @@ public class AccountController : Controller
     }
 
     // === KẾT THÚC DÁN CODE SETTINGS (POST) VÀO ĐÂY ===
-    
+
     // GET: /Account/ChangePassword
     [Authorize(Roles = "Customer")] // Hoặc chỉ [Authorize] nếu không phân quyền chi tiết
     [HttpGet]
@@ -1800,7 +1867,7 @@ public class AccountController : Controller
             LastName = customer.LastName,
             Email = customer.Email,
             IsEmailVerified = customer.IsEmailVerified,
-           // EmailVerifiedAt = customer.EmailVerifiedAt,
+            // EmailVerifiedAt = customer.EmailVerifiedAt,
             PhoneNumber = customer.PhoneNumber,
             ImagePath = customer.ImagePath, // Đường dẫn ảnh sẽ được xử lý trong View
             Username = customer.Username

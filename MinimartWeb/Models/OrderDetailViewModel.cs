@@ -21,6 +21,9 @@ namespace MinimartWeb.Models
         public bool IsPickup { get; set; }
         public decimal TotalAmount { get; set; }
 
+        public string? CancellationReason { get; set; } // Add this line
+
+
         public List<OrderItemViewModel> Items { get; set; } = new List<OrderItemViewModel>();
     }
 }

@@ -1,0 +1,180 @@
+﻿@model MinimartWeb.Models.OrderDetailViewModel
+
+@{
+    ViewData["Title"] = "Chi tiết đơn hàng #" + Model.SaleId;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container my-4">
+    <div class="mb-4">
+        <h2 class="display-6 fw-normal">@ViewData["Title"]</h2>
+        <a asp-action="CustomerSales" class="btn btn-outline-primary mt-2">
+            <i class="fas fa-arrow-left me-1"></i> Quay lại danh sách đơn hàng
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-light py-3">
+            <div class="row gy-2">
+                <div class="col-md-6 col-lg-4">
+                    <strong>Ngày đặt:</strong> @Model.SaleDate.ToString("dd/MM/yyyy HH:mm")
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <strong>Trạng thái:</strong>
+                    <span class="badge bg-info text-dark">@Model.OrderStatus</span>
+                </div>
+                <div class="col-lg-4 text-lg-end">
+                    <strong>Tổng tiền:</strong>
+                    <span class="fs-5 fw-bold text-danger">@Model.TotalAmount.ToString("N0") VNĐ</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-body p-4">
+            <div class="row gx-lg-5">
+                <div class="col-lg-7 mb-4 mb-lg-0">
+                    <h5 class="mb-3"><i class="fas fa-shipping-fast me-2 text-primary"></i>Thông tin giao hàng</h5>
+                    <dl class="row mb-0" style="font-size: 0.95rem;">
+                        <dt class="col-sm-4">Người nhận:</dt>
+                        <dd class="col-sm-8">@Model.CustomerName</dd>
+                        <dt class="col-sm-4">Điện thoại:</dt>
+                        <dd class="col-sm-8">@Model.CustomerPhone</dd>
+                        <dt class="col-sm-4">Email:</dt>
+                        <dd class="col-sm-8">@Model.CustomerEmail</dd>
+                        <dt class="col-sm-4">Địa chỉ giao:</dt>
+                        <dd class="col-sm-8">@Model.DeliveryAddress</dd>
+                        <dt class="col-sm-4">Thời gian giao:</dt>
+                        <dd class="col-sm-8">@(Model.IsPickup ? "Nhận tại cửa hàng" : Model.DeliveryTime.ToString("dd/MM/yyyy HH:mm"))</dd>
+                    </dl>
+                </div>
+                <div class="col-lg-5">
+                    <h5 class="mb-3"><i class="fas fa-file-invoice-dollar me-2 text-primary"></i>Thanh toán & Xử lý</h5>
+                    <dl class="row mb-0" style="font-size: 0.95rem;">
+                        <dt class="col-sm-5">Phương thức TT:</dt>
+                        <dd class="col-sm-7">@Model.PaymentMethodName</dd>
+                        <dt class="col-sm-5">Nhân viên XL:</dt>
+                        <dd class="col-sm-7">@Model.EmployeeName</dd>
+                    </dl>
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <h5 class="mb-3"><i class="fas fa-boxes me-2 text-primary"></i>Danh sách sản phẩm</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle" style="font-size: 0.9rem;">
+                    <thead class="table-light text-center">
+                        <tr>
+                            <th style="width:10%;">Ảnh</th>
+                            <th>Tên sản phẩm</th>
+                            <th>Số lượng</th>
+                            <th>Đơn giá</th>
+                            <th>Thành tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Items)
+                        {
+                            var itemImageSrc = !string.IsNullOrEmpty(item.ImagePath)
+                            ? Url.Content("~/images/products/" + item.ImagePath)
+                            : Url.Content("~/images/products/default-product.png");
+                            <tr>
+                                <td class="text-center p-1">
+                                    <img src="@itemImageSrc" alt="@item.ProductName" class="img-fluid rounded" style="width: 60px; height: 60px; object-fit:cover;" />
+                                </td>
+                                <td>@item.ProductName</td>
+                                <td class="text-center">@item.Quantity @item.MeasurementUnit</td>
+                                <td class="text-end">@item.PriceAtPurchase.ToString("N0")</td>
+                                <td class="text-end fw-bold">@item.Subtotal.ToString("N0") VNĐ</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-light">
+                            <td colspan="4" class="text-end fw-bold fs-5">TỔNG CỘNG:</td>
+                            <td class="text-end fw-bold fs-5 text-danger">@Model.TotalAmount.ToString("N0") VNĐ</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <!-- ✅ ACTION BUTTONS BOTTOM RIGHT -->
+            @if (User.IsInRole("Staff") && (Model.OrderStatus == "Đã xác nhận" || Model.OrderStatus == "Đang xử lý"))
+            {
+                <div class="text-end mt-4">
+                    @{
+                        string current = Model.OrderStatus;
+                        var nextStatuses = new Dictionary<string, string>
+                {
+                { "Đã xác nhận", "Đang xử lý" },
+                { "Đang xử lý", "Hoàn thành" }
+                };
+                        string nextStatus = nextStatuses.ContainsKey(current) ? nextStatuses[current] : null;
+                    }
+
+                    @if (nextStatus != null)
+                    {
+                        <form method="post" asp-action="UpdateOrderStatus" class="d-inline">
+                            <input type="hidden" name="saleId" value="@Model.SaleId" />
+                            <button type="submit" name="newStatus" value="@nextStatus"
+                                    class="btn btn-outline-primary btn-lg me-3">
+                                <i class="fas fa-sync-alt me-1"></i> Chuyển sang "@nextStatus"
+                            </button>
+                        </form>
+                    }
+
+                    <button class="btn btn-danger btn-lg" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                        <i class="fas fa-times-circle me-1"></i> Hủy đơn hàng
+                    </button>
+                </div>
+
+                <!-- Cancel Modal -->
+                <div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <form method="post" asp-action="CancelOrderFromStaff" asp-controller="Sales">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="cancelModalLabel">Xác nhận hủy đơn hàng</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <input type="hidden" name="saleId" value="@Model.SaleId" />
+                                    <div class="mb-3">
+                                        <label for="reason" class="form-label">Lý do hủy đơn hàng:</label>
+                                        <textarea name="reason" class="form-control" rows="4" required></textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                                    <button type="submit" class="btn btn-danger">Xác nhận hủy</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        .display-6 {
+            font-size: 1.75rem;
+        }
+
+        dt {
+            font-weight: 500;
+            color: #555;
+        }
+
+        dd {
+            margin-bottom: .75rem;
+        }
+
+        .btn-lg {
+            padding: 0.75rem 1.5rem;
+            font-size: 1.125rem;
+        }
+    </style>
+}

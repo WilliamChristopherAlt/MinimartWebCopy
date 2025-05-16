@@ -48,6 +48,9 @@ namespace MinimartWeb.Model
         [Display(Name = "Thời điểm xác minh Email")]
         public DateTime? EmailVerifiedAt { get; set; } // Giả sử bạn đã thêm cột này vào DB
 
+        [Required]
+        public bool Is2FAEnabled { get; set; }
+
         // === NAVIGATION PROPERTIES CẦN THÊM/SỬA ===
         [ForeignKey("EmployeeID")]
         public virtual Employee? Employee { get; set; } // Thuộc tính navigation đến Employee
