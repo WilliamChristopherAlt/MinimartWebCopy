@@ -196,7 +196,7 @@ namespace MinimartWeb.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Đơn hàng đã được xác nhận!";
-            return RedirectToAction("Index", "Home");
+            return RedirectToAction("OrderDetail", "Sales", new { id = sale.SaleID });
         }
 
 
@@ -272,7 +272,7 @@ namespace MinimartWeb.Controllers
             return Json(new
             {
                 success = true,
-                redirectUrl = Url.Action("ConfirmOrder", new { saleId = sale.SaleID }),
+                redirectUrl = Url.Action("OrderDetail", "Sales", new { id = sale.SaleID }),
                 message = $"⚡ <strong>{product.ProductName}</strong> has been redirected to confirmation."
             });
 

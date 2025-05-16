@@ -54,6 +54,8 @@ namespace MinimartWeb.Model
         [Display(Name = "Thời điểm xác minh Email")]
         public DateTime? EmailVerifiedAt { get; set; }
 
+        [Required]
+        public bool Is2FAEnabled { get; set; }
 
         // === NAVIGATION PROPERTIES CẦN THÊM/SỬA ===
         public virtual ICollection<Sale> Sales { get; set; } = new HashSet<Sale>(); // Collection các Sale liên quan

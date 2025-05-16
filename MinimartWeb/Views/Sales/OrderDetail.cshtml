@@ -5,98 +5,149 @@
 }
 
 <div class="container my-4">
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+    <!-- Title Row -->
+    <div class="mb-3">
         <h2 class="display-6 fw-normal">@ViewData["Title"]</h2>
-        <div>
-            @* <button type="button" onclick="window.print();" class="btn btn-outline-secondary me-2"><i class="fas fa-print me-1"></i> In đơn hàng</button> *@
-            <a asp-action="OrderHistory" class="btn btn-outline-primary"><i class="fas fa-arrow-left me-1"></i> Quay lại Lịch sử</a>
+    </div>
+
+    <!-- Action Buttons Row -->
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <a asp-action="OrderHistory" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-1"></i> Quay lại Lịch sử
+        </a>
+
+        @if (Model.OrderStatus == "Chờ xử lý")
+        {
+            <a href="@Url.Action("ConfirmOrder", "Cart", new { saleId = Model.SaleId })" class="btn btn-success">
+                <i class="fas fa-check-circle me-1"></i> Xác nhận đơn hàng
+            </a>
+        }
+        else if (Model.OrderStatus == "Đã xác nhận" || Model.OrderStatus == "Đang xử lý")
+        {
+            <form method="post" asp-action="CancelOrder" asp-controller="Sales" class="d-inline">
+                <input type="hidden" name="saleId" value="@Model.SaleId" />
+                <button type="submit" class="btn btn-danger" onclick="return confirm('Bạn có chắc chắn muốn hủy đơn hàng này?');">
+                    <i class="fas fa-times-circle me-1"></i> Hủy đơn hàng
+                </button>
+            </form>
+        }
+    </div>
+
+    <!-- 🔹 Order Information -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row">
+                <!-- 📦 Shipping Info -->
+                <div class="col-md-6">
+                    <h5 class="mb-3"><i class="fas fa-shipping-fast text-primary me-2"></i>Thông tin giao hàng</h5>
+                    <ul class="list-unstyled mb-0">
+                        <li><strong>Người nhận:</strong> @Model.CustomerName</li>
+                        <li><strong>Điện thoại:</strong> @Model.CustomerPhone</li>
+                        <li><strong>Email:</strong> @Model.CustomerEmail</li>
+                        <li><strong>Địa chỉ giao:</strong> @Model.DeliveryAddress</li>
+                        <li>
+                            <strong>Thời gian giao:</strong>
+                            @(Model.IsPickup ? "Nhận tại cửa hàng" : Model.DeliveryTime.ToString("dd/MM/yyyy HH:mm"))
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- 💳 Payment & Status -->
+                <div class="col-md-6">
+                    <h5 class="mb-3"><i class="fas fa-credit-card text-primary me-2"></i>Thông tin thanh toán</h5>
+                    <ul class="list-unstyled mb-0">
+                        <li><strong>Phương thức:</strong> @Model.PaymentMethodName</li>
+                        <li>
+                            <strong>Trạng thái:</strong>
+                            <span class="badge @(Model.OrderStatus switch {
+                                "Completed" => "bg-success",
+                                "Cancelled" => "bg-danger",
+                                "Đang xử lý" or "Đã xác nhận" => "bg-info text-dark",
+                                _ => "bg-secondary"
+                            })">
+                                @Model.OrderStatus
+                            </span>
+                        </li>
+
+                        @if (Model.OrderStatus == "Bị từ chối" && !string.IsNullOrEmpty(Model.CancellationReason))
+                        {
+                            <li>
+                                <strong>Lý do:</strong>
+                                <span class="text-danger">@Model.CancellationReason</span>
+                            </li>
+                        }
+
+
+                        <li><strong>Ngày đặt hàng:</strong> @Model.SaleDate.ToString("dd/MM/yyyy HH:mm")</li>
+                        <li><strong>Tổng tiền:</strong> <span class="fs-5 fw-bold text-danger">@Model.TotalAmount.ToString("N0") VNĐ</span></li>
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- 🔹 Product List -->
     <div class="card shadow-sm">
-        <div class="card-header bg-light py-3">
-            <div class="row gy-2">
-                <div class="col-md-6 col-lg-4"><strong>Ngày đặt:</strong> @Model.SaleDate.ToString("dd/MM/yyyy HH:mm")</div>
-                <div class="col-md-6 col-lg-4">
-                    <strong>Trạng thái:</strong>
-                    <span class="badge @(Model.OrderStatus == "Completed" ? "bg-success" : (Model.OrderStatus == "Cancelled" ? "bg-danger" : (Model.OrderStatus == "Processing" || Model.OrderStatus == "Confirmed" ? "bg-info text-dark" : "bg-secondary")))">
-                        @Model.OrderStatus
-                    </span>
-                </div>
-                <div class="col-lg-4 text-lg-end"><strong>Tổng tiền:</strong> <span class="fs-5 fw-bold text-danger">@Model.TotalAmount.ToString("N0") VNĐ</span></div>
-            </div>
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-boxes text-primary me-2"></i>Danh sách sản phẩm</h5>
         </div>
-        <div class="card-body p-4">
-            <div class="row gx-lg-5">
-                <div class="col-lg-7 mb-4 mb-lg-0">
-                    <h5 class="mb-3"><i class="fas fa-shipping-fast me-2 text-primary"></i>Thông tin giao hàng</h5>
-                    <dl class="row mb-0" style="font-size: 0.95rem;">
-                        <dt class="col-sm-4">Người nhận:</dt>
-                        <dd class="col-sm-8">@Model.CustomerName</dd>
-                        <dt class="col-sm-4">Điện thoại:</dt>
-                        <dd class="col-sm-8">@Model.CustomerPhone</dd>
-                        <dt class="col-sm-4">Email:</dt>
-                        <dd class="col-sm-8">@Model.CustomerEmail</dd>
-                        <dt class="col-sm-4">Địa chỉ giao:</dt>
-                        <dd class="col-sm-8">@Model.DeliveryAddress</dd>
-                        <dt class="col-sm-4">Thời gian giao:</dt>
-                        <dd class="col-sm-8">@(Model.IsPickup ? "Nhận tại cửa hàng" : Model.DeliveryTime.ToString("dd/MM/yyyy HH:mm"))</dd>
-                    </dl>
-                </div>
-                <div class="col-lg-5">
-                    <h5 class="mb-3"><i class="fas fa-file-invoice-dollar me-2 text-primary"></i>Thanh toán & Xử lý</h5>
-                    <dl class="row mb-0" style="font-size: 0.95rem;">
-                        <dt class="col-sm-5">Phương thức TT:</dt>
-                        <dd class="col-sm-7">@Model.PaymentMethodName</dd>
-                        <dt class="col-sm-5">Nhân viên XL:</dt>
-                        <dd class="col-sm-7">@Model.EmployeeName</dd>
-                    </dl>
-                </div>
-            </div>
+        <div class="card-body p-0">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 8%;">Ảnh</th>
+                        <th>Sản phẩm</th>
+                        <th class="text-center">Số lượng</th>
+                        <th class="text-end">Đơn giá</th>
+                        <th class="text-end">Thành tiền</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Items)
+                    {
+                        var itemImageSrc = !string.IsNullOrEmpty(item.ImagePath)
+                        ? Url.Content("~/images/products/" + item.ImagePath)
+                        : Url.Content("~/images/products/default-product.png");
 
-            <hr class="my-4">
-
-            <h5 class="mb-3"><i class="fas fa-boxes me-2 text-primary"></i>Danh sách sản phẩm</h5>
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover align-middle" style="font-size: 0.9rem;">
-                    <thead class="table-light text-center">
                         <tr>
-                            <th style="width:10%;">Ảnh</th>
-                            <th>Tên sản phẩm</th>
-                            <th>Số lượng</th>
-                            <th>Đơn giá</th>
-                            <th>Thành tiền</th>
+                            <td class="text-center p-1">
+                                <img src="@itemImageSrc" alt="@item.ProductName" class="img-fluid rounded" style="width: 50px; height: 50px; object-fit:cover;" />
+                            </td>
+                            <td>@item.ProductName</td>
+                            <td class="text-center">@item.Quantity @item.MeasurementUnit</td>
+                            <td class="text-end">@item.PriceAtPurchase.ToString("N0") VNĐ</td>
+                            <td class="text-end fw-bold">@item.Subtotal.ToString("N0") VNĐ</td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var item in Model.Items)
-                        {
-                            var itemImageSrc = !string.IsNullOrEmpty(item.ImagePath)
-                            ? Url.Content("~/images/products/" + item.ImagePath)
-                            : Url.Content("~/images/products/default-product.png");
-                            <tr>
-                                <td class="text-center p-1">
-                                    <img src="@itemImageSrc" alt="@item.ProductName" class="img-fluid rounded" style="width: 60px; height: 60px; object-fit:cover;" />
-                                </td>
-                                <td>@item.ProductName</td>
-                                <td class="text-center">@item.Quantity @item.MeasurementUnit</td>
-                                <td class="text-end">@item.PriceAtPurchase.ToString("N0")</td>
-                                <td class="text-end fw-bold">@item.Subtotal.ToString("N0") VNĐ</td>
-                            </tr>
-                        }
-                    </tbody>
-                    <tfoot>
-                        <tr class="table-light">
-                            <td colspan="4" class="text-end fw-bold fs-5">TỔNG CỘNG:</td>
-                            <td class="text-end fw-bold fs-5 text-danger">@Model.TotalAmount.ToString("N0") VNĐ</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
+                    }
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <td colspan="4" class="text-end fw-bold">Tổng cộng:</td>
+                        <td class="text-end fw-bold text-danger">@Model.TotalAmount.ToString("N0") VNĐ</td>
+                    </tr>
+                </tfoot>
+            </table>
         </div>
     </div>
 </div>
 
 @section Styles {
-     <style> .display-6 { font-size: 1.75rem; } dt { font-weight: 500; color: #555;} dd { margin-bottom: .75rem; } </style>
+    <style>
+        .display-6 {
+            font-size: 1.75rem;
+        }
+
+        ul.list-unstyled li {
+            margin-bottom: 0.5rem;
+        }
+
+        dt {
+            font-weight: 500;
+            color: #555;
+        }
+
+        dd {
+            margin-bottom: .75rem;
+        }
+    </style>
 }

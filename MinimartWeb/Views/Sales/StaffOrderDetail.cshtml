@@ -6,13 +6,11 @@
 }
 
 <div class="container my-4">
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+    <div class="mb-4">
         <h2 class="display-6 fw-normal">@ViewData["Title"]</h2>
-        <div>
-            <a asp-action="CustomerSales" class="btn btn-outline-primary">
-                <i class="fas fa-arrow-left me-1"></i> Quay lại danh sách đơn hàng
-            </a>
-        </div>
+        <a asp-action="CustomerSales" class="btn btn-outline-primary mt-2">
+            <i class="fas fa-arrow-left me-1"></i> Quay lại danh sách đơn hàng
+        </a>
     </div>
 
     <div class="card shadow-sm">
@@ -23,28 +21,7 @@
                 </div>
                 <div class="col-md-6 col-lg-4">
                     <strong>Trạng thái:</strong>
-
-                    <!-- Status Update Buttons -->
-                    @{
-                        string current = Model.OrderStatus;
-                        var nextStatuses = new Dictionary<string, string>
-                    {
-                    { "Đã xác nhận", "Đang xử lý" },
-                    { "Đang xử lý", "Hoàn thành" }
-                    };
-                        string nextStatus = nextStatuses.ContainsKey(current) ? nextStatuses[current] : null;
-                    }
-                    @if (nextStatus != null)
-                    {
-                        <form method="post" asp-action="UpdateOrderStatus" class="d-inline">
-                            <input type="hidden" name="saleId" value="@Model.SaleId" />
-                            <button type="submit" name="newStatus" value="@nextStatus"
-                                    class="btn btn-sm btn-outline-primary me-2">
-                                Chuyển sang "@nextStatus"
-                            </button>
-                        </form>
-                    }
-
+                    <span class="badge bg-info text-dark">@Model.OrderStatus</span>
                 </div>
                 <div class="col-lg-4 text-lg-end">
                     <strong>Tổng tiền:</strong>
@@ -120,6 +97,62 @@
                     </tfoot>
                 </table>
             </div>
+
+            <!-- ✅ ACTION BUTTONS BOTTOM RIGHT -->
+            @if (User.IsInRole("Staff") && (Model.OrderStatus == "Đã xác nhận" || Model.OrderStatus == "Đang xử lý"))
+            {
+                <div class="text-end mt-4">
+                    @{
+                        string current = Model.OrderStatus;
+                        var nextStatuses = new Dictionary<string, string>
+                {
+                { "Đã xác nhận", "Đang xử lý" },
+                { "Đang xử lý", "Hoàn thành" }
+                };
+                        string nextStatus = nextStatuses.ContainsKey(current) ? nextStatuses[current] : null;
+                    }
+
+                    @if (nextStatus != null)
+                    {
+                        <form method="post" asp-action="UpdateOrderStatus" class="d-inline">
+                            <input type="hidden" name="saleId" value="@Model.SaleId" />
+                            <button type="submit" name="newStatus" value="@nextStatus"
+                                    class="btn btn-outline-primary btn-lg me-3">
+                                <i class="fas fa-sync-alt me-1"></i> Chuyển sang "@nextStatus"
+                            </button>
+                        </form>
+                    }
+
+                    <button class="btn btn-danger btn-lg" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                        <i class="fas fa-times-circle me-1"></i> Hủy đơn hàng
+                    </button>
+                </div>
+
+                <!-- Cancel Modal -->
+                <div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <form method="post" asp-action="CancelOrderFromStaff" asp-controller="Sales">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="cancelModalLabel">Xác nhận hủy đơn hàng</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <input type="hidden" name="saleId" value="@Model.SaleId" />
+                                    <div class="mb-3">
+                                        <label for="reason" class="form-label">Lý do hủy đơn hàng:</label>
+                                        <textarea name="reason" class="form-control" rows="4" required></textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                                    <button type="submit" class="btn btn-danger">Xác nhận hủy</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            }
         </div>
     </div>
 </div>
@@ -137,6 +170,11 @@
 
         dd {
             margin-bottom: .75rem;
+        }
+
+        .btn-lg {
+            padding: 0.75rem 1.5rem;
+            font-size: 1.125rem;
         }
     </style>
 }
