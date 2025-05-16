@@ -1,4 +1,5 @@
 ﻿// Trong file: Model/Customer.cs
+using MinimartWeb.Models;
 using System;
 using System.Collections.Generic; // Cần cho ICollection
 using System.ComponentModel.DataAnnotations;
@@ -59,5 +60,7 @@ namespace MinimartWeb.Model
         public virtual ICollection<OtpRequest> OtpRequests { get; set; } = new HashSet<OtpRequest>(); // Collection các OtpRequest liên quan
         public virtual ICollection<ViewHistory> ViewHistories { get; set; } = new HashSet<ViewHistory>(); // Nếu có
         public virtual ICollection<SearchHistory> SearchHistories { get; set; } = new HashSet<SearchHistory>(); // Nếu có
+        public virtual ICollection<Notification> Notifications { get; set; }
+        public virtual ICollection<LoginAttempt> LoginAttempts { get; set; }
     }
 }

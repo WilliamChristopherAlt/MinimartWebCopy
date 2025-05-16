@@ -165,8 +165,12 @@ namespace MinimartWeb.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ConfirmOrder(int saleId, int paymentMethodId, string DeliveryAddress)
         {
-            var sale = await _context.Sales.FirstOrDefaultAsync(s => s.SaleID == saleId && s.OrderStatus == "Chờ xử lý");
-            if (sale == null) return NotFound();
+            var sale = await _context.Sales
+                .Include(s => s.Customer)
+                .FirstOrDefaultAsync(s => s.SaleID == saleId && s.OrderStatus == "Chờ xử lý");
+
+            if (sale == null)
+                return NotFound();
 
             sale.PaymentMethodID = paymentMethodId;
             sale.DeliveryAddress = DeliveryAddress;
@@ -174,9 +178,27 @@ namespace MinimartWeb.Controllers
             sale.SaleDate = DateTime.Now;
 
             await _context.SaveChangesAsync();
+
+            // ✅ Create Notification
+            var notification = new Notification
+            {
+                CustomerID = sale.CustomerID.GetValueOrDefault(), // This will default to 0 if it's null
+                SaleID = sale.SaleID,
+                Title = "Đơn hàng đã được xác nhận",
+                Message = $"Đơn hàng #{sale.SaleID} của bạn đã được xác nhận. Chúng tôi sẽ sớm giao hàng cho bạn.",
+                CreatedAt = DateTime.Now,
+                IsRead = false,
+                NotificationType = NotificationType.OrderStatusUpdate.GetDisplayName()
+            };
+
+
+            _context.Notifications.Add(notification);
+            await _context.SaveChangesAsync();
+
             TempData["Success"] = "Đơn hàng đã được xác nhận!";
             return RedirectToAction("Index", "Home");
         }
+
 
         [HttpPost]
         public async Task<IActionResult> BuyNow(int productId, int quantity)

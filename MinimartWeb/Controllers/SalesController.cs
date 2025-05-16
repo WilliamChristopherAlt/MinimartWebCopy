@@ -254,7 +254,7 @@ namespace MinimartWeb.Controllers
             _logger.LogInformation("Fetching order detail for SaleID: {SaleID}, CustomerID: {CustomerId}", id, customerId);
 
             var sale = await _context.Sales
-                .Where(s => s.SaleID == id && s.CustomerID == customerId)
+                .Where(s => s.SaleID == id)
                 .Include(s => s.Customer)
                 .Include(s => s.Employee)
                 .Include(s => s.PaymentMethod)
@@ -262,6 +262,7 @@ namespace MinimartWeb.Controllers
                     .ThenInclude(sd => sd.ProductType)
                         .ThenInclude(pt => pt.MeasurementUnit)
                 .FirstOrDefaultAsync();
+
 
             if (sale == null)
             {
@@ -297,5 +298,169 @@ namespace MinimartWeb.Controllers
             _logger.LogInformation("Order detail loaded for SaleID: {SaleID}", id);
             return View(viewModel); // Sẽ tìm View tên "OrderDetail.cshtml"
         }
+
+
+        // ➡️ GET: Sales/CustomerSales
+        [HttpGet]
+        [Authorize(Roles = "Staff")]
+        public async Task<IActionResult> CustomerSales(string statusFilter, string sortBy, string searchQuery)
+        {
+            // Populate ViewBag with status options and the currently selected filter
+            ViewBag.Statuses = new List<string> { "Đã xác nhận", "Đang xử lý", "Hoàn thành", "Đã hủy" };
+            ViewBag.SelectedStatus = statusFilter;
+
+            var query = _context.Sales
+                .Include(s => s.Customer)
+                .Include(s => s.Employee)
+                .Include(s => s.PaymentMethod)
+                .Include(s => s.SaleDetails)
+                .ThenInclude(sd => sd.ProductType)
+                .AsQueryable();
+
+            // 🔍 Apply Search
+            if (!string.IsNullOrEmpty(searchQuery))
+            {
+                query = query.Where(s =>
+                    s.Customer.FirstName.Contains(searchQuery) ||
+                    s.Customer.LastName.Contains(searchQuery) ||
+                    s.SaleID.ToString().Contains(searchQuery));
+            }
+
+            // 🔍 Apply Status Filter
+            if (!string.IsNullOrEmpty(statusFilter))
+            {
+                query = query.Where(s => s.OrderStatus == statusFilter);
+            }
+
+            // 🔄 Apply Sorting
+            query = sortBy switch
+            {
+                "DateAsc" => query.OrderBy(s => s.SaleDate),
+                "DateDesc" => query.OrderByDescending(s => s.SaleDate),
+                "TotalAsc" => query.OrderBy(s => s.SaleDetails.Sum(sd => sd.Quantity * sd.ProductPriceAtPurchase)),
+                "TotalDesc" => query.OrderByDescending(s => s.SaleDetails.Sum(sd => sd.Quantity * sd.ProductPriceAtPurchase)),
+                _ => query.OrderByDescending(s => s.SaleDate)
+            };
+
+            var sales = await query.ToListAsync();
+            return View(sales);
+        }
+
+
+        // GET: Sales/OrderDetail/5
+        [HttpGet("Sales/StaffOrderDetail/{id:int}")]
+        [Authorize(Roles = "Staff")]
+        public async Task<IActionResult> StaffOrderDetail(int id)
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (!int.TryParse(userIdString, out int customerId))
+            {
+                _logger.LogWarning("OrderDetail: User not authenticated or CustomerID claim for SaleID {SaleID}.", id);
+                return Challenge();
+            }
+
+            _logger.LogInformation("Fetching order detail for SaleID: {SaleID}, CustomerID: {CustomerId}", id, customerId);
+
+            var sale = await _context.Sales
+                .Where(s => s.SaleID == id)
+                .Include(s => s.Customer)
+                .Include(s => s.Employee)
+                .Include(s => s.PaymentMethod)
+                .Include(s => s.SaleDetails)
+                    .ThenInclude(sd => sd.ProductType)
+                        .ThenInclude(pt => pt.MeasurementUnit)
+                .FirstOrDefaultAsync();
+
+            if (sale == null)
+            {
+                _logger.LogWarning("OrderDetail: Order with SaleID {SaleID} not found for CustomerID {CustomerId}.", id, customerId);
+                return NotFound("Không tìm thấy đơn hàng.");
+            }
+
+            var viewModel = new OrderDetailViewModel
+            {
+                SaleId = sale.SaleID,
+                SaleDate = sale.SaleDate,
+                OrderStatus = sale.OrderStatus,
+                CustomerName = $"{sale.Customer?.FirstName} {sale.Customer?.LastName}",
+                CustomerEmail = sale.Customer?.Email,
+                CustomerPhone = sale.Customer?.PhoneNumber,
+                EmployeeName = sale.Employee != null ? $"{sale.Employee.FirstName} {sale.Employee.LastName}" : "N/A",
+                PaymentMethodName = sale.PaymentMethod?.MethodName ?? "N/A",
+                DeliveryAddress = sale.DeliveryAddress,
+                DeliveryTime = sale.DeliveryTime,
+                IsPickup = sale.IsPickup,
+                TotalAmount = sale.SaleDetails.Sum(sd => sd.Quantity * sd.ProductPriceAtPurchase),
+                Items = sale.SaleDetails.Select(sd => new OrderItemViewModel
+                {
+                    ProductName = sd.ProductType?.ProductName ?? "Sản phẩm không xác định",
+                    Quantity = sd.Quantity,
+                    PriceAtPurchase = sd.ProductPriceAtPurchase,
+                    MeasurementUnit = sd.ProductType?.MeasurementUnit?.UnitName ?? "",
+                    ImagePath = sd.ProductType?.ImagePath,
+                    Subtotal = sd.Quantity * sd.ProductPriceAtPurchase
+                }).ToList()
+            };
+
+            _logger.LogInformation("Order detail loaded for SaleID: {SaleID}", id);
+            return View(viewModel);
+        }
+
+        // ➡️ POST: Sales/UpdateOrderStatus
+        [HttpPost]
+        [Authorize(Roles = "Staff")]
+        public async Task<IActionResult> UpdateOrderStatus(int saleId, string newStatus)
+        {
+            // 🔍 Find the sale and include customer information
+            var sale = await _context.Sales
+                .Include(s => s.Customer)
+                .FirstOrDefaultAsync(s => s.SaleID == saleId);
+
+            if (sale == null)
+            {
+                return NotFound("Đơn hàng không tồn tại.");
+            }
+
+            if (sale.OrderStatus == "Đã hủy")
+            {
+                return BadRequest("Không thể cập nhật trạng thái cho đơn hàng đã bị hủy.");
+            }
+
+            var current = sale.OrderStatus;
+            var validTransitions = new Dictionary<string, string>
+            {
+                { "Đã xác nhận", "Đang xử lý" },
+                { "Đang xử lý", "Hoàn thành" }
+            };
+
+            if (!validTransitions.ContainsKey(current) || validTransitions[current] != newStatus)
+            {
+                return BadRequest("Chỉ được chuyển tiếp sang trạng thái hợp lệ.");
+            }
+
+            // ✅ Update the order status
+            sale.OrderStatus = newStatus;
+            await _context.SaveChangesAsync();
+
+            // 🔔 Send Notification to Customer with SaleID
+            var notification = new Notification
+            {
+                CustomerID = sale.CustomerID,
+                SaleID = sale.SaleID,     // ✅ Added SaleID to the notification
+                Title = "Trạng thái đơn hàng đã thay đổi",
+                Message = $"Đơn hàng #{saleId} của bạn đã được cập nhật sang trạng thái: '{newStatus}'.",
+                CreatedAt = DateTime.UtcNow,
+                IsRead = false,
+                NotificationType = NotificationType.OrderStatusUpdate.GetDisplayName()
+            };
+
+            // ✅ Save the notification
+            _context.Notifications.Add(notification);
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction(nameof(StaffOrderDetail), new { id = saleId });
+        }
+
     }
 }

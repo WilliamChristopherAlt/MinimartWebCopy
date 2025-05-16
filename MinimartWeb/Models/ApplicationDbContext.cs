@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using MinimartWeb.Model; // Đảm bảo namespace của các lớp Model là đúng
+using MinimartWeb.Model;
+using MinimartWeb.Models; // Đảm bảo namespace của các lớp Model là đúng
 
 namespace MinimartWeb.Data
 {
@@ -24,6 +25,9 @@ namespace MinimartWeb.Data
         public DbSet<OtpRequest> OtpRequests { get; set; } = null!;
         public DbSet<ViewHistory> ViewHistories { get; set; } = null!;
         public DbSet<SearchHistory> SearchHistories { get; set; } = null!;
+        public DbSet<Notification> Notifications { get; set; } = null!;
+        public DbSet<LoginAttempt> LoginAttempts { get; set; } = null!;
+        
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
