@@ -1,4 +1,5 @@
 ﻿// Trong file: Model/Customer.cs
+using MinimartWeb.Models;
 using System;
 using System.Collections.Generic; // Cần cho ICollection
 using System.ComponentModel.DataAnnotations;
@@ -56,11 +57,15 @@ namespace MinimartWeb.Model
         public bool Is2FAEnabled { get; set; }
         // Thuộc tính này sẽ được EF map với cột Is2FAEnabled trong bảng Customers
 
+        [Required]
+        public bool Is2FAEnabled { get; set; }
 
         // === NAVIGATION PROPERTIES CẦN THÊM/SỬA ===
         public virtual ICollection<Sale> Sales { get; set; } = new HashSet<Sale>(); // Collection các Sale liên quan
         public virtual ICollection<OtpRequest> OtpRequests { get; set; } = new HashSet<OtpRequest>(); // Collection các OtpRequest liên quan
         public virtual ICollection<ViewHistory> ViewHistories { get; set; } = new HashSet<ViewHistory>(); // Nếu có
         public virtual ICollection<SearchHistory> SearchHistories { get; set; } = new HashSet<SearchHistory>(); // Nếu có
+        public virtual ICollection<Notification> Notifications { get; set; }
+        public virtual ICollection<LoginAttempt> LoginAttempts { get; set; }
     }
 }
