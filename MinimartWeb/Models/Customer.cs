@@ -57,8 +57,6 @@ namespace MinimartWeb.Model
         public bool Is2FAEnabled { get; set; }
         // Thuộc tính này sẽ được EF map với cột Is2FAEnabled trong bảng Customers
 
-        [Required]
-        public bool Is2FAEnabled { get; set; }
 
         // === NAVIGATION PROPERTIES CẦN THÊM/SỬA ===
         public virtual ICollection<Sale> Sales { get; set; } = new HashSet<Sale>(); // Collection các Sale liên quan
