@@ -133,32 +133,31 @@ VALUES
 
 -- Quản trị viên
 -- Insert 10 associated employee accounts
-INSERT INTO EmployeeAccounts (EmployeeID, Username, PasswordHash, Salt)
+INSERT INTO EmployeeAccounts (EmployeeID, Username, PasswordHash, Salt, IsEmailVerified, Is2FAEnabled)
 VALUES
-(1, 'alice', 0x5C67AB2B362E04BEE0BDDF45DDDADE29FF3BBF29E4F75A74AFD03CD8360222C1, 0x3514E223D890B6B9750C01F6CF7BB0D6),
-(2, 'bob', 0x5C67AB2B362E04BEE0BDDF45DDDADE29FF3BBF29E4F75A74AFD03CD8360222C1, 0x3514E223D890B6B9750C01F6CF7BB0D6),
-(3, 'charlie', 0x5C67AB2B362E04BEE0BDDF45DDDADE29FF3BBF29E4F75A74AFD03CD8360222C1, 0x3514E223D890B6B9750C01F6CF7BB0D6),
-(4, 'admindiana', 0x12345, 0x12345),
-(5, 'ethanw', 0x12345, 0x12345),
-(6, 'fionac', 0x12345, 0x12345),
-(7, 'georgem', 0x12345, 0x12345),
-(8, 'hannahb', 0x12345, 0x12345),
-(9, 'ivant', 0x12345, 0x12345),
-(10, 'juliap', 0x12345, 0x12345);
-
+(1, 'alice', 0x5C67AB2B362E04BEE0BDDF45DDDADE29FF3BBF29E4F75A74AFD03CD8360222C1, 0x3514E223D890B6B9750C01F6CF7BB0D6, 1, 0),
+(2, 'bob', 0x5C67AB2B362E04BEE0BDDF45DDDADE29FF3BBF29E4F75A74AFD03CD8360222C1, 0x3514E223D890B6B9750C01F6CF7BB0D6, 1, 0),
+(3, 'charlie', 0x5C67AB2B362E04BEE0BDDF45DDDADE29FF3BBF29E4F75A74AFD03CD8360222C1, 0x3514E223D890B6B9750C01F6CF7BB0D6, 1, 0),
+(4, 'admindiana', 0x12345, 0x12345, 1, 0),
+(5, 'ethanw', 0x12345, 0x12345, 1, 0),
+(6, 'fionac', 0x12345, 0x12345, 1, 0),
+(7, 'georgem', 0x12345, 0x12345, 0, 0),
+(8, 'hannahb', 0x12345, 0x12345, 0, 0),
+(9, 'ivant', 0x12345, 0x12345, 0, 0),
+(10, 'juliap', 0x12345, 0x12345, 0, 0);
 
 -- Khách hàng
-INSERT INTO Customers (FirstName, LastName, Email, PhoneNumber, ImagePath, Username, PasswordHash, Salt) VALUES
-(N'Nguyễn', N'Văn An', 'an.nguyen@example.com', '0901122334', 'men/10.jpg', 'annguyen', 0x5C67AB2B362E04BEE0BDDF45DDDADE29FF3BBF29E4F75A74AFD03CD8360222C1, 0x3514E223D890B6B9750C01F6CF7BB0D6),
-(N'Trần', N'Thị Bình', 'binh.tran@example.com', '0902233445', 'women/10.jpg', 'binhtran', 0x5C67AB2B362E04BEE0BDDF45DDDADE29FF3BBF29E4F75A74AFD03CD8360222C1, 0x3514E223D890B6B9750C01F6CF7BB0D6),
-(N'Lê', N'Quang Cường', 'cuong.le@example.com', '0903344556', 'men/11.jpg', 'cuongle', 0x5C67AB2B362E04BEE0BDDF45DDDADE29FF3BBF29E4F75A74AFD03CD8360222C1, 0x3514E223D890B6B9750C01F6CF7BB0D6),
-(N'Phạm', N'Thị Dung', 'dung.pham@example.com', '0904455667', 'women/11.jpg', 'dungpham', 0x12345, 0x12345),
-(N'Hoàng', N'Minh Đức', 'duc.hoang@example.com', '0905566778', 'men/12.jpg', 'duchoang', 0x12345, 0x12345),
-(N'Võ', N'Thị Hạnh', 'hanh.vo@example.com', '0906677889', 'women/12.jpg', 'hanhvo', 0x12345, 0x12345),
-(N'Đặng', N'Tuấn Hùng', 'hung.dang@example.com', '0907788990', 'men/13.jpg', 'hungdang', 0x12345, 0x12345),
-(N'Bùi', N'Thị Lan', 'lan.bui@example.com', '0908899001', 'women/13.jpg', 'lanbui', 0x12345, 0x12345),
-(N'Huỳnh', N'Gia Nam', 'nam.huynh@example.com', '0909900112', 'men/14.jpg', 'namhuynh', 0x12345, 0x12345),
-(N'Dương', N'Thị Oanh', 'oanh.duong@example.com', '0910011223', 'women/14.jpg', 'oanhduong', 0x12345, 0x12345);
+INSERT INTO Customers (FirstName, LastName, Email, PhoneNumber, ImagePath, Username, PasswordHash, Salt, Is2FAEnabled) VALUES
+(N'Nguyễn', N'Văn An', 'an.nguyen@example.com', '0901122334', 'men/10.jpg', 'annguyen', 0x5C67AB2B362E04BEE0BDDF45DDDADE29FF3BBF29E4F75A74AFD03CD8360222C1, 0x3514E223D890B6B9750C01F6CF7BB0D6, 0),
+(N'Trần', N'Thị Bình', 'binh.tran@example.com', '0902233445', 'women/10.jpg', 'binhtran', 0x5C67AB2B362E04BEE0BDDF45DDDADE29FF3BBF29E4F75A74AFD03CD8360222C1, 0x3514E223D890B6B9750C01F6CF7BB0D6, 0),
+(N'Lê', N'Quang Cường', 'cuong.le@example.com', '0903344556', 'men/11.jpg', 'cuongle', 0x5C67AB2B362E04BEE0BDDF45DDDADE29FF3BBF29E4F75A74AFD03CD8360222C1, 0x3514E223D890B6B9750C01F6CF7BB0D6, 0),
+(N'Phạm', N'Thị Dung', 'dung.pham@example.com', '0904455667', 'women/11.jpg', 'dungpham', 0x12345, 0x12345, 0),
+(N'Hoàng', N'Minh Đức', 'duc.hoang@example.com', '0905566778', 'men/12.jpg', 'duchoang', 0x12345, 0x12345, 0),
+(N'Võ', N'Thị Hạnh', 'hanh.vo@example.com', '0906677889', 'women/12.jpg', 'hanhvo', 0x12345, 0x12345, 0),
+(N'Đặng', N'Tuấn Hùng', 'hung.dang@example.com', '0907788990', 'men/13.jpg', 'hungdang', 0x12345, 0x12345, 0),
+(N'Bùi', N'Thị Lan', 'lan.bui@example.com', '0908899001', 'women/13.jpg', 'lanbui', 0x12345, 0x12345, 0),
+(N'Huỳnh', N'Gia Nam', 'nam.huynh@example.com', '0909900112', 'men/14.jpg', 'namhuynh', 0x12345, 0x12345, 0),
+(N'Dương', N'Thị Oanh', 'oanh.duong@example.com', '0910011223', 'women/14.jpg', 'oanhduong', 0x12345, 0x12345, 0);
 
 -- Phương thức thanh toán
 INSERT INTO PaymentMethods (MethodName) VALUES
@@ -166,24 +165,6 @@ INSERT INTO PaymentMethods (MethodName) VALUES
 (N'Thẻ tín dụng'),
 (N'Thanh toán qua di động'),
 (N'Chuyển khoản ngân hàng');
-
--- Doanh thu
-INSERT INTO Sales (CustomerID, EmployeeID, PaymentMethodID, DeliveryAddress, DeliveryTime, IsPickup, OrderStatus) VALUES
-(1, 1, 2, '789 Customer Ave', GETDATE(), 0, N'Hoàn thành'),
-(2, 2, 1, '123 Delivery St', GETDATE(), 1, N'Đã xác nhận'),
-(3, 3, 3, '555 Mobile Lane', GETDATE(), 0, N'Đang xử lý'),
-(1, 2, 4, '333 Bank Rd', GETDATE(), 0, N'Đã hủy');
-
--- Chi tiết đơn hàng
-INSERT INTO SaleDetails (SaleID, ProductTypeID, Quantity, ProductPriceAtPurchase) VALUES
-(1, 1, 3.5, 1.99),
-(1, 2, 2, 2.50),
-(1, 5, 1, 1.50),
-(2, 3, 2, 2.49),
-(2, 4, 3, 1.20),
-(3, 7, 1, 3.49),
-(3, 9, 2, 5.99),
-(4, 6, 5, 0.99);
 
 -- OtypTypes
 INSERT INTO dbo.OtpTypes (OtpTypeName, Description) VALUES
@@ -198,12 +179,11 @@ INSERT INTO dbo.OtpTypes (OtpTypeName, Description) VALUES
 ('EmployeeChangeEmailVerification', 'OTP sent to the NEW email address to verify when an employee requests an email change (may require admin approval or internal process).'),
 ('UserChangePasswordVerification', 'OTP sent to confirm a password change request when the user is already logged in (typically after re-authenticating with old password).'),
 ('UserChangePhoneNumberVerification', 'OTP sent to the NEW phone number (if SMS capable) or current email to verify a phone number change request.'),
-('LoginTwoFactorVerification', 'Mandatory OTP for two-factor authentication during login for any user type (Customer/Employee).');
+('LoginTwoFactorVerification', 'Mandatory OTP for two-factor authentication during login for any user type (Customer/Employee).'),
+('CustomerConfirmEmailChangeRequest', 'OTP sent to OLD email to confirm user initiated an email change request.');
 
 
-USE Minimart;
-GO
-
+-- Sales
 DECLARE @TargetCustomerID INT = 1;
 DECLARE @EmployeeForSales INT;
 DECLARE @PaymentMethodForSales INT;

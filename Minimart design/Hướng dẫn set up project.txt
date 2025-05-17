@@ -1,0 +1,13 @@
+1. Tạo project vs2022 mới.
+2. Clone từ repo: https://github.com/WilliamChristopherAlt/MinimartWebCopy/
+3. Vào thư mục Minimart design có 3 file: design.sql, data.sql, delete_design.sql
+4. Tạo cơ sở dữ liệu mới tên Minimart trong MicrosoftSQLServer, tạo database mới tên Minimart, sau đó chạy code design.sql, và data.sql (thiết kế dữ liệu trước, sau đó chèn dữ liệu)
+5. Vào project vs2022 đã clone, vào file appsettings.json, chỉnh chuỗi:   "DefaultConnection": "Server=DESKTOP-0BQ9RBN\\SQLEXPRESS;Database=Minimart;Integrated Security=True;TrustServerCertificate=True;" thành chuỗi đúng.
+6. Chạy project
+
+Thông tin đăng nhập sẵn có: 
+Nhân viên với username: alice, bob, charlie có mật khẩu 123
+Khách hàng với username annguyen, binhtran, cuongle có mật khẩu 123
+
+
+Chạy file delete_design.sql rồi chạy design.sql và data.sql nếu cần reset csdl
