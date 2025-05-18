@@ -173,10 +173,6 @@ namespace MinimartWeb.Controllers
             return _context.Sales.Any(e => e.SaleID == id);
         }
 
-        // =============================================================
-        // == CUSTOMER ACTIONS FOR ORDER HISTORY AND ORDER DETAIL ==
-        // =============================================================
-
         // GET: /Sales/OrderHistory
         [Authorize(Roles = "Customer")] // Chỉ Customer mới được truy cập
         public async Task<IActionResult> OrderHistory(int page = 1)
@@ -240,11 +236,165 @@ namespace MinimartWeb.Controllers
         }
 
         // GET: Sales/OrderDetail/5
-        [HttpGet("Sales/OrderDetail/{id:int}")] // Route attribute
-        [Authorize(Roles = "Customer")] // Chỉ Customer
+        [HttpGet("Sales/OrderDetail/{id:int}")]
+        [Authorize(Roles = "Customer")]
         public async Task<IActionResult> OrderDetail(int id)
         {
+            try
+            {
+                var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (!int.TryParse(userIdString, out int customerId))
+                {
+                    _logger.LogWarning("OrderDetail: User not authenticated or CustomerID claim for SaleID {SaleID}.", id);
+                    TempData["ErrorMessage"] = "Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.";
+                    return RedirectToAction("Login", "Account");
+                }
+
+                _logger.LogInformation("Fetching order detail for SaleID: {SaleID}, CustomerID: {CustomerId}", id, customerId);
+
+                var sale = await _context.Sales
+                    .Where(s => s.SaleID == id)
+                    .Include(s => s.Customer)
+                    .Include(s => s.Employee)
+                    .Include(s => s.PaymentMethod)
+                    .Include(s => s.SaleDetails)
+                        .ThenInclude(sd => sd.ProductType)
+                            .ThenInclude(pt => pt.MeasurementUnit)
+                    .FirstOrDefaultAsync();
+
+                if (sale == null)
+                {
+                    _logger.LogWarning("OrderDetail: Order with SaleID {SaleID} not found.", id);
+                    TempData["ErrorMessage"] = "Đơn hàng không tồn tại hoặc đã bị xóa.";
+                    return RedirectToAction("OrderHistory", "Sales");
+                }
+
+                if (sale.CustomerID != customerId)
+                {
+                    _logger.LogWarning("OrderDetail: Unauthorized access attempt. SaleID: {SaleID}, CustomerID: {CustomerId}.", id, customerId);
+                    TempData["ErrorMessage"] = "Bạn không có quyền xem đơn hàng này.";
+                    return RedirectToAction("OrderHistory", "Sales");
+                }
+
+                // ✅ Get cancellation reason from notification (if exists)
+                string? cancellationMessage = null;
+                var fullMessage = await _context.Notifications
+                    .Where(n => n.SaleID == id &&
+                                n.CustomerID == customerId &&
+                                n.NotificationType == NotificationType.OrderStatusUpdate.GetDisplayName() &&
+                                n.Message.Contains("đã bị từ chối"))
+                    .OrderByDescending(n => n.CreatedAt)
+                    .Select(n => n.Message)
+                    .FirstOrDefaultAsync();
+
+                if (!string.IsNullOrEmpty(fullMessage))
+                {
+                    const string reasonPrefix = "Lý do từ nhân viên: ";
+                    var index = fullMessage.IndexOf(reasonPrefix, StringComparison.OrdinalIgnoreCase);
+                    if (index >= 0)
+                    {
+                        cancellationMessage = fullMessage.Substring(index + reasonPrefix.Length).Trim();
+                    }
+                    else
+                    {
+                        cancellationMessage = fullMessage; // fallback: show full message if no match
+                    }
+                }
+
+
+                var viewModel = new OrderDetailViewModel
+                {
+                    SaleId = sale.SaleID,
+                    SaleDate = sale.SaleDate,
+                    OrderStatus = sale.OrderStatus,
+                    CustomerName = $"{sale.Customer?.FirstName} {sale.Customer?.LastName}",
+                    CustomerEmail = sale.Customer?.Email,
+                    CustomerPhone = sale.Customer?.PhoneNumber,
+                    EmployeeName = sale.Employee != null ? $"{sale.Employee.FirstName} {sale.Employee.LastName}" : "N/A",
+                    PaymentMethodName = sale.PaymentMethod?.MethodName ?? "N/A",
+                    DeliveryAddress = sale.DeliveryAddress,
+                    DeliveryTime = sale.DeliveryTime,
+                    IsPickup = sale.IsPickup,
+                    TotalAmount = sale.SaleDetails.Sum(sd => sd.Quantity * sd.ProductPriceAtPurchase),
+                    Items = sale.SaleDetails.Select(sd => new OrderItemViewModel
+                    {
+                        ProductName = sd.ProductType?.ProductName ?? "Sản phẩm không xác định",
+                        Quantity = sd.Quantity,
+                        PriceAtPurchase = sd.ProductPriceAtPurchase,
+                        MeasurementUnit = sd.ProductType?.MeasurementUnit?.UnitName ?? "",
+                        ImagePath = sd.ProductType?.ImagePath,
+                        Subtotal = sd.Quantity * sd.ProductPriceAtPurchase
+                    }).ToList(),
+                    CancellationReason = cancellationMessage
+                };
+
+                _logger.LogInformation("Order detail loaded for SaleID: {SaleID}", id);
+                return View(viewModel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An unexpected error occurred while loading order details.");
+                TempData["ErrorMessage"] = "Đã có lỗi xảy ra khi tải thông tin đơn hàng. Vui lòng thử lại sau.";
+                return RedirectToAction("OrderHistory", "Sales");
+            }
+        }
+
+
+
+        // ➡️ GET: Sales/CustomerSales
+        [HttpGet]
+        [Authorize(Roles = "Staff")]
+        public async Task<IActionResult> CustomerSales(string statusFilter, string sortBy, string searchQuery)
+        {
+            // Populate ViewBag with status options and the currently selected filter
+            ViewBag.Statuses = new List<string> { "Đã xác nhận", "Đang xử lý", "Hoàn thành", "Đã hủy" };
+            ViewBag.SelectedStatus = statusFilter;
+
+            var query = _context.Sales
+                .Include(s => s.Customer)
+                .Include(s => s.Employee)
+                .Include(s => s.PaymentMethod)
+                .Include(s => s.SaleDetails)
+                .ThenInclude(sd => sd.ProductType)
+                .AsQueryable();
+
+            // 🔍 Apply Search
+            if (!string.IsNullOrEmpty(searchQuery))
+            {
+                query = query.Where(s =>
+                    s.Customer.FirstName.Contains(searchQuery) ||
+                    s.Customer.LastName.Contains(searchQuery) ||
+                    s.SaleID.ToString().Contains(searchQuery));
+            }
+
+            // 🔍 Apply Status Filter
+            if (!string.IsNullOrEmpty(statusFilter))
+            {
+                query = query.Where(s => s.OrderStatus == statusFilter);
+            }
+
+            // 🔄 Apply Sorting
+            query = sortBy switch
+            {
+                "DateAsc" => query.OrderBy(s => s.SaleDate),
+                "DateDesc" => query.OrderByDescending(s => s.SaleDate),
+                "TotalAsc" => query.OrderBy(s => s.SaleDetails.Sum(sd => sd.Quantity * sd.ProductPriceAtPurchase)),
+                "TotalDesc" => query.OrderByDescending(s => s.SaleDetails.Sum(sd => sd.Quantity * sd.ProductPriceAtPurchase)),
+                _ => query.OrderByDescending(s => s.SaleDate)
+            };
+
+            var sales = await query.ToListAsync();
+            return View(sales);
+        }
+
+
+        // GET: Sales/OrderDetail/5
+        [HttpGet("Sales/StaffOrderDetail/{id:int}")]
+        [Authorize(Roles = "Staff")]
+        public async Task<IActionResult> StaffOrderDetail(int id)
+        {
             var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             if (!int.TryParse(userIdString, out int customerId))
             {
                 _logger.LogWarning("OrderDetail: User not authenticated or CustomerID claim for SaleID {SaleID}.", id);
@@ -254,7 +404,7 @@ namespace MinimartWeb.Controllers
             _logger.LogInformation("Fetching order detail for SaleID: {SaleID}, CustomerID: {CustomerId}", id, customerId);
 
             var sale = await _context.Sales
-                .Where(s => s.SaleID == id && s.CustomerID == customerId)
+                .Where(s => s.SaleID == id)
                 .Include(s => s.Customer)
                 .Include(s => s.Employee)
                 .Include(s => s.PaymentMethod)
@@ -266,7 +416,7 @@ namespace MinimartWeb.Controllers
             if (sale == null)
             {
                 _logger.LogWarning("OrderDetail: Order with SaleID {SaleID} not found for CustomerID {CustomerId}.", id, customerId);
-                return NotFound("Không tìm thấy đơn hàng hoặc bạn không có quyền xem đơn hàng này.");
+                return NotFound("Không tìm thấy đơn hàng.");
             }
 
             var viewModel = new OrderDetailViewModel
@@ -295,7 +445,137 @@ namespace MinimartWeb.Controllers
             };
 
             _logger.LogInformation("Order detail loaded for SaleID: {SaleID}", id);
-            return View(viewModel); // Sẽ tìm View tên "OrderDetail.cshtml"
+            return View(viewModel);
         }
+
+        // ➡️ POST: Sales/UpdateOrderStatus
+        [HttpPost]
+        [Authorize(Roles = "Staff")]
+        public async Task<IActionResult> UpdateOrderStatus(int saleId, string newStatus)
+        {
+            // 🔍 Find the sale and include customer information
+            var sale = await _context.Sales
+                .Include(s => s.Customer)
+                .FirstOrDefaultAsync(s => s.SaleID == saleId);
+
+            if (sale == null)
+            {
+                return NotFound("Đơn hàng không tồn tại.");
+            }
+
+            if (sale.OrderStatus == "Đã hủy")
+            {
+                return BadRequest("Không thể cập nhật trạng thái cho đơn hàng đã bị hủy.");
+            }
+
+            var current = sale.OrderStatus;
+            var validTransitions = new Dictionary<string, string>
+            {
+                { "Đã xác nhận", "Đang xử lý" },
+                { "Đang xử lý", "Hoàn thành" }
+            };
+
+            if (!validTransitions.ContainsKey(current) || validTransitions[current] != newStatus)
+            {
+                return BadRequest("Chỉ được chuyển tiếp sang trạng thái hợp lệ.");
+            }
+
+            // ✅ Update the order status
+            sale.OrderStatus = newStatus;
+            await _context.SaveChangesAsync();
+
+            // 🔔 Send Notification to Customer with SaleID
+            var notification = new Notification
+            {
+                CustomerID = sale.CustomerID,
+                SaleID = sale.SaleID,     // ✅ Added SaleID to the notification
+                Title = "Trạng thái đơn hàng đã thay đổi",
+                Message = $"Đơn hàng #{saleId} của bạn đã được cập nhật sang trạng thái: '{newStatus}'.",
+                CreatedAt = DateTime.UtcNow,
+                IsRead = false,
+                NotificationType = NotificationType.OrderStatusUpdate.GetDisplayName()
+            };
+
+            // ✅ Save the notification
+            _context.Notifications.Add(notification);
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction(nameof(StaffOrderDetail), new { id = saleId });
+        }
+
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> CancelOrder(int saleId)
+        {
+            var sale = await _context.Sales
+                .Include(s => s.Customer)
+                .FirstOrDefaultAsync(s => s.SaleID == saleId);
+
+            if (sale == null)
+            {
+                return NotFound("Đơn hàng không tồn tại.");
+            }
+
+            // Only allow cancellation from specific statuses
+            if (sale.OrderStatus == "Đã xác nhận" || sale.OrderStatus == "Đang xử lý")
+            {
+                sale.OrderStatus = "Đã hủy";
+                await _context.SaveChangesAsync();
+
+                // 🔔 Send notification to the customer
+                var notification = new Notification
+                {
+                    CustomerID = sale.CustomerID,
+                    SaleID = sale.SaleID,
+                    Title = "Đơn hàng đã bị hủy",
+                    Message = $"Đơn hàng #{saleId} của bạn đã được hủy theo yêu cầu.",
+                    CreatedAt = DateTime.UtcNow,
+                    IsRead = false,
+                    NotificationType = NotificationType.OrderStatusUpdate.GetDisplayName()
+                };
+
+                _context.Notifications.Add(notification);
+                await _context.SaveChangesAsync();
+            }
+
+            return RedirectToAction(nameof(OrderHistory));
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Staff")]
+        public async Task<IActionResult> CancelOrderFromStaff(int saleId, string reason)
+        {
+            var sale = await _context.Sales
+                .Include(s => s.Customer)
+                .FirstOrDefaultAsync(s => s.SaleID == saleId);
+
+            if (sale == null)
+                return NotFound("Đơn hàng không tồn tại.");
+
+            if (sale.OrderStatus != "Đã xác nhận" && sale.OrderStatus != "Đang xử lý")
+                return BadRequest("Chỉ có thể hủy đơn hàng chưa hoàn thành.");
+
+            // Cập nhật trạng thái
+            sale.OrderStatus = "Bị từ chối";
+            await _context.SaveChangesAsync();
+
+            // Gửi thông báo cho khách hàng
+            var notification = new Notification
+            {
+                CustomerID = sale.CustomerID,
+                SaleID = sale.SaleID,
+                Title = "Đơn hàng đã bị hủy",
+                Message = $"Rất tiếc, đơn hàng #{saleId} của bạn đã bị từ chối. Lý do từ nhân viên: {reason}",
+                CreatedAt = DateTime.Now,
+                IsRead = false,
+                NotificationType = NotificationType.OrderStatusUpdate.GetDisplayName()
+            };
+
+            _context.Notifications.Add(notification);
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction(nameof(StaffOrderDetail), new { id = saleId });
+        }
+
     }
 }

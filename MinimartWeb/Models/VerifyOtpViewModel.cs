@@ -13,5 +13,6 @@ namespace MinimartWeb.Models
         [StringLength(6, ErrorMessage = "Mã OTP phải có 6 chữ số.")]
         [Display(Name = "Mã OTP")]
         public string OtpCode { get; set; }
+
     }
 }

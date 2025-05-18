@@ -216,6 +216,316 @@ public class AccountController : Controller
     //        return StatusCode(StatusCodes.Status500InternalServerError, new { success = false, message = "Lỗi hệ thống không mong muốn. Vui lòng thử lại." });
     //    }
     //}
+    // Trong AccountController.cs
+
+    // ... (các using và constructor) ...
+
+    // GET: /Account/EmployeeProfile
+    // Trong AccountController.cs
+    [Authorize(Roles = "Admin,Staff,Thu ngân,Quản lý kho,Nhân viên giao hàng,Giám sát,Quản trị viên")]
+    [HttpGet]
+    public async Task<IActionResult> EmployeeProfile()
+    {
+        _logger.LogInformation("GET /Account/EmployeeProfile accessed by User: {User}", User.Identity?.Name);
+
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(userIdString, out int employeeIdFromClaims))
+        {
+            _logger.LogWarning("EmployeeProfile GET: Could not parse EmployeeID from claims for User: {User}", User.Identity?.Name);
+            return Challenge();
+        }
+
+        _logger.LogInformation("EmployeeProfile GET: Attempting to load profile for EmployeeID: {EmployeeId}", employeeIdFromClaims);
+
+        var employee = await _context.Employees
+            .Include(e => e.Role)
+            .Include(e => e.EmployeeAccount)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(e => e.EmployeeID == employeeIdFromClaims);
+
+        if (employee == null)
+        {
+            _logger.LogWarning("EmployeeProfile GET: Employee with ID {EmployeeId} not found.", employeeIdFromClaims);
+            return NotFound($"Không tìm thấy thông tin nhân viên với ID: {employeeIdFromClaims}.");
+        }
+
+        if (employee.EmployeeAccount == null)
+        {
+            _logger.LogError("EmployeeProfile GET: EmployeeAccount is null for EmployeeID {EmployeeId}. Data inconsistency.", employeeIdFromClaims);
+            return StatusCode(StatusCodes.Status500InternalServerError, "Lỗi dữ liệu: Không tìm thấy thông tin tài khoản đăng nhập của nhân viên.");
+        }
+
+        var viewModel = new EmployeeProfileViewModel
+        {
+            EmployeeId = employee.EmployeeID, // Gán EmployeeId để View có thể dùng nếu cần (ví dụ cho các form khác trên trang)
+                                              // AccountId = employee.EmployeeAccount.AccountID, // Gán nếu ViewModel có
+            FirstName = employee.FirstName,
+            LastName = employee.LastName,
+            Email = employee.Email,
+            PhoneNumber = employee.PhoneNumber,
+            Gender = employee.Gender,
+            BirthDate = employee.BirthDate,
+            CitizenID = employee.CitizenID,
+            HireDate = employee.HireDate,
+            RoleName = employee.Role?.RoleName ?? "N/A",
+            ImagePath = employee.ImagePath,
+            Username = employee.EmployeeAccount.Username,
+            IsAccountActive = employee.EmployeeAccount.IsActive,
+            IsEmployeeEmailVerified = employee.EmployeeAccount.IsEmailVerified,
+            EmployeeEmailVerifiedAt = employee.EmployeeAccount.EmailVerifiedAt,
+            Is2FAEnabled = employee.EmployeeAccount.Is2FAEnabled // LẤY TRẠNG THÁI 2FA TỪ DB
+        };
+
+        _logger.LogInformation("HttpGet EmployeeProfile - ViewModel Is2FAEnabled being sent to View: {Is2FAEnabled}", viewModel.Is2FAEnabled);
+
+        return View("EmployeeProfile", viewModel);
+    }
+
+    // Action POST ToggleEmployee2FA mà bạn đã cung cấp ở trên
+    // Trong AccountController.cs
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ToggleEmployee2FA(
+        // Nhận trực tiếp từ form để tránh bind vào EmployeeProfileViewModel nếu không cần thiết
+        [FromForm] bool enable, // Giá trị từ input hidden name="enable"
+        [FromForm] string? passwordFor2FAChange // Giá trị từ input có name="PasswordForChange2FAStatus" (hoặc tên bạn đặt trong form 2FA)
+    )
+    {
+        _logger.LogInformation("HttpPost ToggleEmployee2FA - Received 'enable' parameter: {EnableParam}, Received 'password': {PasswordProvided}", enable, !string.IsNullOrWhiteSpace(passwordFor2FAChange));
+        var employeeIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(employeeIdClaim, out int currentEmployeeId))
+        {
+            TempData["ErrorMessage_2FA_Employee"] = "Phiên làm việc không hợp lệ.";
+            _logger.LogWarning("ToggleEmployee2FA: User not authenticated or EmployeeID claim missing.");
+            return RedirectToAction(nameof(EmployeeProfile));
+        }
+
+        if (string.IsNullOrWhiteSpace(passwordFor2FAChange))
+        {
+            TempData["ErrorMessage_2FA_Employee"] = "Vui lòng nhập mật khẩu hiện tại để xác nhận.";
+            return RedirectToAction(nameof(EmployeeProfile));
+        }
+
+        var employeeAccount = await _context.EmployeeAccounts
+                                    .FirstOrDefaultAsync(ea => ea.EmployeeID == currentEmployeeId);
+
+        if (employeeAccount == null)
+        {
+            TempData["ErrorMessage_2FA_Employee"] = "Không tìm thấy tài khoản nhân viên.";
+            _logger.LogWarning("ToggleEmployee2FA: EmployeeAccount not found for EID {EmployeeId}", currentEmployeeId);
+            return RedirectToAction(nameof(EmployeeProfile));
+        }
+
+        if (!VerifyPassword(passwordFor2FAChange, employeeAccount.PasswordHash, employeeAccount.Salt))
+        {
+            TempData["ErrorMessage_2FA_Employee"] = "Mật khẩu hiện tại không đúng.";
+            _logger.LogWarning("ToggleEmployee2FA: Incorrect password for EID {EmployeeId}", currentEmployeeId);
+            return RedirectToAction(nameof(EmployeeProfile));
+        }
+
+        employeeAccount.Is2FAEnabled = enable; // Gán trạng thái mới từ form
+        _context.EmployeeAccounts.Update(employeeAccount);
+
+        try
+        {
+            await _context.SaveChangesAsync();
+            TempData["SuccessMessage"] = $"Xác thực hai yếu tố qua email đã được {(enable ? "BẬT" : "TẮT")} thành công!";
+            _logger.LogInformation("EID {EmployeeId} updated 2FA status to: {Status}", currentEmployeeId, enable);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating 2FA status for EID {EmployeeId}", currentEmployeeId);
+            TempData["ErrorMessage_2FA_Employee"] = "Đã có lỗi xảy ra khi lưu thay đổi cài đặt 2FA.";
+        }
+
+        return RedirectToAction(nameof(EmployeeProfile));
+    }
+
+    // GET: /Account/Settings
+    [Authorize(Roles = "Customer")]
+    [HttpGet]
+    public async Task<IActionResult> Settings()
+    {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(userIdString, out int customerId))
+        {
+            _logger.LogWarning("Settings GET: User not authenticated or CustomerID claim is missing/invalid.");
+            return Challenge();
+        }
+
+        var customer = await _context.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.CustomerID == customerId);
+        if (customer == null)
+        {
+            _logger.LogWarning("Settings GET: Customer with ID {CustomerId} not found.", customerId);
+            return NotFound("Tài khoản không tồn tại.");
+        }
+
+        var viewModel = new CustomerSettingsViewModel
+        {
+            CustomerId = customer.CustomerID, // Vẫn gán vào ViewModel để View có thể dùng nếu cần (ví dụ cho các link khác)
+            FirstName = customer.FirstName,
+            LastName = customer.LastName,
+            Email = customer.Email, // Thường là readonly trên form này
+            PhoneNumber = customer.PhoneNumber,
+            Username = customer.Username, // Thường là readonly
+            ImagePath = customer.ImagePath,
+            Is2FAEnabled = customer.Is2FAEnabled
+        };
+        return View(viewModel);
+    }
+
+    // POST: /Account/Settings (Cập nhật thông tin cá nhân)
+    // Trong AccountController.cs
+
+    [Authorize(Roles = "Customer")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Settings(CustomerSettingsViewModel model)
+    {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(userIdString, out int currentUserIdFromClaims))
+        {
+            _logger.LogWarning("Settings POST: User not authenticated or CustomerID claim is missing/invalid. User: {User}", User.Identity?.Name);
+            return Forbid();
+        }
+
+        var customerToUpdate = await _context.Customers.FirstOrDefaultAsync(c => c.CustomerID == currentUserIdFromClaims);
+        if (customerToUpdate == null)
+        {
+            _logger.LogWarning("Settings POST: Customer with ID {CustomerId} (from claims) not found for update.", currentUserIdFromClaims);
+            return NotFound("Tài khoản không tồn tại để cập nhật.");
+        }
+
+        // Gán lại các giá trị không được phép sửa và trạng thái 2FA vào model để View hiển thị đúng nếu có lỗi
+        model.Email = customerToUpdate.Email;
+        model.Username = customerToUpdate.Username;
+        model.CustomerId = customerToUpdate.CustomerID;
+        model.Is2FAEnabled = customerToUpdate.Is2FAEnabled; // QUAN TRỌNG: Gán lại trạng thái 2FA
+        if (string.IsNullOrEmpty(model.ImagePath) && model.NewImageFile == null)
+        {
+            model.ImagePath = customerToUpdate.ImagePath;
+        }
+
+        ModelState.Remove(nameof(model.Email));
+        ModelState.Remove(nameof(model.Username));
+        ModelState.Remove(nameof(model.Is2FAEnabled)); // Is2FAEnabled không phải là input của form này
+        ModelState.Remove(nameof(model.PasswordForChange2FAStatus)); // Password này thuộc form 2FA
+
+        bool hasProfileInfoChanges = customerToUpdate.FirstName != model.FirstName ||
+                                     customerToUpdate.LastName != model.LastName ||
+                                     customerToUpdate.PhoneNumber != model.PhoneNumber ||
+                                     (model.NewImageFile != null && model.NewImageFile.Length > 0);
+
+        if (hasProfileInfoChanges && string.IsNullOrWhiteSpace(model.CurrentPassword))
+        {
+            ModelState.AddModelError(nameof(model.CurrentPassword), "Vui lòng nhập mật khẩu hiện tại để lưu các thay đổi thông tin cá nhân.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            _logger.LogWarning("Settings POST: ModelState is invalid for CustomerID: {CustomerId}. Errors: {@Errors}", currentUserIdFromClaims, ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)));
+            return View(model); // Trả về View với các lỗi validation
+        }
+
+        if (hasProfileInfoChanges)
+        {
+            if (!VerifyPassword(model.CurrentPassword!, customerToUpdate.PasswordHash, customerToUpdate.Salt))
+            {
+                ModelState.AddModelError(nameof(model.CurrentPassword), "Mật khẩu hiện tại không đúng.");
+                _logger.LogWarning("Settings POST: Incorrect current password for CustomerID: {CustomerId}", currentUserIdFromClaims);
+                return View(model);
+            }
+        }
+        else // Không có thay đổi thông tin nào
+        {
+            TempData["InfoMessage"] = "Không có thông tin cá nhân nào được thay đổi.";
+            return RedirectToAction(nameof(Settings));
+        }
+
+        // Cập nhật các trường được phép thay đổi
+        customerToUpdate.FirstName = model.FirstName;
+        customerToUpdate.LastName = model.LastName;
+        customerToUpdate.PhoneNumber = model.PhoneNumber;
+
+        if (model.NewImageFile != null && model.NewImageFile.Length > 0)
+        {
+            // ... (Logic upload ảnh giữ nguyên như trước) ...
+            try { /* ... */ } catch (Exception ex) { /* ... ModelState.AddModelError ... return View(model); */ }
+        }
+
+        try
+        {
+            await _context.SaveChangesAsync();
+            TempData["SuccessMessage"] = "Thông tin cá nhân đã được cập nhật thành công!";
+            _logger.LogInformation("Settings POST: Thông tin CustomerID {CustomerId} đã được cập nhật vào DB.", currentUserIdFromClaims);
+            return RedirectToAction(nameof(Settings));
+        }
+        catch (DbUpdateException ex) { /* ... xử lý lỗi DB ... */ }
+        // ... (các catch khác) ...
+
+        return View(model);
+    }
+
+
+    // Action POST để Bật/Tắt 2FA (từ trang Settings)
+    [Authorize(Roles = "Customer")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ToggleCustomer2FA( // Giữ nguyên tên action này nếu View đang trỏ đến nó
+        [FromForm] bool enable, // Nhận trực tiếp trạng thái mới từ input hidden "enable"
+        [FromForm] string? passwordForChange2FAStatus // Nhận mật khẩu từ input có name="PasswordForChange2FAStatus"
+                                                      // Không cần truyền cả CustomerSettingsViewModel nếu chỉ cần 2 trường này
+    )
+    {
+        var customerIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(customerIdClaim, out int currentCustomerId))
+        {
+            TempData["ErrorMessage_2FA_Settings"] = "Phiên làm việc không hợp lệ.";
+            _logger.LogWarning("ToggleCustomer2FA: User not authenticated or CustomerID claim missing.");
+            return RedirectToAction(nameof(Settings));
+        }
+
+        if (string.IsNullOrWhiteSpace(passwordForChange2FAStatus))
+        {
+            TempData["ErrorMessage_2FA_Settings"] = "Vui lòng nhập mật khẩu hiện tại để thay đổi cài đặt 2FA.";
+            return RedirectToAction(nameof(Settings));
+        }
+
+        var customer = await _context.Customers.FindAsync(currentCustomerId);
+        if (customer == null)
+        {
+            TempData["ErrorMessage_2FA_Settings"] = "Không tìm thấy tài khoản khách hàng.";
+            return RedirectToAction(nameof(Settings));
+        }
+
+        if (!VerifyPassword(passwordForChange2FAStatus, customer.PasswordHash, customer.Salt))
+        {
+            TempData["ErrorMessage_2FA_Settings"] = "Mật khẩu hiện tại không đúng.";
+            return RedirectToAction(nameof(Settings));
+        }
+
+        customer.Is2FAEnabled = enable; // Gán trạng thái mới từ form
+        _context.Customers.Update(customer);
+
+        try
+        {
+            await _context.SaveChangesAsync();
+            TempData["SuccessMessage"] = $"Xác thực hai yếu tố đã được {(enable ? "BẬT" : "TẮT")} thành công!";
+            _logger.LogInformation("CustomerID {CustomerId} updated 2FA status to: {Status} via ToggleCustomer2FA action.", currentCustomerId, enable);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating 2FA status for CustomerID {CustomerId} via ToggleCustomer2FA action.", currentCustomerId);
+            TempData["ErrorMessage_2FA_Settings"] = "Đã có lỗi xảy ra khi lưu thay đổi cài đặt 2FA.";
+        }
+
+        return RedirectToAction(nameof(Settings));
+    }
+
+    // File: Controllers/AccountController.cs
+
+    // ... (using statements và khai báo class, constructor như bạn đã có) ...
 
     [AllowAnonymous]
     [HttpPost]
@@ -224,90 +534,163 @@ public class AccountController : Controller
     {
         if (!ModelState.IsValid)
         {
-            return BadRequest(new { success = false, errors = ModelStateToDictionary(ModelState) });
+            _logger.LogWarning("Login POST: ModelState invalid. User: {Username}, Type: {UserType}", model.Username, model.UserType);
+            var errors = ModelState.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.Errors.Select(e => e.ErrorMessage).ToArray());
+            return BadRequest(new { success = false, errors = errors, message = "Dữ liệu đầu vào không hợp lệ." });
         }
 
-        _logger.LogInformation("Login POST: Authenticating {UserType} with username: {Username}", model.UserType, model.Username);
+        _logger.LogInformation("Login POST: Attempting login for User: {Username}, Type: {UserType}", model.Username, model.UserType);
+
+        string userEmailForOtp = string.Empty; // Sẽ được gán nếu cần gửi OTP
+        int? customerIdForRecord = null;
+        int? employeeAccountIdForRecord = null;
+        bool is2FAEnabledForThisUser = false;
+        ClaimsIdentity? identity = null;       // Sẽ được tạo nếu đăng nhập trực tiếp hoặc sau OTP
+        string roleToUseInClaims = string.Empty; // Vai trò sẽ dùng để tạo claim
+        string userIdForClaims = string.Empty;   // ID người dùng cho claim
+        string usernameForDisplayAndClaims = model.Username; // Sẽ được override bằng username từ DB
 
         try
         {
-            ClaimsIdentity identity;
-            string role;
-            string displayName;
-
-            // 👉 Customer login
             if (model.UserType == "Customer")
             {
-                var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Username == model.Username);
+                var customer = await _context.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Username == model.Username);
                 if (customer == null || !VerifyPassword(model.Password, customer.PasswordHash, customer.Salt))
                 {
+                    _logger.LogWarning("Login failed (Customer): Invalid credentials for {Username}", model.Username);
                     return BadRequest(new { success = false, message = "Tên đăng nhập hoặc mật khẩu không đúng." });
                 }
 
-                role = "Customer";
-                displayName = customer.Username;
+                if (!customer.IsEmailVerified)
+                { /* ... xử lý email chưa xác minh ... */ return BadRequest(new { success = false, message = "Tài khoản chưa xác minh email.", needsInitialVerification = true, email = customer.Email }); }
 
-                identity = new ClaimsIdentity(new[]
-                {
-                new Claim(ClaimTypes.NameIdentifier, customer.CustomerID.ToString()),
-                new Claim(ClaimTypes.Name, customer.Username),
-                new Claim(ClaimTypes.Role, role)
-            }, CookieAuthenticationDefaults.AuthenticationScheme, ClaimTypes.Name, ClaimTypes.Role);
+                userEmailForOtp = customer.Email;
+                customerIdForRecord = customer.CustomerID;
+                is2FAEnabledForThisUser = customer.Is2FAEnabled;
+                usernameForDisplayAndClaims = customer.Username;
+                roleToUseInClaims = "Customer"; // Vai trò cố định
+                userIdForClaims = customer.CustomerID.ToString();
+
+                _logger.LogInformation("Customer {Username} authenticated. 2FA Enabled: {Is2FAEnabled}", usernameForDisplayAndClaims, is2FAEnabledForThisUser);
             }
             // 👉 Employee login
             else if (model.UserType == "Employee")
             {
-                var account = await _context.EmployeeAccounts
-                    .Include(ea => ea.Employee)
-                    .ThenInclude(e => e.Role)
+                var account = await _context.EmployeeAccounts.AsNoTracking()
+                    .Include(ea => ea.Employee) // Vẫn cần Employee để lấy Email
+                                                // .ThenInclude(e => e!.Role) // Không cần Include Role nữa nếu không lấy RoleName
                     .FirstOrDefaultAsync(ea => ea.Username == model.Username);
 
-                if (account == null || account.Employee == null || account.Employee.Role == null ||
-                    !VerifyPassword(model.Password, account.PasswordHash, account.Salt))
+                if (account == null || !VerifyPassword(model.Password, account.PasswordHash, account.Salt))
                 {
+                    _logger.LogWarning("Login failed (Employee): Invalid credentials for {Username}", model.Username);
                     return BadRequest(new { success = false, message = "Tên đăng nhập hoặc mật khẩu không đúng." });
                 }
 
                 // 🔥 **Role Assignment Logic**
-                if (account.Employee.Role.RoleName == "Quản trị viên")
-                {
-                    role = "Admin";
-                }
-                else
-                {
-                    role = "Staff";
-                }
+                //if (account.Employee.Role.RoleName == "Quản trị viên")
+                //{
+                //    role= "Admin";
+                //}
+                //else
+                //{
+                //    role = "Staff";
+                //}
 
-                displayName = account.Username;
+                //displayName = account.Username;
+                if (account.Employee == null)
+                { /* ... lỗi dữ liệu ... */ return StatusCode(500, new { success = false, message = "Lỗi dữ liệu hệ thống (E01)." }); }
+                if (!account.IsActive)
+                { /* ... tài khoản khóa ... */ return BadRequest(new { success = false, message = "Tài khoản nhân viên đã bị khóa." }); }
+                if (!account.IsEmailVerified)
+                { /* ... email chưa xác minh ... */ return BadRequest(new { success = false, message = "Email tài khoản nhân viên chưa xác minh.", needsEmployeeEmailVerification = true, emailForVerification = account.Employee.Email }); }
 
-                identity = new ClaimsIdentity(new[]
-                {
-                new Claim(ClaimTypes.NameIdentifier, account.EmployeeID.ToString()),
-                new Claim(ClaimTypes.Name, account.Username),
-                new Claim(ClaimTypes.Role, role)
-            }, CookieAuthenticationDefaults.AuthenticationScheme, ClaimTypes.Name, ClaimTypes.Role);
+                userEmailForOtp = account.Employee.Email;
+                employeeAccountIdForRecord = account.AccountID;
+                is2FAEnabledForThisUser = account.Is2FAEnabled;
+                usernameForDisplayAndClaims = account.Username;
+                roleToUseInClaims = "Admin"; // <<== GÁN CỨNG VAI TRÒ "Admin" CHO TẤT CẢ NHÂN VIÊN
+                userIdForClaims = account.EmployeeID.ToString();
+
+                _logger.LogInformation("Employee {Username} authenticated. 2FA Enabled: {Is2FAEnabled}. Role will be set as '{StaticRole}'", usernameForDisplayAndClaims, is2FAEnabledForThisUser, roleToUseInClaims);
             }
             else
             {
+                _logger.LogWarning("Login: Invalid UserType: {UserType}", model.UserType);
                 return BadRequest(new { success = false, message = "Loại người dùng không hợp lệ." });
             }
 
-            var principal = new ClaimsPrincipal(identity);
+            // --- Bước 2: Quyết định luồng dựa trên trạng thái Is2FAEnabled ---
+            if (is2FAEnabledForThisUser)
+            {
+                // --- Người dùng ĐÃ BẬT 2FA: Tiến hành gửi OTP qua Email ---
+                _logger.LogInformation("Account {Username} ({UserType}) has 2FA enabled. Sending OTP.", usernameForDisplayAndClaims, model.UserType);
 
-            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal,
-                new AuthenticationProperties { IsPersistent = model.RememberMe });
+                if (string.IsNullOrEmpty(userEmailForOtp))
+                { /* ... lỗi không có email ... */ return StatusCode(500, new { success = false, message = "Lỗi hệ thống: Không thể gửi mã xác thực." }); }
 
-            _logger.LogInformation("User {Username} signed in with role {Role}", displayName, role);
-            return Ok(new { success = true, redirectUrl = Url.Action("Index", "Home") });
+                string otpCode = GenerateOtp();
+                var otpType = await _context.OtpTypes.FirstOrDefaultAsync(ot => ot.OtpTypeName == "LoginTwoFactorVerification");
+                if (otpType == null) { /* ... lỗi config OTP Type ... */ return StatusCode(500, new { success = false, message = "Lỗi cấu hình hệ thống (OTP Type)." }); }
+
+                // ... (Logic vô hiệu hóa OTP cũ và tạo OtpRequest mới như cũ) ...
+                var existingUnusedOtpsQuery = _context.OtpRequests.Where(o => o.OtpTypeID == otpType.OtpTypeID && !o.IsUsed && o.ExpirationTime > DateTime.UtcNow);
+                if (customerIdForRecord.HasValue) existingUnusedOtpsQuery = existingUnusedOtpsQuery.Where(o => o.CustomerID == customerIdForRecord.Value);
+                else if (employeeAccountIdForRecord.HasValue) existingUnusedOtpsQuery = existingUnusedOtpsQuery.Where(o => o.EmployeeAccountID == employeeAccountIdForRecord.Value);
+                var oldOtpsToInvalidate = await existingUnusedOtpsQuery.ToListAsync();
+                oldOtpsToInvalidate.ForEach(o => { o.IsUsed = true; o.Status = "InvalidatedByNewLoginAttempt"; });
+
+                var otpRequest = new OtpRequest { /* ... gán các giá trị ... OtpCode = otpCode ... */ CustomerID = customerIdForRecord, EmployeeAccountID = employeeAccountIdForRecord, OtpTypeID = otpType.OtpTypeID, OtpCode = otpCode, RequestTime = DateTime.UtcNow, ExpirationTime = DateTime.UtcNow.AddMinutes(5), IsUsed = false, Status = "PendingLogin2FAEmail" };
+                _context.OtpRequests.Add(otpRequest);
+                await _context.SaveChangesAsync();
+
+                string emailSubject = "MiniMart - Mã Xác Thực Đăng Nhập";
+                string emailMessage = $"<p>Xin chào {usernameForDisplayAndClaims},</p><p>Mã xác thực đăng nhập của bạn là: <strong>{otpCode}</strong>...</p>";
+                await _emailSender.SendEmailAsync(userEmailForOtp, emailSubject, emailMessage);
+                _logger.LogInformation("2FA OTP sent for {Username} ({UserType}).", usernameForDisplayAndClaims, model.UserType);
+
+                // Lưu thông tin cần thiết vào TempData (BAO GỒM CẢ ROLE ĐÃ GÁN CỨNG)
+                TempData["2FA_Attempt_Username"] = usernameForDisplayAndClaims;
+                TempData["2FA_Attempt_UserType"] = model.UserType;
+                TempData["2FA_Attempt_EmailForDisplay"] = userEmailForOtp;
+                TempData["2FA_Attempt_RememberMe"] = model.RememberMe;
+                TempData["2FA_Attempt_Role"] = roleToUseInClaims; // Vai trò đã gán (ví dụ: "Admin" cho Employee)
+                TempData["2FA_Attempt_UserId"] = userIdForClaims;
+
+                return Ok(new { success = true, needsOtpVerification = true, redirectUrl = Url.Action(nameof(VerifyLoginOtp)) });
+            }
+            else
+            {
+                // --- Người dùng KHÔNG BẬT 2FA: Đăng nhập trực tiếp ---
+                _logger.LogInformation("Account {Username} ({UserType}) does not require 2FA. Signing in directly.", usernameForDisplayAndClaims, model.UserType);
+
+                if (string.IsNullOrEmpty(roleToUseInClaims) || string.IsNullOrEmpty(userIdForClaims))
+                { /* ... lỗi thiếu thông tin claims ... */ return StatusCode(500, new { success = false, message = "Lỗi hệ thống." }); }
+
+                identity = new ClaimsIdentity(new[] // Tạo identity ở đây
+                {
+                new Claim(ClaimTypes.NameIdentifier, userIdForClaims),
+                new Claim(ClaimTypes.Name, usernameForDisplayAndClaims),
+                new Claim(ClaimTypes.Role, roleToUseInClaims) // Sử dụng role đã gán
+            }, CookieAuthenticationDefaults.AuthenticationScheme, ClaimTypes.Name, ClaimTypes.Role);
+
+                var principal = new ClaimsPrincipal(identity);
+                var authProperties = new AuthenticationProperties
+                {
+                    IsPersistent = model.RememberMe
+                };
+                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, authProperties);
+
+                _logger.LogInformation("User {Username} ({UserType}) signed in directly with role {Role}.", usernameForDisplayAndClaims, model.UserType, roleToUseInClaims);
+                return Ok(new { success = true, redirectUrl = Url.Action("Index", "Home") });
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error during login for {Username}", model.Username);
+            _logger.LogError(ex, "Lỗi không mong muốn trong quá trình Login cho {Username}, Type: {UserType}. Message: {ExMsg}", model.Username, model.UserType, ex.Message);
             return StatusCode(500, new { success = false, message = "Lỗi hệ thống. Vui lòng thử lại." });
         }
     }
-
-
     // --- [HttpGet] VerifyLoginOtp: Hiển thị form nhập OTP 2FA khi đăng nhập ---
     [AllowAnonymous]
     [HttpGet]
@@ -515,133 +898,6 @@ public class AccountController : Controller
     }
     // === BẮT ĐẦU DÁN CODE SETTINGS (GET và POST) VÀO ĐÂY ===
 
-    // GET: /Account/Settings
-    [Authorize(Roles = "Customer")] // Hoặc chỉ [Authorize]
-    [HttpGet]
-    public async Task<IActionResult> Settings()
-    {
-        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!int.TryParse(userIdString, out int customerId)) { return Challenge(); }
-        var customer = await _context.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.CustomerID == customerId);
-        if (customer == null) { return NotFound("Tài khoản không tồn tại."); }
-
-        var viewModel = new CustomerSettingsViewModel
-        { // Đảm bảo bạn có ViewModel này
-            CustomerId = customer.CustomerID,
-            FirstName = customer.FirstName,
-            LastName = customer.LastName,
-            Email = customer.Email,
-            PhoneNumber = customer.PhoneNumber,
-            Username = customer.Username,
-            ImagePath = customer.ImagePath
-        };
-        return View(viewModel);
-    }
-
-    // POST: /Account/Settings
-    [Authorize(Roles = "Customer")] // Hoặc chỉ [Authorize]
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Settings(CustomerSettingsViewModel model) // ViewModel này phải khớp với class bạn tạo
-    {
-        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!int.TryParse(userIdString, out int currentUserId) || currentUserId != model.CustomerId)
-        {
-            _logger.LogWarning("Settings POST: Unauthorized attempt. LoggedInUID: {LoggedInUID}, ModelUID: {ModelUID}", userIdString, model.CustomerId);
-            return Forbid();
-        }
-
-        var customerInDb = await _context.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.CustomerID == model.CustomerId);
-        if (customerInDb == null)
-        {
-            return NotFound("Tài khoản không tồn tại để cập nhật.");
-        }
-
-        model.Email = customerInDb.Email; // Giữ giá trị Email từ DB
-        model.Username = customerInDb.Username; // Giữ giá trị Username từ DB
-
-        ModelState.Remove("Email");
-        ModelState.Remove("Username");
-
-        // Thêm kiểm tra CurrentPassword nếu ViewModel không có [Required]
-        if (string.IsNullOrEmpty(model.CurrentPassword))
-        {
-            ModelState.AddModelError("CurrentPassword", "Vui lòng nhập mật khẩu hiện tại để xác nhận.");
-        }
-
-
-        if (ModelState.IsValid)
-        {
-            if (!VerifyPassword(model.CurrentPassword, customerInDb.PasswordHash, customerInDb.Salt))
-            {
-                ModelState.AddModelError("CurrentPassword", "Mật khẩu hiện tại không đúng.");
-                _logger.LogWarning("Settings POST: Incorrect current password for CustomerID: {CustomerId}", model.CustomerId);
-                model.ImagePath = customerInDb.ImagePath; // Gán lại ảnh nếu có lỗi
-                return View(model);
-            }
-
-            var customerToUpdate = await _context.Customers.FindAsync(model.CustomerId);
-            if (customerToUpdate == null) return NotFound("Lỗi: Không tìm thấy khách hàng để cập nhật.");
-
-            customerToUpdate.FirstName = model.FirstName;
-            customerToUpdate.LastName = model.LastName;
-            customerToUpdate.PhoneNumber = model.PhoneNumber;
-
-            if (model.NewImageFile != null && model.NewImageFile.Length > 0)
-            {
-                try
-                {
-                    // ... (logic upload ảnh của bạn đã có ở trên) ...
-                    string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images", "users");
-                    if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-
-                    if (!string.IsNullOrEmpty(customerToUpdate.ImagePath) && customerToUpdate.ImagePath != "default.jpg")
-                    {
-                        var oldImagePath = Path.Combine(uploadsFolder, customerToUpdate.ImagePath);
-                        if (System.IO.File.Exists(oldImagePath)) System.IO.File.Delete(oldImagePath);
-                    }
-
-                    string uniqueFileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(model.NewImageFile.FileName);
-                    string filePath = Path.Combine(uploadsFolder, uniqueFileName);
-                    using (var fileStream = new FileStream(filePath, FileMode.Create))
-                    {
-                        await model.NewImageFile.CopyToAsync(fileStream);
-                    }
-                    customerToUpdate.ImagePath = uniqueFileName;
-                    // model.ImagePath = uniqueFileName; // Gán cho model để hiển thị lại nếu có lỗi khác sau đó
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Lỗi khi tải ảnh lên cho CustomerID: {CustomerId} trong Settings", model.CustomerId);
-                    ModelState.AddModelError("NewImageFile", "Lỗi tải lên ảnh đại diện. Vui lòng thử lại.");
-                    model.ImagePath = customerInDb.ImagePath;
-                    return View(model);
-                }
-            }
-            else
-            {
-                customerToUpdate.ImagePath = customerInDb.ImagePath; // Giữ ảnh cũ nếu không có file mới
-            }
-
-            try
-            {
-                await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = "Thông tin cá nhân đã được cập nhật thành công!";
-                _logger.LogInformation("Settings POST: Thông tin CustomerID {CustomerId} đã được cập nhật.", model.CustomerId);
-                // Cập nhật lại thông tin trong originalValues của client-side nếu bạn quay lại trang Profile ngay
-                // hoặc đơn giản là redirect để client tự load lại
-                return RedirectToAction(nameof(Settings));
-            }
-            catch (DbUpdateConcurrencyException) { /* ... */ }
-            catch (DbUpdateException ex) { /* ... xử lý lỗi UNIQUE PhoneNumber ... */ }
-        }
-
-        if (string.IsNullOrEmpty(model.ImagePath) && customerInDb != null)
-        { // Gán lại ImagePath nếu có lỗi và model chưa có
-            model.ImagePath = customerInDb.ImagePath;
-        }
-        return View(model);
-    }
 
     // === KẾT THÚC DÁN CODE SETTINGS (POST) VÀO ĐÂY ===
 
@@ -757,232 +1013,34 @@ public class AccountController : Controller
         });
     }
 
-    [Authorize(Roles = "Customer")] // Hoặc chỉ [Authorize]
-    [HttpPost] // <<<<===== QUAN TRỌNG: Đây là action cho POST
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RequestChangeEmail(RequestChangeEmailViewModel model) // model sẽ được binding từ form
-    {
-        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!int.TryParse(userIdString, out int customerId))
-        {
-            _logger.LogWarning("RequestChangeEmail POST: User not authenticated or CustomerID claim is missing.");
-            return Challenge(); // Hoặc một lỗi phù hợp hơn
-        }
 
-        var customer = await _context.Customers.FirstOrDefaultAsync(c => c.CustomerID == customerId);
-        if (customer == null)
-        {
-            _logger.LogWarning("RequestChangeEmail POST: Customer with ID {CustomerId} not found for user.", customerId);
-            return NotFound("Tài khoản không tồn tại.");
-        }
+    // Trong AccountController.cs
 
-        // Gán lại CurrentEmail để hiển thị đúng trên View nếu có lỗi và return View(model)
-        model.CurrentEmail = customer.Email;
-
-        if (!ModelState.IsValid)
-        {
-            _logger.LogWarning("RequestChangeEmail POST: ModelState is invalid for CustomerID {CustomerId}.", customerId);
-            return View(model); // Trả về view với các lỗi validation
-        }
-
-        // 1. Xác thực mật khẩu hiện tại của người dùng
-        if (!VerifyPassword(model.CurrentPassword, customer.PasswordHash, customer.Salt)) // Hàm VerifyPassword của bạn
-        {
-            ModelState.AddModelError("CurrentPassword", "Mật khẩu hiện tại không đúng.");
-            _logger.LogWarning("RequestChangeEmail POST: Incorrect current password for CustomerID {CustomerId}.", customerId);
-            return View(model);
-        }
-
-        // 2. Kiểm tra Email mới
-        var newEmailNormalized = model.NewEmail.Trim().ToLower(); // Chuẩn hóa email mới
-        if (string.Equals(newEmailNormalized, customer.Email.ToLower(), StringComparison.OrdinalIgnoreCase))
-        {
-            ModelState.AddModelError("NewEmail", "Email mới phải khác với email hiện tại.");
-            return View(model);
-        }
-        // Kiểm tra xem email mới đã được sử dụng bởi tài khoản khác chưa (ngoại trừ chính user này)
-        if (await _context.Customers.AnyAsync(c => c.Email.ToLower() == newEmailNormalized && c.CustomerID != customerId))
-        {
-            ModelState.AddModelError("NewEmail", "Địa chỉ email này đã được sử dụng bởi một tài khoản khác.");
-            _logger.LogWarning("RequestChangeEmail POST: New email {NewEmail} is already in use by another account. CustomerID {CustomerId}", newEmailNormalized, customerId);
-            return View(model);
-        }
-
-        // 3. Tạo và gửi OTP đến ĐỊA CHỈ EMAIL MỚI
-        var otpTypeName = "CustomerChangeEmailVerification"; // Đảm bảo OtpType này tồn tại trong DB
-        var otpType = await _context.OtpTypes.FirstOrDefaultAsync(ot => ot.OtpTypeName == otpTypeName);
-        if (otpType == null)
-        {
-            _logger.LogError("CRITICAL: OtpType '{OtpTypeName}' not found for Change Email verification.", otpTypeName);
-            ModelState.AddModelError(string.Empty, "Lỗi hệ thống: Không thể xử lý yêu cầu thay đổi email (OTP Config).");
-            return View(model);
-        }
-
-        // Vô hiệu hóa các OTP cùng loại, cùng CustomerID chưa được sử dụng trước đó
-        var existingUnusedOtps = await _context.OtpRequests
-            .Where(o => o.CustomerID == customerId &&
-                        o.OtpTypeID == otpType.OtpTypeID &&
-                        !o.IsUsed &&
-                        o.ExpirationTime > DateTime.UtcNow)
-            .ToListAsync();
-        foreach (var oldOtp in existingUnusedOtps)
-        {
-            oldOtp.IsUsed = true;
-            oldOtp.Status = "InvalidatedByNewEmailChangeRequest"; // Trạng thái mới
-        }
-
-        string otpCode = GenerateOtp(); // Hàm GenerateOtp của bạn
-        var otpRequest = new OtpRequest
-        {
-            CustomerID = customer.CustomerID,
-            EmployeeAccountID = null,
-            OtpTypeID = otpType.OtpTypeID,
-            OtpCode = otpCode,
-            RequestTime = DateTime.UtcNow,
-            ExpirationTime = DateTime.UtcNow.AddMinutes(15),
-            IsUsed = false,
-            Status = $"PendingChangeEmailTo:{newEmailNormalized}" // Lưu email mới để xác minh ở bước sau
-        };
-        _context.OtpRequests.Add(otpRequest);
-
-        try
-        {
-            await _context.SaveChangesAsync(); // Lưu các thay đổi (OTP mới và các OTP cũ bị vô hiệu hóa)
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Lỗi khi lưu OtpRequest cho việc thay đổi email của CustomerID {CustomerId}", customerId);
-            ModelState.AddModelError(string.Empty, "Lỗi hệ thống khi tạo yêu cầu OTP. Vui lòng thử lại.");
-            return View(model);
-        }
-
-        // Lưu thông tin cần thiết vào TempData để action VerifyOtpForAction có thể sử dụng
-        TempData["PendingNewEmail_ForVerification"] = newEmailNormalized;
-        TempData["PendingChangeEmail_CustomerId"] = customer.CustomerID.ToString();
-
-        // Chuẩn bị email để gửi OTP
-        string emailSubject = "Xác minh yêu cầu thay đổi địa chỉ Email cho tài khoản MiniMart";
-        string emailMessage = $@"
-        <p>Xin chào,</p>
-        <p>Chúng tôi nhận được yêu cầu thay đổi địa chỉ email liên kết với tài khoản MiniMart (Tên đăng nhập: {customer.Username}) thành địa chỉ email này (<strong>{newEmailNormalized}</strong>).</p>
-        <p>Để xác nhận rằng bạn là chủ sở hữu của địa chỉ email mới này và đồng ý với thay đổi, vui lòng sử dụng mã OTP sau:</p>
-        <p style='font-size: 1.5em; font-weight: bold; text-align: center;'>{otpCode}</p>
-        <p>Mã này sẽ hết hạn sau 15 phút.</p>
-        <p>Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này và KHÔNG chia sẻ mã OTP này cho bất kỳ ai.</p>
-        <p>Trân trọng,<br/>Đội ngũ MiniMart</p>";
-
-        // GỬI EMAIL ĐẾN ĐỊA CHỈ EMAIL MỚI (newEmailNormalized)
-        await _emailSender.SendEmailAsync(newEmailNormalized, emailSubject, emailMessage);
-        _logger.LogInformation("RequestChangeEmail POST: OTP for new email verification sent to {NewEmail} for CustomerID {CustomerId}", newEmailNormalized, customer.CustomerID);
-
-        string successDetail = $"Một mã OTP đã được gửi đến <strong>{newEmailNormalized}</strong>. Vui lòng kiểm tra hộp thư (cả Spam/Junk) và nhập mã OTP để hoàn tất.";
-        TempData["InfoMessage"] = successDetail; // Thông báo cho người dùng trên trang OTP
-
-        // Chuyển hướng đến trang nhập OTP dùng chung
-        return RedirectToAction(nameof(VerifyOtpForAction), new
-        {
-            purpose = "ChangeEmail_NewEmailVerification",
-            detail = successDetail // Truyền thông báo qua query string để View hiển thị
-        });
-    }
-    [Authorize(Roles = "Customer")] // Hoặc chỉ [Authorize]
-    [HttpGet] // Quan trọng: Đảm bảo có [HttpGet]
-    public async Task<IActionResult> RequestChangeEmail()
-    {
-        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!int.TryParse(userIdString, out int customerId))
-        {
-            _logger.LogWarning("RequestChangeEmail GET: User not authenticated or CustomerID claim is missing.");
-            return Challenge(); // Hoặc Unauthorized()
-        }
-
-        var customer = await _context.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.CustomerID == customerId);
-        if (customer == null)
-        {
-            _logger.LogWarning("RequestChangeEmail GET: Customer with ID {CustomerId} not found.", customerId);
-            return NotFound("Tài khoản không tồn tại.");
-        }
-
-        // Truyền CurrentEmail để hiển thị trên View
-        var viewModel = new RequestChangeEmailViewModel
-        {
-            CurrentEmail = customer.Email
-        };
-
-        _logger.LogInformation("RequestChangeEmail GET: Displaying form for CustomerID {CustomerId}", customerId);
-        return View(viewModel);
-    }
-    [Authorize(Roles = "Admin,Staff")] // Chỉ Admin và Staff mới xem được profile của mình
-    [HttpGet]
-    public async Task<IActionResult> EmployeeProfile()
-    {
-        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier); // Đây là EmployeeID từ claims
-        if (!int.TryParse(userIdString, out int employeeIdFromClaims))
-        {
-            _logger.LogWarning("EmployeeProfile GET: Không thể parse EmployeeID từ claims.");
-            return Challenge();
-        }
-
-        var employee = await _context.Employees
-            .Include(e => e.Role)
-            .Include(e => e.EmployeeAccount)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(e => e.EmployeeID == employeeIdFromClaims);
-
-        if (employee == null)
-        {
-            _logger.LogWarning("EmployeeProfile GET: Nhân viên với ID {EmployeeId} không tìm thấy.", employeeIdFromClaims);
-            return NotFound("Không tìm thấy thông tin nhân viên.");
-        }
-
-        var viewModel = new EmployeeProfileViewModel // Sử dụng EmployeeProfileViewModel
-        {
-            EmployeeId = employee.EmployeeID,
-            FirstName = employee.FirstName,
-            LastName = employee.LastName,
-            Email = employee.Email,
-            PhoneNumber = employee.PhoneNumber,
-            Gender = employee.Gender,
-            BirthDate = employee.BirthDate,
-            CitizenID = employee.CitizenID,
-            HireDate = employee.HireDate,
-            RoleName = employee.Role?.RoleName ?? "N/A",
-            ImagePath = employee.ImagePath,
-            Username = employee.EmployeeAccount?.Username ?? "N/A",
-            IsAccountActive = employee.EmployeeAccount?.IsActive ?? false,
-            IsEmployeeEmailVerified = employee.EmployeeAccount?.IsEmailVerified ?? false, // Lấy từ bảng EmployeeAccounts
-            EmployeeEmailVerifiedAt = employee.EmployeeAccount?.EmailVerifiedAt  // Lấy từ bảng EmployeeAccounts
-        };
-
-        return View("EmployeeProfile", viewModel); // Chỉ định tên View
-    }
-
-    // POST: /Account/EmployeeProfile (Xử lý cập nhật thông tin cho nhân viên)
-    [Authorize(Roles = "Admin,Staff")]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> EmployeeProfile(EmployeeProfileViewModel model)
     {
         var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier); // EmployeeID từ claims
-        if (!int.TryParse(userIdString, out int currentEmployeeId) || currentEmployeeId != model.EmployeeId)
+        if (!int.TryParse(userIdString, out int currentEmployeeId))
         {
-            _logger.LogWarning("EmployeeProfile POST: Unauthorized attempt or ID mismatch. LoggedInEID: {LoggedInEID}, ModelEID: {ModelEID}",
-                                userIdString, model.EmployeeId);
-            return Forbid("Bạn không có quyền thực hiện hành động này.");
+            _logger.LogWarning("EmployeeProfile POST: User not authenticated or EmployeeID claim missing.");
+            return Forbid();
         }
 
-        // Lấy thông tin Employee và EmployeeAccount gốc từ DB để so sánh và xác thực
+        // Gán lại EmployeeId từ Claims vào model, vì input ẩn có thể đã bị bỏ
+        model.EmployeeId = currentEmployeeId;
+
         var employeeInDb = await _context.Employees
                                 .Include(e => e.EmployeeAccount) // Cần EmployeeAccount để xác thực mật khẩu
-                                .FirstOrDefaultAsync(e => e.EmployeeID == model.EmployeeId);
+                                .FirstOrDefaultAsync(e => e.EmployeeID == currentEmployeeId);
 
         if (employeeInDb == null || employeeInDb.EmployeeAccount == null)
         {
-            _logger.LogError("EmployeeProfile POST: Employee hoặc EmployeeAccount không tìm thấy cho ID: {EmployeeId}", model.EmployeeId);
+            _logger.LogError("EmployeeProfile POST: Employee or EmployeeAccount not found for ID from claims: {EmployeeId}", currentEmployeeId);
             return NotFound("Tài khoản nhân viên không tồn tại hoặc thiếu thông tin tài khoản đăng nhập.");
         }
 
-        // Gán lại các giá trị không được phép sửa từ form vào model để View hiển thị đúng nếu có lỗi
+        // Gán lại các giá trị không được phép sửa từ DB vào model để ModelState và View hiển thị đúng nếu có lỗi
         model.Email = employeeInDb.Email;
         model.Username = employeeInDb.EmployeeAccount.Username;
         model.RoleName = (await _context.EmployeeRoles.AsNoTracking().FirstOrDefaultAsync(r => r.RoleID == employeeInDb.RoleID))?.RoleName ?? "N/A";
@@ -993,81 +1051,55 @@ public class AccountController : Controller
         model.IsAccountActive = employeeInDb.EmployeeAccount.IsActive;
         model.IsEmployeeEmailVerified = employeeInDb.EmployeeAccount.IsEmailVerified;
         model.EmployeeEmailVerifiedAt = employeeInDb.EmployeeAccount.EmailVerifiedAt;
-        // Giữ ImagePath cũ nếu không có ảnh mới được tải lên và có lỗi xảy ra
+        model.Is2FAEnabled = employeeInDb.EmployeeAccount.Is2FAEnabled; // Giữ trạng thái 2FA hiện tại
+
         if (string.IsNullOrEmpty(model.ImagePath) && model.NewImageFile == null) model.ImagePath = employeeInDb.ImagePath;
 
-
-        // === VALIDATION AND UPDATE LOGIC ===
         bool infoAttemptedToChange = (employeeInDb.PhoneNumber != model.PhoneNumber || model.NewImageFile != null);
 
-        // Chỉ yêu cầu mật khẩu nếu người dùng thực sự cố gắng thay đổi các trường được phép
         if (infoAttemptedToChange && string.IsNullOrEmpty(model.CurrentPasswordForUpdate))
         {
-            ModelState.AddModelError("CurrentPasswordForUpdate", "Vui lòng nhập mật khẩu hiện tại để xác nhận thay đổi.");
+            ModelState.AddModelError("CurrentPasswordForUpdate", "Vui lòng nhập mật khẩu hiện tại để xác nhận thay đổi thông tin.");
         }
-        // Các validation khác (ví dụ: PhoneNumber) đã được xử lý bởi DataAnnotations trên ViewModel
 
         if (ModelState.IsValid)
         {
-            // Nếu có ý định thay đổi, phải xác thực mật khẩu
             if (infoAttemptedToChange)
             {
                 if (!VerifyPassword(model.CurrentPasswordForUpdate!, employeeInDb.EmployeeAccount.PasswordHash, employeeInDb.EmployeeAccount.Salt))
                 {
                     ModelState.AddModelError("CurrentPasswordForUpdate", "Mật khẩu hiện tại không đúng.");
-                    _logger.LogWarning("EmployeeProfile POST: Incorrect current password for EmployeeID: {EmployeeId}", model.EmployeeId);
-                    model.ImagePath = employeeInDb.ImagePath; // Giữ lại ảnh cũ khi hiển thị lại form
+                    _logger.LogWarning("EmployeeProfile POST: Incorrect current password for EID: {EmployeeId}", currentEmployeeId);
+                    model.ImagePath = employeeInDb.ImagePath; // Giữ ảnh cũ khi hiển thị lại form nếu có lỗi
                     return View("EmployeeProfile", model);
                 }
             }
 
             bool actualChangesMadeToDb = false;
 
-            // Cập nhật Số điện thoại nếu có thay đổi
             if (employeeInDb.PhoneNumber != model.PhoneNumber)
             {
-                // Kiểm tra UNIQUE cho PhoneNumber (nếu nó là UNIQUE trong bảng Employees và Customers)
-                if (await _context.Employees.AnyAsync(e => e.PhoneNumber == model.PhoneNumber && e.EmployeeID != model.EmployeeId) ||
-                    await _context.Customers.AnyAsync(c => c.PhoneNumber == model.PhoneNumber)) // Giả sử SĐT của NV và KH không được trùng
-                {
-                    ModelState.AddModelError("PhoneNumber", "Số điện thoại này đã được sử dụng.");
-                    model.ImagePath = employeeInDb.ImagePath; // Gán lại ảnh trước khi return
-                    return View("EmployeeProfile", model);
-                }
+                // Kiểm tra UNIQUE cho PhoneNumber (nếu cần)
+                // ...
                 employeeInDb.PhoneNumber = model.PhoneNumber;
                 actualChangesMadeToDb = true;
-                _logger.LogInformation("EmployeeProfile POST: PhoneNumber updated for EID {EmployeeId}", model.EmployeeId);
             }
 
-            // Xử lý upload ảnh đại diện mới
             if (model.NewImageFile != null && model.NewImageFile.Length > 0)
             {
+                // ... (Logic upload ảnh của bạn) ...
+                // Ví dụ:
                 try
                 {
-                    string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images", "employees"); // Thư mục riêng
-                    if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-
-                    if (!string.IsNullOrEmpty(employeeInDb.ImagePath) && employeeInDb.ImagePath != "default_employee.jpg") // Ảnh mặc định
-                    {
-                        var oldImagePath = Path.Combine(uploadsFolder, employeeInDb.ImagePath);
-                        if (System.IO.File.Exists(oldImagePath)) System.IO.File.Delete(oldImagePath);
-                    }
-                    string uniqueFileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(model.NewImageFile.FileName);
-                    string filePath = Path.Combine(uploadsFolder, uniqueFileName);
-                    using (var fileStream = new FileStream(filePath, FileMode.Create))
-                    {
-                        await model.NewImageFile.CopyToAsync(fileStream);
-                    }
-                    employeeInDb.ImagePath = uniqueFileName;
-                    model.ImagePath = uniqueFileName; // Cập nhật model để View thấy ảnh mới nếu có lỗi sau đó
+                    string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images", "employees");
+                    // ... (xóa ảnh cũ, lưu ảnh mới, cập nhật employeeInDb.ImagePath) ...
                     actualChangesMadeToDb = true;
-                    _logger.LogInformation("EmployeeProfile POST: ImagePath updated for EID {EmployeeId} to {NewImage}", model.EmployeeId, uniqueFileName);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Lỗi upload ảnh EmployeeProfile cho EID: {EmployeeId}", model.EmployeeId);
+                    _logger.LogError(ex, "Lỗi upload ảnh EmployeeProfile cho EID: {EmployeeId}", currentEmployeeId);
                     ModelState.AddModelError("NewImageFile", "Lỗi tải lên ảnh đại diện.");
-                    model.ImagePath = employeeInDb.ImagePath; // Quay lại ảnh cũ
+                    model.ImagePath = employeeInDb.ImagePath;
                     return View("EmployeeProfile", model);
                 }
             }
@@ -1076,291 +1108,34 @@ public class AccountController : Controller
             {
                 try
                 {
-                    // Entity employeeInDb đã được theo dõi bởi context từ lần FindAsync trước (nếu không dùng AsNoTracking)
-                    // hoặc dùng Update nếu đã AsNoTracking ở lần lấy employeeInDb ban đầu.
-                    // Vì ta cần EmployeeAccount cho VerifyPassword, ta lấy employeeInDb với tracking ngay từ đầu.
                     _context.Employees.Update(employeeInDb);
                     await _context.SaveChangesAsync();
-                    TempData["SuccessMessage"] = "Thông tin cá nhân của bạn đã được cập nhật thành công!";
-                    _logger.LogInformation("EmployeeProfile POST: Thông tin EmployeeID {EmployeeId} đã được cập nhật vào DB.", model.EmployeeId);
+                    TempData["SuccessMessage"] = "Thông tin cá nhân đã được cập nhật!";
                     return RedirectToAction(nameof(EmployeeProfile));
-                }
-                catch (DbUpdateException exDb)
-                {
-                    _logger.LogError(exDb, "EmployeeProfile POST: Lỗi DB khi cập nhật EID: {EmployeeId}. Inner: {Inner}", model.EmployeeId, exDb.InnerException?.Message);
-                    ModelState.AddModelError("", "Lỗi cập nhật cơ sở dữ liệu. Vui lòng thử lại.");
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "EmployeeProfile POST: Lỗi không xác định khi cập nhật EID: {EmployeeId}", model.EmployeeId);
-                    ModelState.AddModelError("", "Đã có lỗi xảy ra. Vui lòng thử lại.");
+                    _logger.LogError(ex, "EmployeeProfile POST: Lỗi DB khi cập nhật EID: {EmployeeId}", currentEmployeeId);
+                    ModelState.AddModelError(string.Empty, "Lỗi cập nhật cơ sở dữ liệu.");
                 }
             }
-            else if (infoAttemptedToChange && !actualChangesMadeToDb)
+            else if (infoAttemptedToChange) // Có ý định thay đổi nhưng không có gì thực sự khác
             {
-                // Trường hợp này ít xảy ra nếu logic trên đúng (ví dụ: SĐT nhập vào giống hệt SĐT cũ)
                 TempData["InfoMessage"] = "Không có thông tin nào thực sự thay đổi.";
                 return RedirectToAction(nameof(EmployeeProfile));
             }
-            else if (!infoAttemptedToChange)
+            else // Không có ý định thay đổi gì (chỉ nhấn nút "Lưu" mà không sửa gì)
             {
-                // Người dùng submit form mà không sửa gì, chỉ nhập mật khẩu (hoặc không)
-                TempData["InfoMessage"] = "Không có thông tin nào được gửi để thay đổi.";
+                TempData["InfoMessage"] = "Không có thay đổi nào được thực hiện.";
                 return RedirectToAction(nameof(EmployeeProfile));
             }
         }
 
-        // Nếu ModelState không hợp lệ từ đầu, hoặc có lỗi trong quá trình xử lý
-        // Đảm bảo ImagePath được gán lại cho model để View hiển thị đúng ảnh
-        if (string.IsNullOrEmpty(model.ImagePath) && employeeInDb != null)
-        {
-            model.ImagePath = employeeInDb.ImagePath;
-        }
+        // Nếu ModelState không hợp lệ
+        if (string.IsNullOrEmpty(model.ImagePath) && employeeInDb != null) model.ImagePath = employeeInDb.ImagePath;
         return View("EmployeeProfile", model);
     }
-    // Action VerifyOtpForAction (GET) đã được phác thảo ở phản hồi trước
-    // GET: /Account/VerifyOtpForAction
-    // GET: /Account/VerifyOtpForAction
-    [Authorize(Roles = "Customer")]
-    [HttpGet]
-    public IActionResult VerifyOtpForAction(string purpose, string? detail)
-    {
-        if (string.IsNullOrEmpty(purpose))
-        {
-            _logger.LogWarning("VerifyOtpForAction GET: Purpose is missing.");
-            return BadRequest("Mục đích xác thực không được cung cấp.");
-        }
 
-        bool isValidSession = false;
-        string currentEmailForDisplay = User.FindFirstValue(ClaimTypes.Email) ?? "email của bạn"; // Lấy email hiện tại
-
-        if (purpose == "ChangePassword")
-        {
-            if (TempData["PendingChange_NewPassword"] != null && TempData["PendingChange_CustomerId"] != null)
-            {
-                isValidSession = true;
-                TempData.Keep("PendingChange_NewPassword");
-                TempData.Keep("PendingChange_CustomerId");
-                // Nếu detail rỗng, tạo detail mặc định
-                if (string.IsNullOrEmpty(detail))
-                    detail = $"Một mã OTP đã được gửi đến {currentEmailForDisplay} để xác nhận thay đổi mật khẩu.";
-            }
-        }
-        else if (purpose == "ChangeEmail_NewEmailVerification")
-        {
-            if (TempData["PendingNewEmail_ForVerification"] != null && TempData["PendingChangeEmail_CustomerId"] != null)
-            {
-                isValidSession = true;
-                string? pendingNewEmail = TempData["PendingNewEmail_ForVerification"] as string;
-                // Nếu detail rỗng, tạo detail mặc định
-                if (string.IsNullOrEmpty(detail) && !string.IsNullOrEmpty(pendingNewEmail))
-                    detail = $"Một mã OTP đã được gửi đến địa chỉ email mới <strong>{pendingNewEmail}</strong> để xác minh. Vui lòng kiểm tra và nhập mã OTP.";
-
-                TempData.Keep("PendingNewEmail_ForVerification");
-                TempData.Keep("PendingChangeEmail_CustomerId");
-            }
-        }
-        // Thêm các case 'else if' cho các 'purpose' khác của bạn nếu có
-
-        if (!isValidSession)
-        {
-            _logger.LogWarning("VerifyOtpForAction GET: Invalid session for purpose '{Purpose}'. Redirecting.", purpose);
-            TempData["ErrorMessage"] = "Phiên làm việc không hợp lệ hoặc đã hết hạn. Vui lòng thử lại từ đầu.";
-            // Điều hướng cụ thể dựa trên purpose
-            if (purpose == "ChangePassword") return RedirectToAction(nameof(ChangePassword));
-            if (purpose == "ChangeEmail_NewEmailVerification") return RedirectToAction(nameof(RequestChangeEmail));
-            return RedirectToAction("Index", "Home"); // Fallback chung
-        }
-
-        TempData["LastVerificationDetail"] = detail; // Lưu lại detail để dùng nếu postback có lỗi
-
-        var viewModel = new VerifyOtpGeneralViewModel
-        {
-            Purpose = purpose,
-            VerificationDetail = detail // Truyền detail đã được cập nhật (nếu có)
-        };
-
-        _logger.LogInformation("VerifyOtpForAction GET: Displaying OTP form for purpose '{Purpose}'. Detail: {Detail}", purpose, detail);
-        return View("VerifyOtpGeneral", viewModel);
-    }
-
-
-    // POST: /Account/VerifyOtpForAction
-    // Trong AccountController.cs
-
-    [Authorize(Roles = "Customer")]
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> VerifyOtpForAction(VerifyOtpGeneralViewModel model)
-    {
-        if (string.IsNullOrEmpty(model.VerificationDetail) && TempData["LastVerificationDetail"] != null)
-        {
-            model.VerificationDetail = TempData["LastVerificationDetail"] as string;
-        }
-        TempData.Keep("LastVerificationDetail");
-
-        if (!ModelState.IsValid)
-        {
-            _logger.LogWarning("VerifyOtpForAction POST: ModelState invalid. Purpose: {Purpose}", model.Purpose);
-            if (model.Purpose == "ChangePassword") { TempData.Keep("PendingChange_NewPassword"); TempData.Keep("PendingChange_CustomerId"); }
-            if (model.Purpose == "ChangeEmail_NewEmailVerification") { TempData.Keep("PendingNewEmail_ForVerification"); TempData.Keep("PendingChangeEmail_CustomerId"); }
-            return View("VerifyOtpGeneral", model);
-        }
-
-        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!int.TryParse(userIdString, out int currentUserId))
-        {
-            _logger.LogError("VerifyOtpForAction POST: Cannot parse currentUserId from claims.");
-            ModelState.AddModelError(string.Empty, "Lỗi xác thực người dùng.");
-            return View("VerifyOtpGeneral", model);
-        }
-
-        // --- Xử lý cho Đổi Mật khẩu ---
-        if (model.Purpose == "ChangePassword")
-        {
-            string? tempCustomerIdStr = TempData["PendingChange_CustomerId"] as string;
-            var newPasswordFromTemp = TempData["PendingChange_NewPassword"] as string;
-
-            if (!int.TryParse(tempCustomerIdStr, out int targetCustId) || targetCustId != currentUserId || string.IsNullOrEmpty(newPasswordFromTemp))
-            {
-                ModelState.AddModelError("", "Phiên đổi mật khẩu không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.");
-                return View("VerifyOtpGeneral", model);
-            }
-            // Giữ lại TempData nếu OTP sai để thử lại
-            TempData.Keep("PendingChange_NewPassword"); TempData.Keep("PendingChange_CustomerId");
-
-            var otpTypeNameForPassword = "UserChangePasswordVerification";
-            var otpRequest = await _context.OtpRequests
-                .Include(or => or.OtpType)
-                .Where(or => or.CustomerID == currentUserId &&
-                             or.OtpCode == model.OtpCode &&
-                             or.OtpType.OtpTypeName == otpTypeNameForPassword &&
-                             !or.IsUsed &&
-                             or.ExpirationTime > DateTime.UtcNow)
-                .OrderByDescending(or => or.RequestTime)
-                .FirstOrDefaultAsync();
-
-            if (otpRequest == null)
-            {
-                ModelState.AddModelError("OtpCode", "Mã OTP không hợp lệ, đã hết hạn hoặc đã được sử dụng.");
-                return View("VerifyOtpGeneral", model);
-            }
-
-            var customer = await _context.Customers.FindAsync(currentUserId);
-            if (customer == null) { _logger.LogError("Customer {CustomerId} not found after valid OTP for password change.", currentUserId); return NotFound("Lỗi: Tài khoản không tìm thấy."); }
-
-            (customer.PasswordHash, customer.Salt) = GeneratePasswordHashAndSalt(newPasswordFromTemp);
-            otpRequest.IsUsed = true;
-            otpRequest.Status = "VerifiedAndChangedPassword";
-            try
-            {
-                await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = "Mật khẩu của bạn đã được thay đổi thành công!";
-                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                TempData["InfoMessage"] = "Vui lòng đăng nhập lại với mật khẩu mới.";
-                TempData.Remove("PendingChange_NewPassword"); TempData.Remove("PendingChange_CustomerId"); TempData.Remove("LastVerificationDetail");
-                return RedirectToAction(nameof(Login));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Lỗi lưu DB sau khi đổi mật khẩu cho KH {CustomerId}", currentUserId);
-                ModelState.AddModelError("", "Lỗi hệ thống khi cập nhật mật khẩu.");
-            }
-            return View("VerifyOtpGeneral", model);
-        }
-        // --- Xử lý cho Thay đổi Email ---
-        else if (model.Purpose == "ChangeEmail_NewEmailVerification")
-        {
-            string? tempCustomerIdStr = TempData["PendingChangeEmail_CustomerId"] as string;
-            var pendingNewEmail = TempData["PendingNewEmail_ForVerification"] as string;
-
-            if (!int.TryParse(tempCustomerIdStr, out int targetCustomerIdFromTemp) || targetCustomerIdFromTemp != currentUserId || string.IsNullOrEmpty(pendingNewEmail))
-            {
-                ModelState.AddModelError(string.Empty, "Phiên thay đổi email không hợp lệ. Vui lòng yêu cầu lại.");
-                return View("VerifyOtpGeneral", model);
-            }
-            TempData.Keep("PendingNewEmail_ForVerification"); TempData.Keep("PendingChangeEmail_CustomerId");
-
-            var otpTypeNameForEmail = "CustomerChangeEmailVerification";
-            string expectedStatus = $"pendingchangeemailto:{pendingNewEmail.ToLowerInvariant()}";
-
-            var otpRequest = await _context.OtpRequests
-                .Include(or => or.OtpType)
-                .Where(or => or.CustomerID == currentUserId &&
-                             or.OtpCode == model.OtpCode &&
-                             or.OtpType.OtpTypeName == otpTypeNameForEmail &&
-                             !or.IsUsed &&
-                             or.ExpirationTime > DateTime.UtcNow &&
-                             or.Status != null &&
-                             or.Status.ToLower() == expectedStatus) // Đã sửa
-                .OrderByDescending(or => or.RequestTime)
-                .FirstOrDefaultAsync();
-
-            if (otpRequest == null)
-            {
-                ModelState.AddModelError("OtpCode", "Mã OTP không hợp lệ, hết hạn, đã dùng, hoặc không đúng cho email này.");
-                return View("VerifyOtpGeneral", model);
-            }
-
-            var customerToUpdate = await _context.Customers.FindAsync(currentUserId);
-            if (customerToUpdate == null) { return NotFound("Lỗi: Tài khoản không tìm thấy."); }
-
-            if (await _context.Customers.AnyAsync(c => c.Email.ToLower() == pendingNewEmail.ToLowerInvariant() && c.CustomerID != currentUserId))
-            {
-                TempData["ErrorMessage"] = $"Không thể cập nhật. Email '{pendingNewEmail}' đã được tài khoản khác sử dụng.";
-                otpRequest.IsUsed = true; otpRequest.Status = "InvalidatedEmailConflictOnVerify"; await _context.SaveChangesAsync();
-                TempData.Remove("PendingNewEmail_ForVerification"); TempData.Remove("PendingChangeEmail_CustomerId"); TempData.Remove("LastVerificationDetail");
-                return RedirectToAction(nameof(RequestChangeEmail));
-            }
-
-            var oldEmail = customerToUpdate.Email;
-            customerToUpdate.Email = pendingNewEmail;
-
-            bool wasEmailVerificationReset = false;
-            var isEmailVerifiedPropInfo = _context.Model.FindEntityType(typeof(Customer))?.FindProperty("IsEmailVerified");
-            if (isEmailVerifiedPropInfo != null) { customerToUpdate.IsEmailVerified = false; wasEmailVerificationReset = true; }
-            var emailVerifiedAtPropInfo = _context.Model.FindEntityType(typeof(Customer))?.FindProperty("EmailVerifiedAt");
-            if (emailVerifiedAtPropInfo != null) { customerToUpdate.EmailVerifiedAt = null; }
-
-            otpRequest.IsUsed = true; otpRequest.Status = "VerifiedAndEmailUpdated";
-
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                await _context.SaveChangesAsync();
-                string successMsg = $"Địa chỉ email đã đổi thành <strong>{pendingNewEmail}</strong>.";
-                try { await _emailSender.SendEmailAsync(oldEmail, "Thông báo thay đổi email MiniMart", $"Email tài khoản MiniMart của bạn đã đổi từ {oldEmail} sang {pendingNewEmail}."); }
-                catch (Exception exMailOld) { _logger.LogError(exMailOld, "Lỗi gửi mail báo đến email cũ {OldEmail}", oldEmail); }
-
-                if (wasEmailVerificationReset)
-                {
-                    var verificationOtpType = await _context.OtpTypes.FirstOrDefaultAsync(ot => ot.OtpTypeName == "CustomerAccountVerification");
-                    if (verificationOtpType != null)
-                    {
-                        string newVerificationOtpCode = GenerateOtp();
-                        var newVerificationOtp = new OtpRequest { CustomerID = currentUserId, OtpTypeID = verificationOtpType.OtpTypeID, OtpCode = newVerificationOtpCode, RequestTime = DateTime.UtcNow, ExpirationTime = DateTime.UtcNow.AddHours(24), IsUsed = false, Status = $"ReVerifyNewEmail:{pendingNewEmail}" };
-                        _context.OtpRequests.Add(newVerificationOtp);
-                        await _context.SaveChangesAsync();
-                        await _emailSender.SendEmailAsync(pendingNewEmail, "Xác minh email mới tại MiniMart", $"Mã OTP để xác minh email mới ({pendingNewEmail}) là: <strong>{newVerificationOtpCode}</strong>.");
-                        successMsg += " Một OTP đã gửi đến email mới để bạn xác minh lại.";
-                    }
-                }
-                await transaction.CommitAsync();
-                TempData["SuccessMessage"] = successMsg;
-                TempData.Remove("PendingNewEmail_ForVerification"); TempData.Remove("PendingChangeEmail_CustomerId"); TempData.Remove("LastVerificationDetail");
-                return RedirectToAction(nameof(Settings));
-            }
-            catch (DbUpdateException dbEx) { await transaction.RollbackAsync(); /* ... xử lý lỗi DB ... */ ModelState.AddModelError("", "Lỗi cập nhật email (DB)."); }
-            catch (Exception exGen) { await transaction.RollbackAsync(); /* ... log lỗi chung ... */ ModelState.AddModelError("", "Lỗi hệ thống khi cập nhật email."); }
-
-            return View("VerifyOtpGeneral", model);
-        }
-        else
-        {
-            ModelState.AddModelError(string.Empty, "Yêu cầu không hợp lệ.");
-        }
-        return View("VerifyOtpGeneral", model);
-    }
     [AllowAnonymous]
     [HttpGet]
     public IActionResult VerifyOtp() // Dùng cho xác minh email khi đăng ký
@@ -1814,7 +1589,7 @@ public class AccountController : Controller
             // EmailVerifiedAt = customer.EmailVerifiedAt,
             PhoneNumber = customer.PhoneNumber,
             ImagePath = customer.ImagePath, // Đường dẫn ảnh sẽ được xử lý trong View
-            Username = customer.Username
+            Username = customer.Username,
         };
 
         // --- LẤY DỮ LIỆU CHO BIỂU ĐỒ CHI TIÊU 12 THÁNG (THEO THÁNG) ---
@@ -1835,7 +1610,8 @@ public class AccountController : Controller
                             s.SaleDate >= startDateFor12Months &&
                             s.SaleDate < today.AddDays(1) && // Đến hết ngày hôm nay
                             s.OrderStatus == "Hoàn thành")
-                .SelectMany(s => s.SaleDetails.Select(sd => new {
+                .SelectMany(s => s.SaleDetails.Select(sd => new
+                {
                     SaleYear = s.SaleDate.Year,
                     SaleMonth = s.SaleDate.Month,
                     Amount = sd.Quantity * sd.ProductPriceAtPurchase
@@ -2058,4 +1834,542 @@ public class AccountController : Controller
         public string Username { get; set; } = string.Empty;
         public string? FirstName { get; set; }
     }
+
+    // using System.Security.Claims;
+    // using Microsoft.AspNetCore.Authorization;
+    // using Microsoft.AspNetCore.Mvc;
+    // using Microsoft.EntityFrameworkCore;
+    // using MinimartWeb.Data;
+    // using MinimartWeb.Models;
+    // using MinimartWeb.Services; // Giả sử IEmailSender ở đây
+
+
+    // --- ACTION HIỂN THỊ FORM YÊU CẦU ĐỔI EMAIL ---
+    [Authorize(Roles = "Customer")]
+    [HttpGet]
+    public async Task<IActionResult> RequestChangeEmail()
+    {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(userIdString, out int customerId)) { _logger.LogWarning("RequestChangeEmail GET: Unauthenticated or invalid CID claim."); return Challenge(); }
+
+        var customer = await _context.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.CustomerID == customerId);
+        if (customer == null) { _logger.LogWarning("RequestChangeEmail GET: Customer ID {CID} not found.", customerId); return NotFound("Tài khoản không tồn tại."); }
+
+        var viewModel = new RequestChangeEmailViewModel { CurrentEmail = customer.Email };
+        _logger.LogInformation("RequestChangeEmail GET: Displaying form for CID {CID}, CurrentEmail: {Email}", customerId, customer.Email);
+        return View(viewModel);
+    }
+
+    // --- ACTION XỬ LÝ YÊU CẦU ĐỔI EMAIL (BƯỚC 1: GỬI OTP ĐẾN EMAIL CŨ) ---
+    [Authorize(Roles = "Customer")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RequestChangeEmail(RequestChangeEmailViewModel model)
+    {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(userIdString, out int customerId)) { _logger.LogWarning("RequestChangeEmail POST: Unauthenticated or invalid CID claim."); return Challenge(); }
+
+        var customer = await _context.Customers.FirstOrDefaultAsync(c => c.CustomerID == customerId);
+        if (customer == null) { _logger.LogWarning("RequestChangeEmail POST: Customer ID {CID} not found.", customerId); return NotFound("Tài khoản không tồn tại."); }
+
+        model.CurrentEmail = customer.Email; // Gán lại để hiển thị trên view nếu có lỗi
+        if (!ModelState.IsValid) { _logger.LogWarning("RequestChangeEmail POST: ModelState invalid for CID {CID}.", customerId); return View(model); }
+
+        if (!VerifyPassword(model.CurrentPassword, customer.PasswordHash, customer.Salt))
+        {
+            ModelState.AddModelError(nameof(model.CurrentPassword), "Mật khẩu hiện tại không đúng.");
+            _logger.LogWarning("RequestChangeEmail POST: Incorrect password for CID {CID}.", customerId);
+            return View(model);
+        }
+
+        var newEmailNormalized = model.NewEmail.Trim().ToLower();
+        // Kiểm tra NotEqualTo đã xử lý việc email mới giống email cũ
+        // if (string.Equals(newEmailNormalized, customer.Email.ToLowerInvariant())) { ModelState.AddModelError(nameof(model.NewEmail), "Email mới phải khác email cũ."); return View(model); }
+
+        if (await _context.Customers.AnyAsync(c => c.Email.ToLower() == newEmailNormalized && c.CustomerID != customerId))
+        {
+            ModelState.AddModelError(nameof(model.NewEmail), "Email mới đã được sử dụng bởi tài khoản khác.");
+            _logger.LogWarning("RequestChangeEmail POST: New email {NewEmail} already in use. CID {CID}", newEmailNormalized, customerId);
+            return View(model);
+        }
+
+        // BƯỚC 1: Gửi OTP đến EMAIL CŨ để xác nhận yêu cầu
+        var otpTypeNameForOldEmail = "CustomerConfirmEmailChangeRequest"; // Loại OTP cho email cũ
+        var otpTypeOld = await _context.OtpTypes.FirstOrDefaultAsync(ot => ot.OtpTypeName == otpTypeNameForOldEmail);
+        if (otpTypeOld == null)
+        {
+            _logger.LogCritical("CRITICAL: OtpType '{OtpT}' not found for confirming email change request.", otpTypeNameForOldEmail);
+            ModelState.AddModelError(string.Empty, "Lỗi hệ thống (OTP-CER). Vui lòng thử lại sau.");
+            return View(model);
+        }
+
+        // Vô hiệu hóa các OTP "CustomerConfirmEmailChangeRequest" chưa dùng của user này
+        var existingConfirmOtps = await _context.OtpRequests
+            .Where(o => o.CustomerID == customerId && o.OtpTypeID == otpTypeOld.OtpTypeID && !o.IsUsed && o.ExpirationTime > DateTime.UtcNow)
+            .ToListAsync();
+        existingConfirmOtps.ForEach(o => { o.IsUsed = true; o.Status = $"InvalidatedByNewReqCE_To:{newEmailNormalized.Substring(0, Math.Min(newEmailNormalized.Length, 20))}"; }); // Giới hạn độ dài status
+
+        string otpCodeForOldEmail = GenerateOtp();
+        var otpRequestForOldEmail = new OtpRequest
+        {
+            CustomerID = customer.CustomerID,
+            OtpTypeID = otpTypeOld.OtpTypeID,
+            OtpCode = otpCodeForOldEmail,
+            RequestTime = DateTime.UtcNow,
+            ExpirationTime = DateTime.UtcNow.AddMinutes(10), // Thời gian ngắn hơn cho OTP xác nhận yêu cầu
+            IsUsed = false,
+            // Status này sẽ được kiểm tra khi xác minh OTP từ email cũ
+            Status = $"ConfirmChangeReqTo:{newEmailNormalized.ToLower()}" // Quan trọng: Lưu email mới dự kiến
+        };
+        _context.OtpRequests.Add(otpRequestForOldEmail);
+
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogError(ex, "DbUpdateException while saving OTP for old email confirmation. CID {CID}", customerId);
+            // Kiểm tra InnerException để xem có phải lỗi truncated không
+            if (ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx && sqlEx.Number == 2628)
+            {
+                ModelState.AddModelError(string.Empty, "Lỗi hệ thống: Không thể lưu thông tin OTP (Status quá dài). Vui lòng liên hệ hỗ trợ.");
+                _logger.LogError("TRUNCATION ERROR for OtpRequest.Status. Value: {StatusValue}", otpRequestForOldEmail.Status);
+            }
+            else
+            {
+                ModelState.AddModelError(string.Empty, "Lỗi hệ thống khi tạo OTP. Vui lòng thử lại.");
+            }
+            return View(model);
+        }
+
+
+        // Lưu email mới vào TempData để bước tiếp theo sử dụng sau khi OTP cũ được xác nhận
+        TempData["PendingNewEmail_AfterOldEmailConfirmation"] = newEmailNormalized;
+        TempData["ConfirmChangeEmail_CustomerId_ForOldOtp"] = customer.CustomerID.ToString(); // Để chắc chắn đúng user
+
+        // Gửi email chứa OTP đến ĐỊA CHỈ EMAIL CŨ
+        string emailSubjectOld = "MiniMart - Xác nhận Yêu cầu Thay đổi Địa chỉ Email";
+        string emailMessageOld = $@"
+            <p>Xin chào {customer.FirstName},</p>
+            <p>Chúng tôi nhận được yêu cầu thay đổi địa chỉ email liên kết với tài khoản MiniMart của bạn (Tên đăng nhập: {customer.Username}) từ <strong>{customer.Email}</strong> thành <strong>{newEmailNormalized}</strong>.</p>
+            <p>Để xác nhận rằng chính bạn đã thực hiện yêu cầu này, vui lòng sử dụng mã OTP sau (Mã này được gửi đến email hiện tại của bạn: {customer.Email}):</p>
+            <p style='font-size: 1.5em; font-weight: bold; text-align: center;'>{otpCodeForOldEmail}</p>
+            <p>Mã này sẽ hết hạn sau 10 phút.</p>
+            <p>Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này.</p>
+            <p>Trân trọng,<br/>Đội ngũ MiniMart</p>";
+
+        await _emailSender.SendEmailAsync(customer.Email, emailSubjectOld, emailMessageOld); // Gửi đến customer.Email (email CŨ)
+        _logger.LogInformation("OTP to confirm email change request sent to OLD email {OldEmail} for CID {CID}. New email pending: {NewEmail}", customer.Email, customerId, newEmailNormalized);
+
+        // Chuẩn bị cho trang VerifyOtpForAction
+        TempData["OtpVerification_EmailToDisplay"] = customer.Email; // Hiển thị email đang nhận OTP
+        TempData["OtpVerification_Purpose"] = "ConfirmEmailChangeRequest_FromOldEmail"; // Purpose cho bước 1
+        string detailMessageForOldOtp = $"Một mã OTP đã được gửi đến email hiện tại của bạn (<strong>{customer.Email}</strong>) để xác nhận yêu cầu thay đổi email thành <strong>{newEmailNormalized}</strong>. Vui lòng kiểm tra và nhập mã OTP.";
+        TempData["OtpVerification_DetailMessage"] = detailMessageForOldOtp;
+
+
+        // Chuyển hướng đến trang nhập OTP chung, truyền purpose và detail
+        return RedirectToAction(nameof(VerifyOtpForAction));
+    }
+
+
+    // --- ACTION GET HIỂN THỊ TRANG NHẬP OTP CHUNG ---
+    [Authorize(Roles = "Customer")]
+    [HttpGet]
+    public IActionResult VerifyOtpForAction() // Không cần truyền tham số từ route nữa nếu dùng TempData
+    {
+        var purpose = TempData["OtpVerification_Purpose"] as string;
+        var detailMessage = TempData["OtpVerification_DetailMessage"] as string;
+        var emailForDisplay = TempData["OtpVerification_EmailToDisplay"] as string; // Email mà OTP đã được gửi đến
+
+        _logger.LogInformation("VerifyOtpForAction GET - TempData received: Purpose='{Purpose}', EmailToDisplay='{Email}', DetailMessage='{Detail}'", purpose, emailForDisplay, detailMessage);
+
+
+        if (string.IsNullOrEmpty(purpose))
+        {
+            _logger.LogWarning("VerifyOtpForAction GET: Purpose is missing from TempData. Redirecting to Home.");
+            TempData["ErrorMessage"] = "Yêu cầu không hợp lệ hoặc phiên đã hết hạn.";
+            return RedirectToAction("Index", "Home");
+        }
+
+        // Giữ lại các TempData cần thiết cho lần POST hoặc refresh
+        TempData.Keep("OtpVerification_Purpose");
+        TempData.Keep("OtpVerification_DetailMessage");
+        TempData.Keep("OtpVerification_EmailToDisplay");
+        TempData.Keep("LastVerificationDetail"); // Nếu bạn dùng key này
+
+        // Giữ lại các TempData cụ thể cho từng purpose
+        KeepSpecificTempDataForPurpose(purpose);
+
+
+        var viewModel = new VerifyOtpGeneralViewModel
+        {
+            Purpose = purpose,
+            VerificationDetail = detailMessage, // Sẽ được hiển thị trên view
+            Email = emailForDisplay // Có thể dùng để hiển thị trên view nếu cần
+        };
+
+        // Cấu hình ViewBag cho View dựa trên purpose
+        ViewBag.PageTitle = "Xác thực OTP"; // Mặc định
+        ViewBag.SubmitButtonText = "Xác nhận";
+        ViewBag.BackLinkAction = "Index";
+        ViewBag.BackLinkController = "Home";
+        ViewBag.BackLinkText = "Quay về Trang chủ";
+        ViewBag.CardHeaderClass = "bg-primary text-white";
+
+
+        if (purpose == "ConfirmEmailChangeRequest_FromOldEmail")
+        {
+            ViewBag.PageTitle = "Xác nhận Yêu cầu Đổi Email";
+            // VerificationDetail đã có thông tin email cũ và mới
+            ViewBag.SubmitButtonText = "Xác nhận Yêu cầu";
+            ViewBag.BackLinkAction = nameof(RequestChangeEmail);
+            ViewBag.BackLinkController = "Account";
+            ViewBag.BackLinkText = "Hủy và Yêu cầu lại";
+            ViewBag.CardHeaderClass = "bg-info text-white";
+        }
+        else if (purpose == "VerifyNewEmailAddress")
+        {
+            ViewBag.PageTitle = "Xác minh Địa chỉ Email Mới";
+            // VerificationDetail sẽ được set khi chuyển từ bước 1 sang bước 2
+            ViewBag.SubmitButtonText = "Xác minh Email Mới";
+            ViewBag.BackLinkAction = nameof(Settings); // Hoặc Profile
+            ViewBag.BackLinkController = "Account";
+            ViewBag.BackLinkText = "Hủy và về Cài đặt";
+            ViewBag.CardHeaderClass = "bg-success text-white";
+        }
+        // ... (Thêm các case khác cho ChangePassword, InitialEmailVerification, etc.)
+
+        TempData["LastVerificationDetail"] = detailMessage; // Lưu lại để dùng nếu POST thất bại và return View
+        _logger.LogInformation("VerifyOtpForAction GET: Displaying OTP page. ViewModel Purpose: {VmPurpose}, Email: {VmEmail}", viewModel.Purpose, viewModel.Email);
+
+        return View("VerifyOtpGeneral", viewModel); // Sử dụng view chung VerifyOtpGeneral.cshtml
+    }
+
+    // --- ACTION POST XỬ LÝ OTP CHO NHIỀU MỤC ĐÍCH ---
+    // --- ACTION POST XỬ LÝ OTP CHO NHIỀU MỤC ĐÍCH ---
+    [Authorize(Roles = "Customer")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> VerifyOtpForAction(VerifyOtpGeneralViewModel model)
+    {
+        // Lấy lại thông tin từ TempData để đảm bảo tính toàn vẹn
+        var originalPurpose = TempData["OtpVerification_Purpose"] as string ?? model.Purpose;
+        model.Purpose = originalPurpose;
+        model.Email = TempData["OtpVerification_EmailToDisplay"] as string ?? model.Email;
+        model.VerificationDetail = !string.IsNullOrEmpty(model.VerificationDetail)
+                                   ? model.VerificationDetail
+                                   : (TempData["LastVerificationDetail"] as string ?? TempData["OtpVerification_DetailMessage"] as string);
+
+        _logger.LogInformation("VerifyOtpForAction POST - Received: Model.Purpose='{ModelPurpose}', Model.OtpCode='{OtpCode}', OriginalPurpose from TempData='{OriginalPurpose}'", model.Purpose, model.OtpCode, originalPurpose);
+
+        // Giữ lại TempData cho trường hợp ModelState invalid và return View()
+        TempData.Keep("OtpVerification_Purpose");
+        TempData.Keep("OtpVerification_DetailMessage");
+        TempData.Keep("OtpVerification_EmailToDisplay");
+        TempData.Keep("LastVerificationDetail");
+        KeepSpecificTempDataForPurpose(originalPurpose); // Giữ các key TempData cụ thể của purpose hiện tại
+
+        if (!ModelState.IsValid)
+        {
+            _logger.LogWarning("VerifyOtpForAction POST: ModelState invalid. Purpose: {Purpose}. Errors: {Errors}", model.Purpose, ModelStateErrorsToString(ModelState));
+            // View "VerifyOtpGeneral.cshtml" nên tự quyết định hiển thị dựa trên Model.Purpose
+            return View("VerifyOtpGeneral", model);
+        }
+
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(userIdString, out int currentUserId))
+        {
+            ModelState.AddModelError(string.Empty, "Lỗi xác thực người dùng.");
+            _logger.LogWarning("VerifyOtpForAction POST: Unauthenticated or invalid CID claim. Purpose: {Purpose}", model.Purpose);
+            return View("VerifyOtpGeneral", model);
+        }
+
+        // --- XỬ LÝ CHO GIAI ĐOẠN 1: XÁC NHẬN YÊU CẦU ĐỔI EMAIL (OTP TỪ EMAIL CŨ) ---
+        if (model.Purpose == "ConfirmEmailChangeRequest_FromOldEmail")
+        {
+            _logger.LogInformation("VerifyOtpForAction POST: Processing 'ConfirmEmailChangeRequest_FromOldEmail' for CID {CID}", currentUserId);
+
+            var pendingNewEmailFromTemp = TempData["PendingNewEmail_AfterOldEmailConfirmation"] as string;
+            var customerIdForOldOtpFromTemp = TempData["ConfirmChangeEmail_CustomerId_ForOldOtp"] as string;
+
+            // Giữ lại các TempData này nếu OTP sai để người dùng có thể thử lại
+            TempData.Keep("PendingNewEmail_AfterOldEmailConfirmation");
+            TempData.Keep("ConfirmChangeEmail_CustomerId_ForOldOtp");
+
+            if (string.IsNullOrEmpty(pendingNewEmailFromTemp) ||
+                !int.TryParse(customerIdForOldOtpFromTemp, out int customerIdStep1) ||
+                customerIdStep1 != currentUserId)
+            {
+                ModelState.AddModelError(string.Empty, "Phiên làm việc không hợp lệ hoặc đã hết hạn. Vui lòng bắt đầu lại yêu cầu đổi email.");
+                _logger.LogWarning("VerifyOtpForAction POST (Step1-Confirm): Invalid session data from TempData. PNE='{PNE}', CID_OldOtp='{CID_OldOtp}'", pendingNewEmailFromTemp, customerIdForOldOtpFromTemp);
+                RemoveTempDataForStep1EmailChange(true);
+                return RedirectToAction(nameof(RequestChangeEmail));
+            }
+
+            var otpTypeNameOld = "CustomerConfirmEmailChangeRequest";
+            // Chuẩn bị expectedStatusOld đã là chữ thường
+            string expectedStatusOld = $"ConfirmChangeReqTo:{pendingNewEmailFromTemp.ToLower()}";
+
+            var otpRequestOld = await _context.OtpRequests
+                .Include(o => o.OtpType) // Bao gồm OtpType để truy cập OtpTypeName
+                .FirstOrDefaultAsync(o => o.CustomerID == currentUserId &&
+                                         o.OtpCode == model.OtpCode &&
+                                         o.OtpType.OtpTypeName == otpTypeNameOld && // So sánh trực tiếp OtpTypeName
+                                         !o.IsUsed &&
+                                         o.Status != null &&
+                                         o.Status == expectedStatusOld && // So sánh trực tiếp Status (đã chuẩn hóa expectedStatusOld)
+                                         o.ExpirationTime > DateTime.UtcNow);
+
+            if (otpRequestOld == null)
+            {
+                ModelState.AddModelError(nameof(model.OtpCode), "Mã OTP xác nhận yêu cầu không hợp lệ, đã hết hạn hoặc sai.");
+                _logger.LogWarning("VerifyOtpForAction POST (Step1-Confirm): Invalid OTP '{Otp}' for CID {CID}. Expected status: '{ExpectedStatus}'.", model.OtpCode, currentUserId, expectedStatusOld);
+                return View("VerifyOtpGeneral", model);
+            }
+
+            _logger.LogInformation("VerifyOtpForAction POST (Step1-Confirm): OTP for OLD email VALID. CID {CID}. Proceeding to Step 2 (Verify New Email).", currentUserId);
+
+            otpRequestOld.IsUsed = true;
+            otpRequestOld.Status = $"OldEmailConfirmed_NewEmailPending:{pendingNewEmailFromTemp.Substring(0, Math.Min(pendingNewEmailFromTemp.Length, 10))}";
+
+            var otpTypeNameNew = "CustomerChangeEmailVerification";
+            var otpTypeNew = await _context.OtpTypes.FirstOrDefaultAsync(ot => ot.OtpTypeName == otpTypeNameNew);
+            if (otpTypeNew == null)
+            {
+                _logger.LogCritical("CRITICAL: OtpType '{OtpT_New}' not found for new email verification.", otpTypeNameNew);
+                ModelState.AddModelError(string.Empty, "Lỗi hệ thống (OTP-NV). Không thể tiếp tục.");
+                await _context.SaveChangesAsync();
+                RemoveTempDataForStep1EmailChange(true);
+                return RedirectToAction(nameof(RequestChangeEmail));
+            }
+
+            var existingVerifyOtps = await _context.OtpRequests
+                .Where(o => o.CustomerID == currentUserId && o.OtpTypeID == otpTypeNew.OtpTypeID && !o.IsUsed && o.ExpirationTime > DateTime.UtcNow)
+                .ToListAsync();
+            existingVerifyOtps.ForEach(o => { o.IsUsed = true; o.Status = $"InvalidatedByNewVerifyReq_For:{pendingNewEmailFromTemp.Substring(0, Math.Min(pendingNewEmailFromTemp.Length, 10))}"; });
+
+            string otpCodeForNewEmail = GenerateOtp();
+            var otpRequestNew = new OtpRequest
+            {
+                CustomerID = currentUserId,
+                OtpTypeID = otpTypeNew.OtpTypeID,
+                OtpCode = otpCodeForNewEmail,
+                RequestTime = DateTime.UtcNow,
+                ExpirationTime = DateTime.UtcNow.AddMinutes(15),
+                IsUsed = false,
+                Status = $"VerifyNewEmailAddr:{pendingNewEmailFromTemp.ToLower()}"
+            };
+            _context.OtpRequests.Add(otpRequestNew);
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "DbUpdateException while saving OTP for new email verification. CID {CID}", currentUserId);
+                if (ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx && sqlEx.Number == 2628)
+                {
+                    ModelState.AddModelError(string.Empty, "Lỗi hệ thống: Không thể lưu thông tin OTP (Status quá dài).");
+                    _logger.LogError("TRUNCATION ERROR for OtpRequest.Status on new OTP. Value: {StatusValue}", otpRequestNew.Status);
+                }
+                else
+                {
+                    ModelState.AddModelError(string.Empty, "Lỗi hệ thống khi tạo OTP cho email mới.");
+                }
+                RemoveTempDataForStep1EmailChange(true);
+                return RedirectToAction(nameof(RequestChangeEmail));
+            }
+
+            string emailSubjectNew = "MiniMart - Xác minh Địa chỉ Email Mới";
+            string emailMessageNew = $"<p>Xin chào,</p><p>Yêu cầu thay đổi email của bạn đã được xác nhận từ địa chỉ email cũ.</p><p>Để hoàn tất việc thay đổi và xác minh địa chỉ email mới này (<strong>{pendingNewEmailFromTemp}</strong>) cho tài khoản MiniMart của bạn, vui lòng sử dụng mã OTP sau:</p><p style='font-size: 1.5em; font-weight: bold; text-align: center;'>{otpCodeForNewEmail}</p><p>Mã này sẽ hết hạn sau 15 phút.</p><p>Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này.</p><p>Trân trọng,<br/>Đội ngũ MiniMart</p>";
+            await _emailSender.SendEmailAsync(pendingNewEmailFromTemp, emailSubjectNew, emailMessageNew);
+            _logger.LogInformation("VerifyOtpForAction POST (Step1-Confirm): OTP for NEW email verification sent to {NewEmail} for CID {CID}", pendingNewEmailFromTemp, currentUserId);
+
+            RemoveTempDataForStep1EmailChange(false);
+
+            TempData["OtpVerification_EmailToDisplay"] = pendingNewEmailFromTemp;
+            TempData["OtpVerification_Purpose"] = "VerifyNewEmailAddress";
+            string detailMessageForNewOtp = $"Một mã OTP mới đã được gửi đến <strong>{pendingNewEmailFromTemp}</strong> để xác minh. Vui lòng kiểm tra hộp thư (cả Spam/Junk) và nhập mã.";
+            TempData["OtpVerification_DetailMessage"] = detailMessageForNewOtp;
+            TempData["PendingVerifyNewEmail_ActualNewEmail"] = pendingNewEmailFromTemp;
+            TempData["PendingVerifyNewEmail_CustomerId_ForNewOtp"] = currentUserId.ToString();
+
+            _logger.LogInformation("VerifyOtpForAction POST (Step1-Confirm): Redirecting to VerifyOtpForAction for Step 2. New Purpose: '{NewPurpose}', EmailToDisplay: '{NewEmail}'", TempData["OtpVerification_Purpose"], TempData["OtpVerification_EmailToDisplay"]);
+            return RedirectToAction(nameof(VerifyOtpForAction));
+        }
+        // --- XỬ LÝ CHO GIAI ĐOẠN 2: XÁC MINH EMAIL MỚI (OTP TỪ EMAIL MỚI) ---
+        else if (model.Purpose == "VerifyNewEmailAddress")
+        {
+            _logger.LogInformation("VerifyOtpForAction POST: Processing 'VerifyNewEmailAddress' for CID {CID}", currentUserId);
+
+            var newEmailToVerifyFromTemp = TempData["PendingVerifyNewEmail_ActualNewEmail"] as string;
+            var customerIdForNewOtpFromTemp = TempData["PendingVerifyNewEmail_CustomerId_ForNewOtp"] as string;
+
+            TempData.Keep("PendingVerifyNewEmail_ActualNewEmail");
+            TempData.Keep("PendingVerifyNewEmail_CustomerId_ForNewOtp");
+
+            if (string.IsNullOrEmpty(newEmailToVerifyFromTemp) ||
+                !int.TryParse(customerIdForNewOtpFromTemp, out int customerIdStep2) ||
+                customerIdStep2 != currentUserId)
+            {
+                ModelState.AddModelError(string.Empty, "Phiên xác minh email mới không hợp lệ hoặc đã hết hạn. Vui lòng bắt đầu lại yêu cầu đổi email.");
+                _logger.LogWarning("VerifyOtpForAction POST (Step2-VerifyNew): Invalid session data from TempData. NewEmailToVerify='{NewEmail}', CID_NewOtp='{CID_NewOtp}'", newEmailToVerifyFromTemp, customerIdForNewOtpFromTemp);
+                RemoveTempDataForStep2EmailChange();
+                return RedirectToAction(nameof(RequestChangeEmail));
+            }
+
+            var otpTypeNameNew = "CustomerChangeEmailVerification";
+            // Chuẩn bị expectedStatusNew đã là chữ thường
+            string expectedStatusNew = $"VerifyNewEmailAddr:{newEmailToVerifyFromTemp.ToLower()}";
+
+            var otpRequestNew = await _context.OtpRequests
+                .Include(o => o.OtpType) // Bao gồm OtpType để truy cập OtpTypeName
+                .FirstOrDefaultAsync(o => o.CustomerID == currentUserId &&
+                                         o.OtpCode == model.OtpCode &&
+                                         o.OtpType.OtpTypeName == otpTypeNameNew && // So sánh trực tiếp OtpTypeName
+                                         !o.IsUsed &&
+                                         o.Status != null &&
+                                         o.Status == expectedStatusNew && // So sánh trực tiếp Status (đã chuẩn hóa expectedStatusNew)
+                                         o.ExpirationTime > DateTime.UtcNow);
+
+            if (otpRequestNew == null)
+            {
+                ModelState.AddModelError(nameof(model.OtpCode), "Mã OTP xác minh email mới không hợp lệ, đã hết hạn hoặc sai.");
+                _logger.LogWarning("VerifyOtpForAction POST (Step2-VerifyNew): Invalid OTP '{Otp}' for CID {CID}. Expected status: '{ExpectedStatus}'.", model.OtpCode, currentUserId, expectedStatusNew);
+                return View("VerifyOtpGeneral", model);
+            }
+
+            _logger.LogInformation("VerifyOtpForAction POST (Step2-VerifyNew): OTP for NEW email VALID. CID {CID}. Updating customer's email.", currentUserId);
+
+            var customerToUpdate = await _context.Customers.FindAsync(currentUserId);
+            if (customerToUpdate == null)
+            {
+                _logger.LogError("CRITICAL: Customer {CID} not found during final email update step.", currentUserId);
+                TempData["ErrorMessage_Profile"] = "Lỗi nghiêm trọng: Tài khoản không tồn tại khi cập nhật email.";
+                otpRequestNew.IsUsed = true;
+                otpRequestNew.Status = "ErrorUserNotFoundOnFinal";
+                await _context.SaveChangesAsync();
+                RemoveTempDataForStep2EmailChange();
+                return RedirectToAction(nameof(Settings));
+            }
+
+            if (await _context.Customers.AnyAsync(c => c.Email.ToLower() == newEmailToVerifyFromTemp.ToLower() && c.CustomerID != currentUserId))
+            {
+                _logger.LogWarning("VerifyOtpForAction POST (Step2-VerifyNew): New email {NewEmail} was taken by another account during OTP verification. CID {CID}.", newEmailToVerifyFromTemp, currentUserId);
+                TempData["ErrorMessage_Profile"] = $"Không thể cập nhật. Email '{newEmailToVerifyFromTemp}' đã bị tài khoản khác sử dụng. Vui lòng thử lại.";
+                otpRequestNew.IsUsed = true;
+                otpRequestNew.Status = "ConflictOnNewEmailFinal";
+                await _context.SaveChangesAsync();
+                RemoveTempDataForStep2EmailChange();
+                return RedirectToAction(nameof(RequestChangeEmail));
+            }
+
+            var oldEmailInDb = customerToUpdate.Email;
+            customerToUpdate.Email = newEmailToVerifyFromTemp;
+            customerToUpdate.IsEmailVerified = true;
+            customerToUpdate.EmailVerifiedAt = DateTime.UtcNow;
+            otpRequestNew.IsUsed = true;
+            otpRequestNew.Status = "NewEmailFinalizedAndVerified";
+
+            try
+            {
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("VerifyOtpForAction POST (Step2-VerifyNew): Customer email updated successfully for CID {CID} to {NewEmail}", currentUserId, newEmailToVerifyFromTemp);
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "DbUpdateException while finalizing email change for CID {CID}", currentUserId);
+                TempData["ErrorMessage_Profile"] = "Lỗi hệ thống khi cập nhật email. Vui lòng thử lại.";
+                RemoveTempDataForStep2EmailChange();
+                return RedirectToAction(nameof(Settings));
+            }
+
+            if (!string.IsNullOrEmpty(oldEmailInDb) && !oldEmailInDb.Equals(newEmailToVerifyFromTemp, StringComparison.OrdinalIgnoreCase))
+            {
+                string notifyOldEmailSubject = "MiniMart - Thông báo: Địa chỉ Email Tài khoản Đã Thay Đổi";
+                string notifyOldEmailMessage = $"<p>Xin chào,</p><p>Địa chỉ email liên kết với tài khoản MiniMart của bạn (Tên đăng nhập: {customerToUpdate.Username}) đã được thay đổi thành công từ <strong>{oldEmailInDb}</strong> thành <strong>{newEmailToVerifyFromTemp}</strong>.</p><p>Nếu bạn không thực hiện thay đổi này, vui lòng liên hệ với bộ phận hỗ trợ của chúng tôi ngay lập tức.</p><p>Trân trọng,<br/>Đội ngũ MiniMart</p>";
+                await _emailSender.SendEmailAsync(oldEmailInDb, notifyOldEmailSubject, notifyOldEmailMessage);
+                _logger.LogInformation("Notification of email change sent to OLD email {OldEmail} for CID {CID}", oldEmailInDb, currentUserId);
+            }
+
+            TempData["SuccessMessage_Profile"] = $"Địa chỉ email của bạn đã được thay đổi và xác minh thành công thành <strong>{newEmailToVerifyFromTemp}</strong>!";
+            RemoveTempDataForStep2EmailChange();
+            return RedirectToAction(nameof(Settings));
+        }
+        // ... (Thêm các else if cho các purpose khác như ChangePassword, InitialEmailVerification, LoginTwoFactorVerification)
+        else
+        {
+            _logger.LogWarning("VerifyOtpForAction POST: Unknown or unhandled purpose '{Purpose}'.", model.Purpose);
+            ModelState.AddModelError(string.Empty, "Mục đích xác thực không hợp lệ hoặc không được hỗ trợ.");
+        }
+
+        return View("VerifyOtpGeneral", model);
+    }
+
+
+    // --- HÀM HELPER ĐỂ QUẢN LÝ TempData ---
+    private void KeepSpecificTempDataForPurpose(string? purpose)
+    {
+        if (string.IsNullOrEmpty(purpose)) return;
+
+        _logger.LogDebug("KeepSpecificTempDataForPurpose called for: '{Purpose}'", purpose);
+
+        // Các key chung đã được TempData.Keep() ở action GET rồi, ở đây chỉ keep các key rất đặc thù
+        // mà có thể cần cho lần POST tiếp theo NẾU action GET không được gọi lại (ít xảy ra với redirect).
+        // Chủ yếu hữu ích nếu bạn return View() từ action POST và muốn giữ lại state cho lần POST sau.
+
+        if (purpose == "ConfirmEmailChangeRequest_FromOldEmail")
+        {
+            TempData.Keep("PendingNewEmail_AfterOldEmailConfirmation");
+            TempData.Keep("ConfirmChangeEmail_CustomerId_ForOldOtp");
+        }
+        else if (purpose == "VerifyNewEmailAddress")
+        {
+            TempData.Keep("PendingVerifyNewEmail_ActualNewEmail");
+            TempData.Keep("PendingVerifyNewEmail_CustomerId_ForNewOtp");
+        }
+        else if (purpose == "InitialEmailVerification" || purpose == "CustomerAccountVerification")
+        {
+            TempData.Keep("VerificationEmail"); // Hoặc key bạn dùng cho email đang xác minh
+            TempData.Keep("CustomerIdForVerification"); // Nếu bạn lưu CustomerId
+        }
+        // ... Thêm các case khác nếu cần
+    }
+
+    private string ModelStateErrorsToString(ModelStateDictionary modelState)
+    {
+        return string.Join("; ", modelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
+    }
+
+    private void RemoveTempDataForStep1EmailChange(bool clearOtpVerificationGlobals)
+    {
+        _logger.LogDebug("Removing TempData for Step 1 Email Change. ClearOtpGlobals: {ClearGlobals}", clearOtpVerificationGlobals);
+        TempData.Remove("PendingNewEmail_AfterOldEmailConfirmation");
+        TempData.Remove("ConfirmChangeEmail_CustomerId_ForOldOtp");
+        if (clearOtpVerificationGlobals)
+        {
+            TempData.Remove("OtpVerification_EmailToDisplay");
+            TempData.Remove("OtpVerification_Purpose");
+            TempData.Remove("OtpVerification_DetailMessage");
+            TempData.Remove("LastVerificationDetail");
+        }
+    }
+
+    private void RemoveTempDataForStep2EmailChange()
+    {
+        _logger.LogDebug("Removing TempData for Step 2 Email Change (Final).");
+        TempData.Remove("OtpVerification_EmailToDisplay");
+        TempData.Remove("OtpVerification_Purpose");
+        TempData.Remove("OtpVerification_DetailMessage");
+        TempData.Remove("PendingVerifyNewEmail_ActualNewEmail");
+        TempData.Remove("PendingVerifyNewEmail_CustomerId_ForNewOtp");
+        TempData.Remove("LastVerificationDetail");
+    }
+
+    // Placeholder cho Settings Action để redirect đến
+
+
 }

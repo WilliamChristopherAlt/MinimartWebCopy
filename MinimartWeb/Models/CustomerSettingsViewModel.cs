@@ -40,5 +40,11 @@ namespace MinimartWeb.Models // HOẶC MinimartWeb.Models TÙY CẤU TRÚC CỦA
         [DataType(DataType.Password)]
         [Display(Name = "Mật khẩu hiện tại")]
         public string CurrentPassword { get; set; } = string.Empty;
+        [Display(Name = "Xác thực hai yếu tố (2FA) qua Email")]
+        public bool Is2FAEnabled { get; set; } // Trạng thái hiện tại
+
+        [DataType(DataType.Password)]
+        [Display(Name = "Mật khẩu hiện tại")]
+        public string? PasswordForChange2FAStatus { get; set; } // Dùng khi bật hoặc tắt
     }
 }

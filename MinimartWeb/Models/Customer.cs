@@ -1,4 +1,5 @@
 ﻿// Trong file: Model/Customer.cs
+using MinimartWeb.Models;
 using System;
 using System.Collections.Generic; // Cần cho ICollection
 using System.ComponentModel.DataAnnotations;
@@ -52,6 +53,9 @@ namespace MinimartWeb.Model
 
         [Display(Name = "Thời điểm xác minh Email")]
         public DateTime? EmailVerifiedAt { get; set; }
+        [Required] // Vì trong DB bạn set NOT NULL DEFAULT 0
+        public bool Is2FAEnabled { get; set; }
+        // Thuộc tính này sẽ được EF map với cột Is2FAEnabled trong bảng Customers
 
 
         // === NAVIGATION PROPERTIES CẦN THÊM/SỬA ===
@@ -59,5 +63,7 @@ namespace MinimartWeb.Model
         public virtual ICollection<OtpRequest> OtpRequests { get; set; } = new HashSet<OtpRequest>(); // Collection các OtpRequest liên quan
         public virtual ICollection<ViewHistory> ViewHistories { get; set; } = new HashSet<ViewHistory>(); // Nếu có
         public virtual ICollection<SearchHistory> SearchHistories { get; set; } = new HashSet<SearchHistory>(); // Nếu có
+        public virtual ICollection<Notification> Notifications { get; set; }
+        public virtual ICollection<LoginAttempt> LoginAttempts { get; set; }
     }
 }

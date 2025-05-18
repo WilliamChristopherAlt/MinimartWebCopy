@@ -63,7 +63,7 @@ CREATE TABLE ProductTags (
     CONSTRAINT UQ_ProductTags_ProductType_Tag UNIQUE (ProductTypeID, TagID)
 );
 
--- Customers table
+-- Customers
 CREATE TABLE Customers (
     CustomerID INT IDENTITY(1,1),
     FirstName NVARCHAR(255) NOT NULL,
@@ -76,6 +76,7 @@ CREATE TABLE Customers (
     Salt VARBINARY(64) NOT NULL,
 	IsEmailVerified BIT NOT NULL DEFAULT 0,
     EmailVerifiedAt DATETIME2 NULL,
+	Is2FAEnabled BIT NOT NULL DEFAULT 0
     CONSTRAINT PK_Customers PRIMARY KEY (CustomerID),
     CONSTRAINT UQ_Customers_Email UNIQUE (Email),
     CONSTRAINT UQ_Customers_PhoneNumber UNIQUE (PhoneNumber),
@@ -124,6 +125,7 @@ CREATE TABLE EmployeeAccounts (
 	IsAdmin BIT DEFAULT 0,
 	IsEmailVerified BIT NOT NULL DEFAULT 0,
     EmailVerifiedAt DATETIME2 NULL,
+	Is2FAEnabled BIT NOT NULL DEFAULT 0,
     CONSTRAINT PK_Admins PRIMARY KEY (AccountID),
     CONSTRAINT FK_Admins_Employee FOREIGN KEY (EmployeeID) REFERENCES Employees(EmployeeID) ON DELETE CASCADE,
     CONSTRAINT UQ_Admins_Username UNIQUE (Username)
@@ -140,7 +142,7 @@ CREATE TABLE PaymentMethods (
 CREATE TABLE Sales (
     SaleID INT IDENTITY(1,1),
     SaleDate DATETIME NOT NULL DEFAULT GETDATE(),
-    CustomerID INT NULL,
+    CustomerID INT NOT NULL,
     EmployeeID INT NOT NULL,
     PaymentMethodID INT NOT NULL,
     DeliveryAddress NVARCHAR(255) NOT NULL,
@@ -151,9 +153,8 @@ CREATE TABLE Sales (
     CONSTRAINT FK_Sales_Customer FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID) ON DELETE CASCADE,
     CONSTRAINT FK_Sales_Employee FOREIGN KEY (EmployeeID) REFERENCES Employees(EmployeeID) ON DELETE CASCADE,
     CONSTRAINT FK_Sales_PaymentMethod FOREIGN KEY (PaymentMethodID) REFERENCES PaymentMethods(PaymentMethodID) ON DELETE CASCADE,
-	CONSTRAINT CK_Sales_OrderStatus CHECK (OrderStatus IN (N'Chờ xử lý', N'Đã xác nhận', N'Đang xử lý', N'Hoàn thành', N'Đã hủy'))
+	CONSTRAINT CK_Sales_OrderStatus CHECK (OrderStatus IN (N'Chờ xử lý', N'Đã xác nhận', N'Đang xử lý', N'Hoàn thành', N'Đã hủy', N'Bị từ chối'))
 );
-
 
 -- Sale details (line items)
 CREATE TABLE SaleDetails (
@@ -168,6 +169,64 @@ CREATE TABLE SaleDetails (
     CONSTRAINT CK_SaleDetails_Quantity CHECK (Quantity > 0),
     CONSTRAINT CK_SaleDetails_ProductPriceAtPurchase CHECK (ProductPriceAtPurchase >= 0)
 );
+
+CREATE TABLE Notifications (
+    NotificationID INT IDENTITY(1,1) PRIMARY KEY,
+    
+    -- Mutually exclusive columns
+    CustomerID INT NULL,
+    EmployeeAccountID INT NULL,
+    
+    SaleID INT NULL, -- Foreign key to Sales, nullable if not linked to a sale
+    Title NVARCHAR(255) NOT NULL,
+    Message NVARCHAR(MAX) NOT NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+    IsRead BIT NOT NULL DEFAULT 0,
+    NotificationType NVARCHAR(50) NOT NULL,
+    
+    -- Foreign Key Constraints
+    FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID) ON DELETE CASCADE,
+    FOREIGN KEY (EmployeeAccountID) REFERENCES EmployeeAccounts(AccountID) ON DELETE CASCADE,
+    FOREIGN KEY (SaleID) REFERENCES Sales(SaleID),
+
+    -- 🔥 Mutually exclusive constraint:
+    CONSTRAINT CHK_Notifications_Exclusivity CHECK (
+        (CustomerID IS NOT NULL AND EmployeeAccountID IS NULL) OR 
+        (CustomerID IS NULL AND EmployeeAccountID IS NOT NULL)
+    ),
+    
+    -- 🔥 Restrict NotificationType to specific values
+    CONSTRAINT CHK_Notifications_Type CHECK (NotificationType IN (
+        'Account Related', 
+        'Order Status Update', 
+        'Security Alert', 
+        'Promotion', 
+        'System Message'
+    ))
+);
+
+
+-- Drop the trigger if it exists
+IF OBJECT_ID('dbo.trg_AfterDelete_Sale_Update_Notifications', 'TR') IS NOT NULL
+    DROP TRIGGER dbo.trg_AfterDelete_Sale_Update_Notifications;
+GO
+
+-- Create the trigger
+CREATE TRIGGER trg_AfterDelete_Sale_Update_Notifications
+ON Sales
+AFTER DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Nullify the SaleID in Notifications if the sale is deleted
+    UPDATE n
+    SET n.SaleID = NULL
+    FROM Notifications n
+    INNER JOIN deleted d ON n.SaleID = d.SaleID;
+END;
+GO
+
 
 -- OtpTypes table
 CREATE TABLE OtpTypes (
@@ -233,3 +292,22 @@ CREATE TABLE SearchHistories (
 CREATE INDEX IX_SearchHistories_CustomerID ON SearchHistories (CustomerID);
 CREATE INDEX IX_SearchHistories_SessionID ON SearchHistories (SessionID);
 CREATE INDEX IX_SearchHistories_SearchKeyword ON SearchHistories (SearchKeyword);
+
+CREATE TABLE LoginAttempts (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    AttemptTime DATETIME NOT NULL,
+    IsSuccessful BIT NOT NULL,
+    IPAddress NVARCHAR(45) NOT NULL,
+    CustomerID INT NULL,
+    EmployeeAccountID INT NULL,
+
+    -- Enforce mutual exclusivity: only one of these can be filled
+    CONSTRAINT CK_LoginAttempts_OnlyOneUser CHECK (
+        (CustomerID IS NOT NULL AND EmployeeAccountID IS NULL) OR 
+        (CustomerID IS NULL AND EmployeeAccountID IS NOT NULL)
+    ),
+
+    -- Foreign Key Constraints
+    FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID) ON DELETE CASCADE,
+    FOREIGN KEY (EmployeeAccountID) REFERENCES EmployeeAccounts(AccountID) ON DELETE CASCADE
+);

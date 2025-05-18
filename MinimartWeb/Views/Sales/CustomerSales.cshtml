@@ -1,0 +1,120 @@
+﻿@model List<MinimartWeb.Model.Sale>
+
+@{
+    ViewData["Title"] = "Quản lý Đơn Hàng";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var selectedStatus = ViewBag.SelectedStatus as string ?? "";
+    var statuses = ViewBag.Statuses as List<string> ?? new List<string>();
+}
+
+<div class="container my-4">
+    <div class="text-center py-3 mb-4" style="background-color: #f0f8ff; border-radius: 0.3rem;">
+        <h2 class="mb-0 display-6 fw-normal">@ViewData["Title"]</h2>
+    </div>
+
+    <!-- Filter, Sort & Search -->
+    <form method="get" asp-controller="Sales" asp-action="CustomerSales" class="mb-4">
+        <div class="row g-2">
+            <div class="col-md-4">
+                <select name="statusFilter" class="form-select" onchange="this.form.submit();">
+                    <option value="">-- Tất cả trạng thái --</option>
+                    @foreach (var status in statuses)
+                    {
+                        <option value="@status" selected="@(status == selectedStatus)">
+                            @status
+                        </option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <select name="sortBy" class="form-select" onchange="this.form.submit();">
+                    <option value="">-- Sắp xếp --</option>
+                    <option value="DateDesc">Ngày đặt (Mới nhất)</option>
+                    <option value="DateAsc">Ngày đặt (Cũ nhất)</option>
+                    <option value="TotalDesc">Tổng tiền (Cao đến thấp)</option>
+                    <option value="TotalAsc">Tổng tiền (Thấp đến cao)</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <input type="text" name="searchQuery" value="@Context.Request.Query["searchQuery"]" class="form-control" placeholder="Tìm kiếm...">
+
+
+            </div>
+        </div>
+    </form>
+
+    @if (Model == null || !Model.Any())
+    {
+        <div class="alert alert-info text-center" role="alert">
+            <i class="fas fa-info-circle me-2"></i> Không có đơn hàng nào phù hợp.
+        </div>
+    }
+    else
+    {
+        <p class="text-muted mb-3">Tổng số đơn hàng: @Model.Count</p>
+
+        @foreach (var sale in Model)
+        {
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center flex-wrap py-2">
+                    <div>
+                        <h5 class="mb-1 d-inline-block">Đơn hàng #@sale.SaleID</h5>
+                        <span class="badge
+                            @(sale.OrderStatus == "Hoàn thành" ? "bg-success" :
+                              sale.OrderStatus == "Đã hủy" ? "bg-danger" :
+                              "bg-info text-dark")">
+                            @sale.OrderStatus
+                        </span>
+                    </div>
+                    <small class="text-muted">Ngày đặt: @sale.SaleDate.ToString("dd/MM/yyyy HH:mm")</small>
+                </div>
+
+                <div class="card-body">
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <strong>Khách hàng:</strong> @sale.Customer?.FirstName @sale.Customer?.LastName
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Nhân viên xử lý:</strong> @sale.Employee?.FirstName @sale.Employee?.LastName
+                        </div>
+                    </div>
+
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <strong>Thanh toán:</strong> @sale.PaymentMethod?.MethodName
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Địa chỉ giao hàng:</strong> @sale.DeliveryAddress
+                        </div>
+                    </div>
+
+                    <h6>Sản phẩm trong đơn hàng:</h6>
+                    <ul class="list-group list-group-flush mb-3">
+                        @foreach (var item in sale.SaleDetails)
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center ps-0">
+                                <div class="d-flex align-items-center">
+                                    <img src="@Url.Content("~/images/products/" + (item.ProductType.ImagePath ?? "default-product.png"))"
+                                         alt="@item.ProductType.ProductName"
+                                         class="me-2 rounded"
+                                         style="width: 40px; height: 40px; object-fit:cover;" />
+                                    <div>
+                                        @item.ProductType.ProductName <br />
+                                        <small class="text-muted">SL: @item.Quantity x @item.ProductPriceAtPurchase.ToString("N0") VNĐ</small>
+                                    </div>
+                                </div>
+                                <span class="fw-semibold">@((item.Quantity * item.ProductPriceAtPurchase).ToString("N0"))đ</span>
+                            </li>
+                        }
+                    </ul>
+
+                    <div class="text-end mt-3">
+                        <a asp-controller="Sales" asp-action="StaffOrderDetail" asp-route-id="@sale.SaleID" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-eye me-1"></i> Xem chi tiết đơn hàng
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>

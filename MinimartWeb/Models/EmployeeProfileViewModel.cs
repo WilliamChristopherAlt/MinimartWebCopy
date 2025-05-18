@@ -65,5 +65,12 @@ namespace MinimartWeb.Models // HOẶC MinimartWeb.Models
         [Display(Name = "Thời điểm xác minh Email NV")]
         [DisplayFormat(DataFormatString = "{0:dd/MM/yyyy HH:mm}")]
         public DateTime? EmployeeEmailVerifiedAt { get; set; }
+
+        [Display(Name = "Xác thực hai yếu tố (2FA) qua Email")]
+        public bool Is2FAEnabled { get; set; } // Trạng thái hiện tại
+
+        [DataType(DataType.Password)]
+        [Display(Name = "Mật khẩu hiện tại")]
+        public string? PasswordForChange2FAStatus { get; set; } // Dùng khi bật hoặc tắt
     }
 }
