@@ -18,6 +18,93 @@
             padding-top: 56px;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
+
+        #cartIconLink {
+            position: relative !important;
+            display: inline-block !important; /* Hoặc flex, tùy theo cấu trúc navbar của bạn */
+        }
+
+            /* CSS TÙY CHỈNH CHO BADGE SỐ LƯỢNG GIỎ HÀNG */
+            #cartIconLink #cartItemCountBadge {
+                position: absolute !important; /* Bắt buộc để top, right, transform có hiệu lực */
+                /* Bước 1: Điều chỉnh vị trí cơ sở với TOP và RIGHT */
+                /* Các giá trị này sẽ đặt badge ở góc trên bên phải của icon giỏ hàng.
+                       Giá trị âm sẽ đẩy badge ra ngoài một chút.
+                       Hãy bắt đầu với các giá trị nhỏ và tăng/giảm từ từ trong Developer Tools. */
+                top: 1px !important; /* Ví dụ: Thử từ -5px đến 5px. Số dương đẩy xuống, số âm đẩy lên. */
+                right: 1px !important; /* Ví dụ: Thử từ -5px đến 5px. Số dương đẩy sang trái, số âm đẩy sang phải. */
+                /* Bước 2: Tinh chỉnh thêm bằng TRANSFORM (nếu cần) */
+                /* Dùng để dịch chuyển badge một chút so với vị trí đã đặt bởi top/right.
+                       X dương: dịch phải. X âm: dịch trái.
+                       Y dương: dịch xuống. Y âm: dịch lên.
+                       Ví dụ: translate(30%, -40%) sẽ dịch sang phải 30% và lên trên 40% kích thước của chính badge.
+                       Nếu không cần, bạn có thể đặt là transform: none !important; */
+                transform: translate( -20px, 6px) !important; /* ĐIỀU CHỈNH CÁC GIÁ TRỊ % NÀY */
+                /* Thuộc tính cho hình dạng và nội dung của badge */
+                font-size: 0.6em !important; /* Kích thước chữ của số */
+                font-weight: bold !important; /* Cho số đậm hơn */
+                color: white !important; /* Màu chữ */
+                background-color: red !important; /* Màu nền xanh lá (Bootstrap success) hoặc màu bạn muốn */
+                border-radius: 50% !important; /* Để tạo hình tròn */
+                /* Để đảm bảo badge tròn và số nằm giữa: */
+                width: 16px !important; /* Đặt chiều rộng cố định */
+                height: 16px !important; /* Đặt chiều cao cố định (bằng width) */
+                line-height: 16px !important; /* Đặt bằng height để căn giữa số theo chiều dọc (nếu không dùng flex) */
+                padding: 0 !important; /* Bỏ padding khi đã có width/height cố định */
+                text-align: center !important; /* Căn giữa số theo chiều ngang (nếu không dùng flex) */
+                /* Hoặc sử dụng flex để căn giữa nội dung một cách linh hoạt hơn */
+                /* display: flex !important; */
+                /* align-items: center !important; */ /* Căn giữa dọc */
+                /* justify-content: center !important; */ /* Căn giữa ngang */
+
+                z-index: 1 !important; /* Đảm bảo badge nằm trên icon */
+                box-sizing: border-box !important;
+                /* style="display: none;" đã có trong HTML, JavaScript sẽ .show() khi có item */
+            }
+
+            /* Tùy chỉnh kích thước icon giỏ hàng nếu cần */
+            #cartIconLink .fa-shopping-cart {
+                font-size: 1.25rem; /* Đảm bảo kích thước icon phù hợp */
+            }
+
+        /* CSS TÙY CHỈNH CHO BADGE THÔNG BÁO */
+        /* Trong thẻ <style> của _Layout.cshtml hoặc trong site.css */
+
+        #notificationDropdownToggle {
+            position: relative !important; /* Đảm bảo thẻ cha là gốc định vị */
+            display: inline-block !important; /* Cho thẻ cha có kích thước */
+            /* Thêm một chút padding để dễ hình dung biên của thẻ cha nếu cần */
+            /* padding: 5px; */
+            /* border: 1px solid blue; */ /* Tạm thời thêm border để thấy rõ thẻ cha */
+        }
+
+            #notificationDropdownToggle #notificationCount {
+                position: absolute !important;
+                /* BẮT ĐẦU VỚI CÁC GIÁ TRỊ NÀY */
+                top: 0px !important;
+                transform: translate(-20px, 8px) !important; /* Ví dụ: dịch trái 2px, dịch xuống 2px */
+                /* Các style khác cho badge (giữ nguyên hoặc điều chỉnh kích thước nếu cần) */
+                font-size: 0.6em !important;
+                font-weight: bold;
+                color: white !important;
+                background-color: red !important;
+                border-radius: 50% !important;
+                width: 16px !important; /* Đặt width và height cố định để đảm bảo tròn */
+                height: 16px !important;
+                line-height: 16px !important; /* Bằng với height */
+                padding: 0 !important; /* Bỏ padding nếu đã có width/height cố định */
+                text-align: center !important; /* Căn giữa số */
+                display: flex !important; /* Hoặc dùng flex để căn giữa */
+                align-items: center !important;
+                justify-content: center !important;
+                z-index: 1 !important;
+                box-sizing: border-box !important;
+            }
+
+            #notificationDropdownToggle .fa-bell {
+                font-size: 1.25rem; /* Kích thước icon chuông */
+                /* border: 1px solid green; */ /* Tạm thời thêm border để thấy rõ icon */
+            }
         /* ... (Toàn bộ các style inline khác của bạn giữ nguyên ở đây) ... */
         .navbar-brand img {
             height: 40px;
@@ -460,13 +547,17 @@
                                 </a>
                             </li>
 
-                            @* Only customers see the cart *@
                             @if (User.IsInRole("Customer"))
                             {
-                                <!-- Cart -->
                                 <li class="nav-item me-3">
-                                    <a class="nav-link" href="/Cart" title="Giỏ hàng">
+                                    <a class="nav-link position-relative" href="/Cart" title="Giỏ hàng" id="cartIconLink">
+                                        @* Thêm position-relative và id *@
                                         <i class="fas fa-shopping-cart fa-lg"></i>
+                                        <span id="cartItemCountBadge"
+                                              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" @* Class của Bootstrap để định vị và tạo kiểu badge *@
+                                              style="display: none; /* Các style CSS tùy chỉnh của bạn cho vị trí và kích thước sẽ ghi đè cái này nếu cần */">
+                                            0 @* Số ban đầu, sẽ được cập nhật bởi JavaScript *@
+                                        </span>
                                     </a>
                                 </li>
                             }
@@ -758,17 +849,19 @@
     </script>
 
     <script>
-        const notificationIcons = {
-            "Account Related": "fas fa-user",
-            "Order Status Update": "fas fa-box",
-            "Security Alert": "fas fa-shield-alt",
-            "Promotion": "fas fa-tags",
-            "System Message": "fas fa-info-circle"
-        };
 
         $(document).ready(function () {
+
+            fetchCartItemCount(); // Gọi khi trang tải xong (nếu người dùng là customer)
+
+            // ----- LẮNG NGHE CUSTOM EVENT ĐỂ CẬP NHẬT GIỎ HÀNG -----
+            $(document).on('minimart.cart.updated', function () {
+                console.log("Event 'minimart.cart.updated' received. Refreshing cart count.");
+                fetchCartItemCount();
+            });
             // 🔎 Step 1: Load unread count immediately when page loads
             fetchUnreadNotificationCount();
+
 
             // 🔎 Step 2: Load notifications when the bell icon is clicked
             $('#notificationDropdownToggle').on('click', function () {
@@ -917,6 +1010,42 @@
         "System Message": "fas fa-info-circle"
     };
 
+    // ----- Cart Helper Functions -----
+    function fetchCartItemCount() {
+        const cartBadgeElement = $('#cartItemCountBadge');
+        if (!cartBadgeElement.length || '@User.IsInRole("Customer").ToString().ToLowerInvariant()' !== 'true') {
+            updateCartBadgeCount(0); // Đảm bảo ẩn nếu không phải customer hoặc không có badge
+            return;
+        }
+        $.ajax({
+            url: '@Url.Action("GetCartItemCount", "Cart")',
+            type: 'GET',
+            cache: false,
+            success: function (data) {
+                if (data && typeof data.count !== 'undefined') {
+                    updateCartBadgeCount(data.count);
+                } else {
+                    console.error("Lỗi: Dữ liệu số lượng giỏ hàng không hợp lệ từ GetCartItemCount.");
+                    updateCartBadgeCount(0);
+                }
+            },
+            error: function (xhr) {
+                console.error("Lỗi khi lấy số lượng giỏ hàng:", xhr.responseText);
+                updateCartBadgeCount(0);
+            }
+        });
+    }
+
+    function updateCartBadgeCount(count) {
+        const badge = $('#cartItemCountBadge');
+        if (!badge.length) return;
+        if (count > 0) {
+            badge.text(count).show();
+        } else {
+            badge.text(0).hide();
+        }
+    }
+
     $(document).ready(function () {
         // 🔎 Step 1: Load unread count immediately when page loads
         fetchUnreadNotificationCount();
@@ -987,6 +1116,7 @@
                 error: function () {
                     $('#notificationList').html('<li class="dropdown-item text-center text-danger">Lỗi khi tải thông báo.</li>');
                 }
+
             });
         });
 

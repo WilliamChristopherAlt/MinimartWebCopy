@@ -314,5 +314,44 @@ namespace MinimartWeb.Controllers
             return View(orders);
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetCartItemCount()
+        {
+            if (!User.Identity.IsAuthenticated)
+            {
+                // Nếu người dùng chưa đăng nhập, giỏ hàng trống
+                return Json(new { count = 0 });
+            }
+
+            var username = User.Identity.Name;
+            var customer = await _context.Customers.AsNoTracking() // AsNoTracking vì chỉ đọc
+                                     .FirstOrDefaultAsync(c => c.Username == username);
+
+            if (customer == null)
+            {
+                // Không tìm thấy khách hàng, coi như giỏ hàng trống
+                return Json(new { count = 0 });
+            }
+
+            // Tìm đơn hàng "Chờ xử lý" của khách hàng
+            var pendingSale = await _context.Sales
+                .AsNoTracking() // Chỉ đọc
+                .Include(s => s.SaleDetails) // Cần SaleDetails để đếm
+                .FirstOrDefaultAsync(s => s.CustomerID == customer.CustomerID && s.OrderStatus == "Chờ xử lý");
+
+            int itemCount = 0;
+            if (pendingSale != null && pendingSale.SaleDetails != null)
+            {
+                // Cách 1: Đếm số loại sản phẩm khác nhau trong giỏ
+                // itemCount = pendingSale.SaleDetails.Count;
+
+                // Cách 2: Đếm tổng số lượng của tất cả các sản phẩm (phổ biến hơn cho hiển thị badge)
+                itemCount = pendingSale.SaleDetails.Sum(sd => (int)sd.Quantity); // Ép kiểu Quantity sang int nếu nó là decimal
+                                                                                 // hoặc dùng Convert.ToInt32(sd.Quantity)
+            }
+
+            return Json(new { count = itemCount });
+        }
     }
+
 }
