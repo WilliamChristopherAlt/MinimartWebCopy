@@ -190,7 +190,7 @@ namespace MinimartWeb.Controllers
 
             _logger.LogInformation("Fetching order history for CustomerID: {CustomerId}, Page: {Page}", customerId, page);
 
-            int pageSize = 5;
+            int pageSize = 10;
 
             var query = _context.Sales
                 .Where(s => s.CustomerID == customerId)
