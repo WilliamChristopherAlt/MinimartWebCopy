@@ -72,11 +72,14 @@ CREATE TABLE Customers (
     PhoneNumber CHAR(10) NOT NULL UNIQUE,
     ImagePath NVARCHAR(512) NULL,
     Username NVARCHAR(255) NOT NULL UNIQUE,
+
     PasswordHash VARBINARY(64) NOT NULL,
     Salt VARBINARY(64) NOT NULL,
+
 	IsEmailVerified BIT NOT NULL DEFAULT 0,
     EmailVerifiedAt DATETIME2 NULL,
-	Is2FAEnabled BIT NOT NULL DEFAULT 0
+	Is2FAEnabled BIT NOT NULL DEFAULT 0,
+
     CONSTRAINT PK_Customers PRIMARY KEY (CustomerID),
     CONSTRAINT UQ_Customers_Email UNIQUE (Email),
     CONSTRAINT UQ_Customers_PhoneNumber UNIQUE (PhoneNumber),
@@ -183,11 +186,14 @@ CREATE TABLE Notifications (
     CreatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
     IsRead BIT NOT NULL DEFAULT 0,
     NotificationType NVARCHAR(50) NOT NULL,
+
+	MessageCustomerID INT NULL,
     
     -- Foreign Key Constraints
     FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID) ON DELETE CASCADE,
     FOREIGN KEY (EmployeeAccountID) REFERENCES EmployeeAccounts(AccountID) ON DELETE CASCADE,
     FOREIGN KEY (SaleID) REFERENCES Sales(SaleID),
+    FOREIGN KEY (MessageCustomerID) REFERENCES Customers(CustomerID),
 
     -- 🔥 Mutually exclusive constraint:
     CONSTRAINT CHK_Notifications_Exclusivity CHECK (
@@ -199,7 +205,8 @@ CREATE TABLE Notifications (
     CONSTRAINT CHK_Notifications_Type CHECK (NotificationType IN (
         'Account Related', 
         'Order Status Update', 
-        'Security Alert', 
+        'Security Alert',
+		'New Message',
         'Promotion', 
         'System Message'
     ))
@@ -310,4 +317,22 @@ CREATE TABLE LoginAttempts (
     -- Foreign Key Constraints
     FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID) ON DELETE CASCADE,
     FOREIGN KEY (EmployeeAccountID) REFERENCES EmployeeAccounts(AccountID) ON DELETE CASCADE
+);
+
+CREATE TABLE Messages (
+    MessageID INT IDENTITY(1,1) PRIMARY KEY,
+
+    CustomerID INT NOT NULL, -- always present
+
+    IsFromCustomer BIT NOT NULL, -- 1 = from customer, 0 = from mart
+
+    MessageText VARBINARY(MAX) NOT NULL, -- Encrypted content
+
+    SentAt DATETIME2 NOT NULL DEFAULT GETDATE(),
+    ReadAt DATETIME2 NULL,
+    IsRead BIT NOT NULL DEFAULT 0,
+    IsDeletedBySender BIT NOT NULL DEFAULT 0,
+    IsDeletedByReceiver BIT NOT NULL DEFAULT 0,
+
+    CONSTRAINT FK_Messages_Customers FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID) ON DELETE CASCADE
 );

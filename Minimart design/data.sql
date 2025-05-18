@@ -147,17 +147,17 @@ VALUES
 (10, 'juliap', 0x12345, 0x12345, 0, 0);
 
 -- Khách hàng
-INSERT INTO Customers (FirstName, LastName, Email, PhoneNumber, ImagePath, Username, PasswordHash, Salt, Is2FAEnabled) VALUES
-(N'Nguyễn', N'Văn An', 'an.nguyen@example.com', '0901122334', 'men/10.jpg', 'annguyen', 0x5C67AB2B362E04BEE0BDDF45DDDADE29FF3BBF29E4F75A74AFD03CD8360222C1, 0x3514E223D890B6B9750C01F6CF7BB0D6, 0),
-(N'Trần', N'Thị Bình', 'binh.tran@example.com', '0902233445', 'women/10.jpg', 'binhtran', 0x5C67AB2B362E04BEE0BDDF45DDDADE29FF3BBF29E4F75A74AFD03CD8360222C1, 0x3514E223D890B6B9750C01F6CF7BB0D6, 0),
-(N'Lê', N'Quang Cường', 'cuong.le@example.com', '0903344556', 'men/11.jpg', 'cuongle', 0x5C67AB2B362E04BEE0BDDF45DDDADE29FF3BBF29E4F75A74AFD03CD8360222C1, 0x3514E223D890B6B9750C01F6CF7BB0D6, 0),
-(N'Phạm', N'Thị Dung', 'dung.pham@example.com', '0904455667', 'women/11.jpg', 'dungpham', 0x12345, 0x12345, 0),
-(N'Hoàng', N'Minh Đức', 'duc.hoang@example.com', '0905566778', 'men/12.jpg', 'duchoang', 0x12345, 0x12345, 0),
-(N'Võ', N'Thị Hạnh', 'hanh.vo@example.com', '0906677889', 'women/12.jpg', 'hanhvo', 0x12345, 0x12345, 0),
-(N'Đặng', N'Tuấn Hùng', 'hung.dang@example.com', '0907788990', 'men/13.jpg', 'hungdang', 0x12345, 0x12345, 0),
-(N'Bùi', N'Thị Lan', 'lan.bui@example.com', '0908899001', 'women/13.jpg', 'lanbui', 0x12345, 0x12345, 0),
-(N'Huỳnh', N'Gia Nam', 'nam.huynh@example.com', '0909900112', 'men/14.jpg', 'namhuynh', 0x12345, 0x12345, 0),
-(N'Dương', N'Thị Oanh', 'oanh.duong@example.com', '0910011223', 'women/14.jpg', 'oanhduong', 0x12345, 0x12345, 0);
+INSERT INTO		 (FirstName, LastName, Email, PhoneNumber, ImagePath, Username, PasswordHash, Salt, Is2FAEnabled, IsEmailVerified) VALUES
+(N'Nguyễn', N'Văn An', 'an.nguyen@example.com', '0901122334', 'men/10.jpg', 'annguyen', 0x5C67AB2B362E04BEE0BDDF45DDDADE29FF3BBF29E4F75A74AFD03CD8360222C1, 0x3514E223D890B6B9750C01F6CF7BB0D6, 0, 1),
+(N'Trần', N'Thị Bình', 'binh.tran@example.com', '0902233445', 'women/10.jpg', 'binhtran', 0x5C67AB2B362E04BEE0BDDF45DDDADE29FF3BBF29E4F75A74AFD03CD8360222C1, 0x3514E223D890B6B9750C01F6CF7BB0D6, 0, 1),
+(N'Lê', N'Quang Cường', 'cuong.le@example.com', '0903344556', 'men/11.jpg', 'cuongle', 0x5C67AB2B362E04BEE0BDDF45DDDADE29FF3BBF29E4F75A74AFD03CD8360222C1, 0x3514E223D890B6B9750C01F6CF7BB0D6, 0, 0),
+(N'Phạm', N'Thị Dung', 'dung.pham@example.com', '0904455667', 'women/11.jpg', 'dungpham', 0x12345, 0x12345, 0, 1),
+(N'Hoàng', N'Minh Đức', 'duc.hoang@example.com', '0905566778', 'men/12.jpg', 'duchoang', 0x12345, 0x12345, 0, 1),
+(N'Võ', N'Thị Hạnh', 'hanh.vo@example.com', '0906677889', 'women/12.jpg', 'hanhvo', 0x12345, 0x12345, 0, 1),
+(N'Đặng', N'Tuấn Hùng', 'hung.dang@example.com', '0907788990', 'men/13.jpg', 'hungdang', 0x12345, 0x12345, 0, 1),
+(N'Bùi', N'Thị Lan', 'lan.bui@example.com', '0908899001', 'women/13.jpg', 'lanbui', 0x12345, 0x12345, 0, 1),
+(N'Huỳnh', N'Gia Nam', 'nam.huynh@example.com', '0909900112', 'men/14.jpg', 'namhuynh', 0x12345, 0x12345, 0, 1),
+(N'Dương', N'Thị Oanh', 'oanh.duong@example.com', '0910011223', 'women/14.jpg', 'oanhduong', 0x12345, 0x12345, 0, 1);
 
 -- Phương thức thanh toán
 INSERT INTO PaymentMethods (MethodName) VALUES
@@ -326,3 +326,10 @@ JOIN SaleDetails sd ON s.SaleID = sd.SaleID
 WHERE s.CustomerID = 11 AND s.OrderStatus = 'Completed'
 GROUP BY FORMAT(s.SaleDate, 'yyyy-MM')
 ORDER BY SaleMonthYear DESC;
+
+INSERT INTO Messages (CustomerID, IsFromCustomer, MessageText, SentAt, IsRead, IsDeletedBySender, IsDeletedByReceiver)
+VALUES 
+(1, 1, CONVERT(VARBINARY(MAX), 'Hi, I need help with my order.'), GETDATE(), 0, 0, 0),
+(1, 0, CONVERT(VARBINARY(MAX), 'Sure. Can you give me your order ID?'), GETDATE(), 0, 0, 0),
+(1, 1, CONVERT(VARBINARY(MAX), 'It''s #12345'), GETDATE(), 0, 0, 0),
+(1, 0, CONVERT(VARBINARY(MAX), 'Got it. Your order is being processed.'), GETDATE(), 0, 0, 0);
