@@ -29,6 +29,7 @@ namespace MinimartWeb.Controllers
 
             return View(notifications);
         }
+
         [HttpGet]
         public async Task<IActionResult> GetLatestNotifications()
         {
@@ -56,7 +57,8 @@ namespace MinimartWeb.Controllers
                         n.Message,
                         n.IsRead,
                         NotificationType = n.NotificationType.ToString().Replace('_', ' '),
-                        n.SaleID
+                        n.SaleID,
+                        n.CustomerID
                     })
                     .ToListAsync();
 
@@ -78,7 +80,9 @@ namespace MinimartWeb.Controllers
                         n.Title,
                         n.Message,
                         n.IsRead,
-                        NotificationType = n.NotificationType.ToString().Replace('_', ' ')
+                        NotificationType = n.NotificationType.ToString().Replace('_', ' '),
+                        n.SaleID,
+                        n.MessageCustomerID
                     })
                     .ToListAsync();
 

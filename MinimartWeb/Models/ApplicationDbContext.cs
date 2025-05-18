@@ -27,7 +27,8 @@ namespace MinimartWeb.Data
         public DbSet<SearchHistory> SearchHistories { get; set; } = null!;
         public DbSet<Notification> Notifications { get; set; } = null!;
         public DbSet<LoginAttempt> LoginAttempts { get; set; } = null!;
-        
+        public DbSet<Message> Messages { get; set; } = null!;
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

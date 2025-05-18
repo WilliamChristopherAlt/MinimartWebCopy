@@ -16,6 +16,9 @@ namespace MinimartWeb.Model
         [Display(Name = "Security Alert")]
         SecurityAlert,
 
+        [Display(Name = "New Message")]
+        NewMessage,
+
         [Display(Name = "Promotion")]
         Promotion,
 
@@ -80,6 +83,12 @@ namespace MinimartWeb.Model
 
         [ForeignKey("SaleID")]
         public Sale? Sale { get; set; }
+
+        [Display(Name = "Message Customer  ID")]
+        public int? MessageCustomerID { get; set; }
+
+        [ForeignKey("MessageCustomerID")]
+        public Message? MessageCustomer { get; set; }
 
         // 🔥 Enforce Mutual Exclusivity
         [NotMapped]

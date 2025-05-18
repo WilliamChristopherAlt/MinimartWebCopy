@@ -1,0 +1,136 @@
+﻿@model List<MinimartWeb.Model.Message>
+
+@{
+    ViewBag.Title = "Tin nhắn của tôi";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .chat-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1rem;
+        background-color: #f8f9fa;
+    }
+
+    .chat-messages {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+
+    .message-bubble {
+        max-width: 500px;
+        padding: 0.6rem 0.9rem;
+        border-radius: 1rem;
+        word-break: break-word;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+        .message-bubble.user {
+            align-self: flex-end;
+            background-color: #d1e7dd;
+        }
+
+        .message-bubble.mart {
+            align-self: flex-start;
+            background-color: #e2e3e5;
+        }
+
+    .chat-input-form {
+        display: flex;
+        gap: 0.75rem;
+        align-items: flex-end;
+    }
+
+        .chat-input-form textarea {
+            flex-grow: 1;
+            border: 1px solid #ced4da;
+            border-radius: 1.5rem;
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            resize: vertical;
+            min-height: 38px;
+            max-height: 120px;
+            line-height: 1.4;
+        }
+
+        .chat-input-form button {
+            background-color: #0d6efd;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+            .chat-input-form button:hover {
+                background-color: #0b5ed7;
+            }
+</style>
+
+<h2 class="mb-3">Nhắn tin với MiniMart</h2>
+
+<div class="chat-wrapper">
+    <div class="chat-messages" id="chatMessages">
+        @if (Model == null || !Model.Any())
+        {
+            <div class="text-muted text-center mt-2">Chưa có tin nhắn nào.</div>
+        }
+        else
+        {
+            foreach (var msg in Model)
+            {
+                var css = msg.IsFromCustomer ? "user" : "mart";
+                var sender = msg.IsFromCustomer ? "Bạn" : "MiniMart";
+                var content = System.Text.Encoding.UTF8.GetString(msg.MessageText);
+                <div class="message-bubble @css">
+                    <div class="fw-semibold small mb-1">@sender</div>
+                    <div>@content</div>
+                    <div class="text-end mt-1">
+                        <small class="text-muted">@msg.SentAt.ToString("g")</small>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+
+    <form asp-action="UserSend" method="post" class="chat-input-form">
+        <textarea name="messageText" placeholder="Nhập tin nhắn..." required></textarea>
+        <button type="submit" title="Gửi">
+            <i class="fas fa-paper-plane"></i>
+        </button>
+    </form>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // ✅ Only apply sidebar search logic if the sidebar exists
+        const searchInput = document.querySelector(".chat-sidebar input");
+        const contacts = document.querySelectorAll(".chat-contact");
+
+        if (searchInput && contacts.length > 0) {
+            searchInput.addEventListener("input", function () {
+                const keyword = this.value.toLowerCase();
+                contacts.forEach(contact => {
+                    const name = contact.innerText.toLowerCase();
+                    contact.style.display = name.includes(keyword) ? "flex" : "none";
+                });
+            });
+        }
+
+        // ✅ Auto-scroll to bottom of chat (always apply this)
+        const chatBox = document.getElementById("chatMessages");
+        if (chatBox) {
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    });
+</script>

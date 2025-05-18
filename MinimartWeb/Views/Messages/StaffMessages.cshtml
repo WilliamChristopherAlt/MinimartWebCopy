@@ -1,0 +1,238 @@
+﻿@model Tuple<List<MinimartWeb.Model.CustomerMessagePreview>, List<MinimartWeb.Model.Message>>
+@{
+    var customers = Model.Item1;
+    var messages = Model.Item2;
+    var currentCustomer = ViewBag.CurrentCustomer as MinimartWeb.Model.Customer;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .chat-layout {
+        display: flex;
+        height: 80vh;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        overflow: hidden;
+        background-color: #fff;
+    }
+
+    .chat-sidebar {
+        width: 320px;
+        border-right: 1px solid #dee2e6;
+        display: flex;
+        flex-direction: column;
+    }
+
+        .chat-sidebar .search-bar {
+            padding: 0.75rem;
+            border-bottom: 1px solid #dee2e6;
+            width: 100%; /* ✅ Ensure full width */
+            box-sizing: border-box; /* ✅ Prevent overflow */
+        }
+
+
+        .chat-sidebar input {
+            width: 100%;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            border: 1px solid #ced4da;
+            font-size: 0.9rem;
+            font-style: italic;
+        }
+
+    .chat-contact {
+        padding: 0.75rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid #f1f1f1;
+    }
+
+        .chat-contact img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 10px;
+        }
+
+        .chat-contact:hover {
+            background-color: #f8f9fa;
+        }
+
+    .chat-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 1rem;
+        background-color: #f8f9fa;
+    }
+
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .message-bubble {
+        max-width: 500px;
+        padding: 0.6rem 0.9rem;
+        border-radius: 1rem;
+        word-break: break-word;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+        .message-bubble.user {
+            align-self: flex-start;
+            background-color: #e2e3e5;
+        }
+
+        .message-bubble.mart {
+            align-self: flex-end;
+            background-color: #d1e7dd;
+        }
+
+    .chat-input-form {
+        display: flex;
+        gap: 0.75rem;
+        align-items: flex-end;
+        padding-top: 1rem;
+    }
+
+        .chat-input-form textarea {
+            flex-grow: 1;
+            border: 1px solid #ced4da;
+            border-radius: 1.5rem;
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            resize: vertical;
+            min-height: 38px;
+            max-height: 120px;
+        }
+
+        .chat-input-form button {
+            background-color: #0d6efd;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+            .chat-input-form button:hover {
+                background-color: #0b5ed7;
+            }
+</style>
+
+<h2 class="mb-3">Hộp thư MiniMart</h2>
+
+<div class="chat-layout">
+    <div class="chat-sidebar">
+        <div class="search-bar">
+            <input type="text" placeholder="Tìm tên người dùng, số điện thoại..." />
+        </div>
+
+        @foreach (var c in customers)
+        {
+            <a class="chat-contact text-dark text-decoration-none"
+               href="@Url.Action("StaffMessages", "Messages", new { customerId = c.Customer.CustomerID })"
+               data-username="@c.Customer.Username"
+               data-firstname="@c.Customer.FirstName"
+               data-lastname="@c.Customer.LastName"
+               data-email="@c.Customer.Email"
+               data-phone="@c.Customer.PhoneNumber">
+
+
+                <img src="~/images/users/@(c.Customer.ImagePath ?? "default.jpg")" />
+                <div>
+                    <div class="fw-semibold">@c.Customer.Username</div>
+                    <div class="small text-muted text-truncate" style="max-width: 220px;">
+                        @(c.LatestMessage != null ? System.Text.Encoding.UTF8.GetString(c.LatestMessage) : "Không có tin nhắn")
+                    </div>
+                </div>
+            </a>
+        }
+    </div>
+
+    <div class="chat-main">
+        @if (currentCustomer != null)
+        {
+            <div class="mb-3">
+                <h5 class="mb-0">Đang trò chuyện với: @currentCustomer.FirstName @currentCustomer.LastName</h5>
+                <div class="text-muted">@currentCustomer.Username</div>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                @foreach (var msg in messages)
+                {
+                    var css = msg.IsFromCustomer ? "user" : "mart";
+                    var content = System.Text.Encoding.UTF8.GetString(msg.MessageText);
+                    <div class="message-bubble @css">
+                        <div class="fw-semibold small mb-1">@((msg.IsFromCustomer ? "Khách hàng" : "MiniMart"))</div>
+                        <div>@content</div>
+                        <div class="text-end mt-1">
+                            <small class="text-muted">@msg.SentAt.ToString("g")</small>
+                        </div>
+                    </div>
+                }
+            </div>
+
+
+            <form asp-action="StaffSend" method="post" class="chat-input-form">
+                <input type="hidden" name="customerId" value="@currentCustomer.CustomerID" />
+                <textarea name="messageText" placeholder="Nhập tin nhắn..." required></textarea>
+                <button type="submit" title="Gửi">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </form>
+        }
+        else
+        {
+            <div class="text-muted text-center mt-5">Chọn một khách hàng để bắt đầu trò chuyện.</div>
+        }
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const searchInput = document.querySelector(".chat-sidebar input");
+        const contacts = document.querySelectorAll(".chat-contact");
+
+        const removeDiacritics = (str) =>
+            str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+        if (searchInput && contacts.length > 0) {
+            searchInput.addEventListener("input", function () {
+                const keyword = removeDiacritics(this.value.trim());
+
+                contacts.forEach(contact => {
+                    const username = removeDiacritics(contact.dataset.username || "");
+                    const firstname = removeDiacritics(contact.dataset.firstname || "");
+                    const lastname = removeDiacritics(contact.dataset.lastname || "");
+                    const email = removeDiacritics(contact.dataset.email || "");
+                    const phone = removeDiacritics(contact.dataset.phone || "");
+
+                    const matches =
+                        username.includes(keyword) ||
+                        firstname.includes(keyword) ||
+                        lastname.includes(keyword) ||
+                        email.includes(keyword) ||
+                        phone.includes(keyword);
+
+                    contact.style.display = matches ? "flex" : "none";
+                });
+            });
+        }
+
+        // ✅ Auto-scroll to bottom of chat
+        const chatBox = document.getElementById("chatMessages");
+        if (chatBox) {
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    });
+</script>

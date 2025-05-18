@@ -691,6 +691,7 @@ public class AccountController : Controller
             return StatusCode(500, new { success = false, message = "Lỗi hệ thống. Vui lòng thử lại." });
         }
     }
+
     // --- [HttpGet] VerifyLoginOtp: Hiển thị form nhập OTP 2FA khi đăng nhập ---
     [AllowAnonymous]
     [HttpGet]
@@ -2371,5 +2372,42 @@ public class AccountController : Controller
 
     // Placeholder cho Settings Action để redirect đến
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendMessage(string messageText, bool isFromCustomer)
+    {
+        if (string.IsNullOrWhiteSpace(messageText))
+            return BadRequest(new { success = false, message = "Nội dung tin nhắn không được để trống." });
+
+        try
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim))
+                return Unauthorized(new { success = false, message = "Không xác định được người dùng." });
+
+            int customerId = int.Parse(userIdClaim);
+
+            var message = new Message
+            {
+                CustomerID = customerId,
+                IsFromCustomer = isFromCustomer,
+                MessageText = System.Text.Encoding.UTF8.GetBytes(messageText),
+                SentAt = DateTime.Now,
+                IsRead = false,
+                IsDeletedBySender = false,
+                IsDeletedByReceiver = false
+            };
+
+            _context.Messages.Add(message);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true, message = "Tin nhắn đã được lưu vào hệ thống." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi lưu tin nhắn.");
+            return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi khi lưu tin nhắn." });
+        }
+    }
 
 }
