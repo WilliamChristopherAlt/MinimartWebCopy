@@ -805,20 +805,49 @@
             }
 
             document.querySelectorAll(".add-to-cart-btn").forEach(button => {
-                button.addEventListener("click", function () {
+                button.addEventListener("click", function (e) { // Thêm e và e.preventDefault()
+                    e.preventDefault(); // Ngăn chặn hành động submit form mặc định
                     const form = this.closest("form");
+                    if (!form) {
+                        console.error("Nút 'Thêm vào giỏ hàng' không nằm trong một form.");
+                        showToast("Lỗi: Không tìm thấy form sản phẩm.", true);
+                        return;
+                    }
                     const formData = new FormData(form);
+                    // Lấy token từ form ẩn #antiForgeryTokenContainer vì các nút này có thể không nằm trong form có token riêng
+                    const token = $('#antiForgeryTokenContainer input[name="__RequestVerificationToken"]').val();
 
-                    fetch("/Cart/AddToCart", {
+                    if (!token) {
+                        showToast("Lỗi bảo mật khi thêm vào giỏ hàng (thiếu token).", true);
+                        return;
+                    }
+
+                    fetch("@Url.Action("AddToCart", "Cart")", { // Sử dụng Url.Action để tạo URL an toàn
                         method: "POST",
                         headers: {
-                            "RequestVerificationToken": form.querySelector('input[name="__RequestVerificationToken"]').value
+                            "RequestVerificationToken": token, // Sử dụng token đã lấy
+                            "X-Requested-With": "XMLHttpRequest" // Để server biết đây là AJAX call (nếu cần)
                         },
-                        body: new URLSearchParams([...formData])
+                        body: new URLSearchParams([...formData]) // Gửi dưới dạng x-www-form-urlencoded
                     })
-                    .then(res => res.json())
-                    .then(data => showToast(data.message, !data.success))
-                    .catch(() => showToast("Không thể thêm vào giỏ hàng.", true));
+                        .then(res => {
+                            if (!res.ok) { // Kiểm tra nếu response không thành công (ví dụ 4xx, 5xx)
+                                return res.json().then(errData => Promise.reject(errData.message || errData || "Lỗi không xác định từ máy chủ."));
+                            }
+                            return res.json();
+                        })
+                        .then(data => {
+                            showToast(data.message, !data.success);
+                            if (data.success) {
+                                console.log("AddToCart thành công, đang trigger 'minimart.cart.updated'");
+                                $(document).trigger('minimart.cart.updated'); // KÍCH HOẠT SỰ KIỆN
+                            }
+                        })
+                        .catch(error => {
+                            console.error("Lỗi khi thêm vào giỏ hàng:", error);
+                            const errorMessage = typeof error === 'string' ? error : "Không thể thêm vào giỏ hàng. Vui lòng thử lại.";
+                            showToast(errorMessage, true);
+                        });
                 });
             });
 
