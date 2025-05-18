@@ -94,7 +94,7 @@
                 line-height: 16px !important; /* Bằng với height */
                 padding: 0 !important; /* Bỏ padding nếu đã có width/height cố định */
                 text-align: center !important; /* Căn giữa số */
-                display: flex !important; /* Hoặc dùng flex để căn giữa */
+                display: none; /* Hoặc dùng flex để căn giữa */
                 align-items: center !important;
                 justify-content: center !important;
                 z-index: 1 !important;
@@ -494,7 +494,7 @@
     </style>
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body class="d-flex flex-column min-vh-100">
+    <body class="d-flex flex-column min-vh-100">
     <header>
        <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom box-shadow fixed-top">
             <div class="container-fluid">
@@ -570,7 +570,6 @@
                                     <span id="notificationCount"
                                             class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
                                             style="font-size: 0.7rem; display: none;">
-                                        0
                                     </span>
                                 </a>
 
@@ -1015,6 +1014,17 @@
                 });
             }
 
+            function updateNotificationBadgeCount(count) { // Đảm bảo đây là hàm cho badge THÔNG BÁO
+                const badge = $('#notificationCount'); // ID của badge thông báo
+                if (!badge.length) return; // Thoát nếu không tìm thấy badge
+
+                if (count > 0) {
+                    badge.text(count).show(); // Hiển thị badge và cập nhật số nếu count > 0
+                } else {
+                    badge.text(0).hide();    // Cập nhật số là 0 VÀ ẨN BADGE ĐI nếu count là 0 hoặc âm
+                }
+            }
+
             // 🔄 Function to update the badge count
             function updateBadgeCount(count) {
                 const badge = $('#notificationCount');
@@ -1024,172 +1034,51 @@
                     badge.hide();
                 }
             }
+
+            const notificationIcons = {
+                "Account Related": "fas fa-user",
+                "Order Status Update": "fas fa-box",
+                "Security Alert": "fas fa-shield-alt",
+                "Promotion": "fas fa-tags",
+                "System Message": "fas fa-info-circle"
+            };
+
+            // ----- Cart Helper Functions -----
+            function fetchCartItemCount() {
+                const cartBadgeElement = $('#cartItemCountBadge');
+                if (!cartBadgeElement.length || '@User.IsInRole("Customer").ToString().ToLowerInvariant()' !== 'true') {
+                    updateCartBadgeCount(0); // Đảm bảo ẩn nếu không phải customer hoặc không có badge
+                    return;
+                }
+                $.ajax({
+                    url: '@Url.Action("GetCartItemCount", "Cart")',
+                    type: 'GET',
+                    cache: false,
+                    success: function (data) {
+                        if (data && typeof data.count !== 'undefined') {
+                            updateCartBadgeCount(data.count);
+                        } else {
+                            console.error("Lỗi: Dữ liệu số lượng giỏ hàng không hợp lệ từ GetCartItemCount.");
+                            updateCartBadgeCount(0);
+                        }
+                    },
+                    error: function (xhr) {
+                        console.error("Lỗi khi lấy số lượng giỏ hàng:", xhr.responseText);
+                        updateCartBadgeCount(0);
+                    }
+                });
+            }
+
+            function updateCartBadgeCount(count) {
+                const badge = $('#cartItemCountBadge');
+                if (!badge.length) return;
+                if (count > 0) {
+                    badge.text(count).show();
+                } else {
+                    badge.text(0).hide();
+                }
+            }
         });
     </script>
-
-
 </body>
 </html>
-<script>
-    const notificationIcons = {
-        "Account Related": "fas fa-user",
-        "Order Status Update": "fas fa-box",
-        "Security Alert": "fas fa-shield-alt",
-        "Promotion": "fas fa-tags",
-        "System Message": "fas fa-info-circle"
-    };
-
-    // ----- Cart Helper Functions -----
-    function fetchCartItemCount() {
-        const cartBadgeElement = $('#cartItemCountBadge');
-        if (!cartBadgeElement.length || '@User.IsInRole("Customer").ToString().ToLowerInvariant()' !== 'true') {
-            updateCartBadgeCount(0); // Đảm bảo ẩn nếu không phải customer hoặc không có badge
-            return;
-        }
-        $.ajax({
-            url: '@Url.Action("GetCartItemCount", "Cart")',
-            type: 'GET',
-            cache: false,
-            success: function (data) {
-                if (data && typeof data.count !== 'undefined') {
-                    updateCartBadgeCount(data.count);
-                } else {
-                    console.error("Lỗi: Dữ liệu số lượng giỏ hàng không hợp lệ từ GetCartItemCount.");
-                    updateCartBadgeCount(0);
-                }
-            },
-            error: function (xhr) {
-                console.error("Lỗi khi lấy số lượng giỏ hàng:", xhr.responseText);
-                updateCartBadgeCount(0);
-            }
-        });
-    }
-
-    function updateCartBadgeCount(count) {
-        const badge = $('#cartItemCountBadge');
-        if (!badge.length) return;
-        if (count > 0) {
-            badge.text(count).show();
-        } else {
-            badge.text(0).hide();
-        }
-    }
-
-    $(document).ready(function () {
-        // 🔎 Step 1: Load unread count immediately when page loads
-        fetchUnreadNotificationCount();
-
-        // 🔎 Step 2: Load notifications when the bell icon is clicked
-        $('#notificationDropdownToggle').on('click', function () {
-            $.ajax({
-                url: '@Url.Action("GetLatestNotifications", "Notifications")',
-                type: 'GET',
-                success: function (data) {
-                    var notificationList = $('#notificationList');
-                    notificationList.empty();
-
-                    if (data.notifications.length > 0) {
-                        $.each(data.notifications, function (index, notification) {
-                            // Generate the link based on type
-                            var link = notification.notificationType === "Order Status Update"
-                                ? `/Sales/OrderDetail/${notification.saleID}`
-                                : "javascript:void(0)"; // Do nothing if it's not an order status update
-
-                            var icon = notificationIcons[notification.notificationType] || "fas fa-bell";
-
-                            notificationList.append(`
-                                <li class="dropdown-item">
-                                    <a href="${link}"
-                                       class="text-decoration-none d-flex align-items-center notification-item"
-                                       data-id="${notification.notificationID}"
-                                       data-type="${notification.notificationType}">
-                                        <i class="${icon} me-2 ${notification.isRead ? 'text-secondary' : 'text-primary'}"></i>
-                                        <div>
-                                            <span class="${notification.isRead ? '' : 'fw-bold'}">${notification.title}</span><br>
-                                            <small class="text-muted">${notification.message}</small>
-                                        </div>
-                                    </a>
-                                </li>
-                            `);
-                        });
-
-                        // ✅ Attach click event to mark as read
-                        $(".notification-item").on('click', function (e) {
-                            var id = $(this).data('id');
-                            var type = $(this).data('type');
-                            var link = $(this).attr('href');
-
-                            if (type === "Order Status Update") {
-                                // 🔄 AJAX to mark as read, then redirect
-                                markAsRead(id, function () {
-                                    window.location.href = link;
-                                });
-                            } else {
-                                // 🔄 AJAX to mark as read only, no redirect
-                                e.preventDefault();       // Prevent default link action
-                                e.stopPropagation();      // 🔥 Prevent dropdown from closing
-
-                                markAsRead(id, function () {
-                                    // Just update UI, no redirect
-                                    $(`a[data-id='${id}'] i`).removeClass('text-primary').addClass('text-secondary');
-                                    $(`a[data-id='${id}'] span`).removeClass('fw-bold');
-                                    fetchUnreadNotificationCount();
-                                });
-                            }
-                        });
-
-                    } else {
-                        notificationList.append('<li class="dropdown-item text-center text-muted">Không có thông báo mới.</li>');
-                    }
-                },
-                error: function () {
-                    $('#notificationList').html('<li class="dropdown-item text-center text-danger">Lỗi khi tải thông báo.</li>');
-                }
-
-            });
-        });
-
-        // 🔄 Function to mark as read
-        function markAsRead(notificationId, callback) {
-            $.ajax({
-                url: '/Notifications/MarkAsRead',
-                type: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': $('input[name="__RequestVerificationToken"]').val()
-                },
-                data: { notificationId: notificationId },
-                success: function (response) {
-                    console.log(response.message);
-                    if (typeof callback === 'function') callback();
-                },
-                error: function () {
-                    alert("Failed to mark as read. Please try again.");
-                }
-            });
-        }
-
-        // 🔄 Function to fetch the unread count on page load
-        function fetchUnreadNotificationCount() {
-            $.ajax({
-                url: '@Url.Action("GetUnreadNotificationCount", "Notifications")',
-                type: 'GET',
-                success: function (data) {
-                    updateBadgeCount(data.unreadCount);
-                },
-                error: function () {
-                    console.error("⚠️ Failed to fetch unread count.");
-                }
-            });
-        }
-
-        // 🔄 Function to update the badge count
-        function updateBadgeCount(count) {
-            const badge = $('#notificationCount');
-            if (count > 0) {
-                badge.text(count).show();
-            } else {
-                badge.hide();
-            }
-        }
-    });
-</script>

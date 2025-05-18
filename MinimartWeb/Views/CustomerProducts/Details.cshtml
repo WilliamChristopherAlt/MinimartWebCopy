@@ -369,51 +369,109 @@
 
 @section Scripts {
     <script>
+        // Hàm này có thể đã được định nghĩa ở _Layout.cshtml nếu bạn dùng chung
+        // Nếu không, bạn cần định nghĩa nó ở đây hoặc trong _Layout.
+        function showToast(message, isError = false) {
+            const toastContainer = document.getElementById('toastPlacement'); // Cần một container nếu muốn vị trí cố định
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = [
+                `<div class="toast align-items-center text-white ${isError ? 'bg-danger' : 'bg-success'} border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="3000">`,
+                '  <div class="d-flex">',
+                `    <div class="toast-body">${message}</div>`,
+                '    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>',
+                '  </div>',
+                '</div>'
+            ].join('');
+            const toastEl = wrapper.firstChild;
+
+            // Nếu bạn có một container cố định cho toast (ví dụ ở góc màn hình)
+            // thì append vào đó, nếu không thì append vào body và tự định vị.
+            if (toastContainer) {
+                toastContainer.appendChild(toastEl);
+            } else {
+                toastEl.style.position = "fixed";
+                toastEl.style.bottom = "1rem";
+                toastEl.style.right = "1rem";
+                toastEl.style.zIndex = "9999";
+                document.body.appendChild(toastEl);
+            }
+            const toast = new bootstrap.Toast(toastEl);
+            toast.show();
+            toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+        }
+
+
         function updateQuantityOnDetailPage(productId, change, maxStock) {
             const inputElement = document.getElementById(`quantity_${productId}`);
-            const formQtyAddToCart = document.getElementById(`formQuantity_AddToCart_${productId}`);
-            const formQtyBuyNow = document.getElementById(`formQuantity_BuyNow_${productId}`);
-
             if (inputElement) {
-                let currentValue = parseInt(inputElement.value, 10);
+                const isContinuous = inputElement.step === "0.01";
+                let currentValue = isContinuous ? parseFloat(inputElement.value) : parseInt(inputElement.value, 10);
                 let newValue = currentValue + change;
-                const min = 1;
-                if (isNaN(currentValue)) currentValue = min;
+                const minVal = isContinuous ? 0.01 : 1;
 
-                if (newValue >= min && newValue <= maxStock) inputElement.value = newValue;
-                else if (newValue < min) inputElement.value = min;
-                else if (newValue > maxStock) inputElement.value = maxStock;
+                if (isNaN(currentValue)) currentValue = minVal;
 
-                if (formQtyAddToCart) formQtyAddToCart.value = inputElement.value;
-                if (formQtyBuyNow) formQtyBuyNow.value = inputElement.value;
+                // Giới hạn giá trị
+                if (newValue < minVal) {
+                    newValue = minVal;
+                } else if (newValue > maxStock) {
+                    newValue = maxStock;
+                }
+
+                inputElement.value = isContinuous ? newValue.toFixed(2) : newValue.toString();
             }
         }
 
         function submitBuyNow(productId) {
-            const quantity = document.getElementById(`quantity_${productId}`).value;
+            const quantityInput = document.getElementById(`quantity_${productId}`);
+            if (!quantityInput) {
+                showToast("Lỗi: Không tìm thấy số lượng sản phẩm.", true);
+                return;
+            }
+            const quantity = quantityInput.value;
+            const token = $('#antiForgeryTokenContainer input[name="__RequestVerificationToken"]').val(); // Giả sử _Layout có form này
 
-            fetch("/Cart/BuyNow", {
+            if (!token) {
+                showToast("Lỗi bảo mật (thiếu token).", true);
+                return;
+            }
+
+            fetch("@Url.Action("BuyNow", "Cart")", {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/x-www-form-urlencoded"
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "RequestVerificationToken": token,
+                    "X-Requested-With": "XMLHttpRequest"
                 },
                 body: new URLSearchParams({ productId, quantity })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.redirectUrl) {
-                    window.location.href = data.redirectUrl;
-                } else {
-                    showToast(data.message || "Đã xảy ra lỗi không xác định.", true);
-                }
-            })
-            .catch(err => {
-                showToast("Something went wrong while processing Buy Now.", true);
-                console.error(err);
-            });
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(errData => Promise.reject(errData.message || errData || "Lỗi không xác định từ máy chủ."));
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Đối với BuyNow, nếu thành công và có redirectUrl, chúng ta sẽ chuyển hướng.
+                        // Việc cập nhật badge giỏ hàng sẽ xảy ra khi trang mới (ví dụ: trang checkout hoặc chi tiết đơn hàng) được tải.
+                        if (data.redirectUrl) {
+                            window.location.href = data.redirectUrl;
+                        } else {
+                            showToast(data.message || "Đã xử lý mua ngay.", false);
+                            // Nếu BuyNow không redirect mà chỉ thêm vào giỏ và bạn muốn cập nhật badge ngay:
+                            // $(document).trigger('minimart.cart.updated');
+                        }
+                    } else {
+                        showToast(data.message || "Đã xảy ra lỗi không xác định khi mua ngay.", true);
+                    }
+                })
+                .catch(error => {
+                    console.error("Lỗi khi xử lý Mua ngay (Detail Page):", error);
+                    const errorMessage = typeof error === 'string' ? error : "Đã xảy ra lỗi kết nối với máy chủ khi mua ngay.";
+                    showToast(errorMessage, true);
+                });
         }
-
-
 
         document.addEventListener("DOMContentLoaded", function () {
             // Swiper setup
@@ -423,7 +481,7 @@
                     slidesPerView: 1.8,
                     spaceBetween: 8,
                     grabCursor: true,
-                    loop: recommendedProductsCountDetail > 5,
+                    loop: recommendedProductsCountDetail > 5, // Điều chỉnh ngưỡng loop nếu cần
                     pagination: {
                         el: '.recommended-pagination-detail',
                         clickable: true
@@ -445,46 +503,63 @@
             document.querySelectorAll(".add-to-cart-ajax").forEach(button => {
                 button.addEventListener("click", function (e) {
                     e.preventDefault();
-                    const form = this.closest("form");
-                    const productId = form.querySelector("input[name='productId']").value;
-                    const quantity = form.querySelector("input[name='quantity']").value;
+                    const form = this.closest("form"); // form#productActionForm_...
+                    if (!form) {
+                        showToast("Lỗi: Không tìm thấy form sản phẩm.", true);
+                        console.error("Nút 'Thêm vào giỏ' không nằm trong form.");
+                        return;
+                    }
+                    const productIdInput = form.querySelector("input[name='productId']");
+                    const quantityInput = form.querySelector("input[name='quantity']");
 
-                    fetch("/Cart/AddToCart", {
+                    if (!productIdInput || !quantityInput) {
+                        showToast("Lỗi: Thiếu thông tin sản phẩm hoặc số lượng.", true);
+                        console.error("Thiếu input productId hoặc quantity trong form.");
+                        return;
+                    }
+
+                    const productId = productIdInput.value;
+                    const quantity = quantityInput.value;
+                    // Lấy Antiforgery token từ form ẩn trong _Layout.cshtml
+                    const token = $('#antiForgeryTokenContainer input[name="__RequestVerificationToken"]').val();
+
+                    if (!token) {
+                        showToast("Lỗi bảo mật (thiếu token).", true);
+                        return;
+                    }
+
+                    fetch("@Url.Action("AddToCart", "Cart")", {
                         method: "POST",
                         headers: {
-                            "Content-Type": "application/x-www-form-urlencoded"
+                            "Content-Type": "application/x-www-form-urlencoded",
+                            "RequestVerificationToken": token,
+                            "X-Requested-With": "XMLHttpRequest"
                         },
                         body: new URLSearchParams({ productId, quantity })
                     })
-                    .then(response => response.json())
-                    .then(data => {
-                        showToast(data.message, !data.success);
-                    })
-                    .catch(err => {
-                        showToast("Đã xảy ra lỗi kết nối với máy chủ.", true);
-                        console.error(err);
-                    });
+                        .then(response => {
+                            if (!response.ok) { // Kiểm tra nếu response không thành công (ví dụ 4xx, 5xx)
+                                // Cố gắng đọc lỗi JSON nếu có, nếu không thì dùng text
+                                return response.json()
+                                    .catch(() => response.text().then(text => Promise.reject(text || "Lỗi không xác định từ máy chủ.")))
+                                    .then(errDataOrText => Promise.reject(errDataOrText.message || errDataOrText));
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            showToast(data.message, !data.success); // Hiển thị thông báo từ server
+                            if (data.success) {
+                                console.log("AddToCart (Detail Page) success, triggering 'minimart.cart.updated'");
+                                $(document).trigger('minimart.cart.updated'); // KÍCH HOẠT SỰ KIỆN ĐỂ _LAYOUT CẬP NHẬT BADGE
+                            }
+                        })
+                        .catch(error => {
+                            console.error("Lỗi khi thêm vào giỏ hàng (Detail Page):", error);
+                            const errorMessage = typeof error === 'string' ? error : "Đã xảy ra lỗi kết nối với máy chủ.";
+                            showToast(errorMessage, true);
+                        });
                 });
             });
         });
-
-        function showToast(message, isError = false) {
-            const toast = document.createElement("div");
-            toast.className = `toast align-items-center text-white ${isError ? 'bg-danger' : 'bg-success'} border-0`;
-            toast.role = "alert";
-            toast.style.position = "fixed";
-            toast.style.bottom = "1rem";
-            toast.style.right = "1rem";
-            toast.style.zIndex = "9999";
-            toast.innerHTML = `
-                <div class="d-flex">
-                    <div class="toast-body">${message}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>`;
-            document.body.appendChild(toast);
-            const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
-            bsToast.show();
-            setTimeout(() => toast.remove(), 4000);
-        }
     </script>
 }
