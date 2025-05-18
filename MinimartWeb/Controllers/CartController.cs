@@ -50,7 +50,7 @@ namespace MinimartWeb.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Index(int saleId, Dictionary<int, decimal> updatedQuantities)
+        public async Task<IActionResult> Index(int saleId, Dictionary<int, decimal> updatedQuantities, int? removeProductId)
         {
             var sale = await _context.Sales
                 .Include(s => s.SaleDetails)
@@ -61,6 +61,19 @@ namespace MinimartWeb.Controllers
                 return NotFound();
             }
 
+            // ✅ Remove product if requested
+            if (removeProductId.HasValue)
+            {
+                var detailToRemove = sale.SaleDetails.FirstOrDefault(d => d.ProductTypeID == removeProductId.Value);
+                if (detailToRemove != null)
+                {
+                    _context.SaleDetails.Remove(detailToRemove);
+                    await _context.SaveChangesAsync();
+                    return RedirectToAction(nameof(Index));
+                }
+            }
+
+            // ✅ Otherwise, update quantities
             foreach (var item in sale.SaleDetails)
             {
                 if (updatedQuantities.TryGetValue(item.ProductTypeID, out var newQty))
@@ -72,6 +85,7 @@ namespace MinimartWeb.Controllers
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
+
 
 
         [HttpPost]

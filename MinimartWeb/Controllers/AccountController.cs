@@ -578,7 +578,7 @@ public class AccountController : Controller
             {
                 var account = await _context.EmployeeAccounts.AsNoTracking()
                     .Include(ea => ea.Employee) // Vẫn cần Employee để lấy Email
-                                                // .ThenInclude(e => e!.Role) // Không cần Include Role nữa nếu không lấy RoleName
+                         .ThenInclude(e => e!.Role)
                     .FirstOrDefaultAsync(ea => ea.Username == model.Username);
 
                 if (account == null || !VerifyPassword(model.Password, account.PasswordHash, account.Salt))
@@ -587,15 +587,15 @@ public class AccountController : Controller
                     return BadRequest(new { success = false, message = "Tên đăng nhập hoặc mật khẩu không đúng." });
                 }
 
-                // 🔥 **Role Assignment Logic**
-                //if (account.Employee.Role.RoleName == "Quản trị viên")
-                //{
-                //    role= "Admin";
-                //}
-                //else
-                //{
-                //    role = "Staff";
-                //}
+                 //🔥 **Role Assignment Logic**
+                if (account.Employee.Role.RoleName == "Quản trị viên")
+                {
+                    roleToUseInClaims = "Admin";
+                }
+                else
+                {
+                    roleToUseInClaims = "Staff";
+                }
 
                 //displayName = account.Username;
                 if (account.Employee == null)
@@ -609,7 +609,6 @@ public class AccountController : Controller
                 employeeAccountIdForRecord = account.AccountID;
                 is2FAEnabledForThisUser = account.Is2FAEnabled;
                 usernameForDisplayAndClaims = account.Username;
-                roleToUseInClaims = "Admin"; // <<== GÁN CỨNG VAI TRÒ "Admin" CHO TẤT CẢ NHÂN VIÊN
                 userIdForClaims = account.EmployeeID.ToString();
 
                 _logger.LogInformation("Employee {Username} authenticated. 2FA Enabled: {Is2FAEnabled}. Role will be set as '{StaticRole}'", usernameForDisplayAndClaims, is2FAEnabledForThisUser, roleToUseInClaims);
