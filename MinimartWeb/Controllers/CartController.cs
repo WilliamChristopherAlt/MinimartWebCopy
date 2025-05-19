@@ -48,62 +48,186 @@ namespace MinimartWeb.Controllers
             return View(sale); // can be null
         }
 
+        // Trong CartController.cs
+
+        // ... (using statements và constructor giữ nguyên) ...
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Index(int saleId, Dictionary<int, decimal> updatedQuantities, int? removeProductId)
         {
+            // 1. Xác thực người dùng và quyền truy cập giỏ hàng
+            if (!User.Identity.IsAuthenticated || string.IsNullOrEmpty(User.Identity.Name))
+            {
+                TempData["ErrorMessage"] = "Vui lòng đăng nhập để quản lý giỏ hàng.";
+                return RedirectToAction("Login", "Account"); // Hoặc trả về Unauthorized() nếu là API
+            }
+
+            var username = User.Identity.Name;
+            var customer = await _context.Customers.AsNoTracking() // AsNoTracking vì có thể không cần update Customer
+                                     .FirstOrDefaultAsync(c => c.Username == username);
+            if (customer == null)
+            {
+                TempData["ErrorMessage"] = "Không tìm thấy thông tin khách hàng.";
+                return RedirectToAction("Login", "Account"); // Hoặc Unauthorized()
+            }
+
+            // 2. Lấy giỏ hàng (Sale "Chờ xử lý") của khách hàng
             var sale = await _context.Sales
-                .Include(s => s.SaleDetails)
-                .FirstOrDefaultAsync(s => s.SaleID == saleId && s.OrderStatus == "Chờ xử lý");
+                .Include(s => s.SaleDetails) // Cần SaleDetails để cập nhật và kiểm tra
+                .FirstOrDefaultAsync(s => s.SaleID == saleId &&
+                                         s.CustomerID == customer.CustomerID && // Đảm bảo đúng giỏ hàng của user
+                                         s.OrderStatus == "Chờ xử lý");
 
             if (sale == null)
             {
-                return NotFound();
+                TempData["ErrorMessage"] = "Không tìm thấy giỏ hàng hoặc giỏ hàng không hợp lệ.";
+                return RedirectToAction("Index", "Home"); // Hoặc trang giỏ hàng rỗng nếu muốn
             }
 
-            // ✅ Remove product if requested
+            bool cartWasModified = false;
+
+            // 3. Xử lý xóa sản phẩm nếu có removeProductId (thường từ nút "Xóa" riêng)
             if (removeProductId.HasValue)
             {
                 var detailToRemove = sale.SaleDetails.FirstOrDefault(d => d.ProductTypeID == removeProductId.Value);
                 if (detailToRemove != null)
                 {
                     _context.SaleDetails.Remove(detailToRemove);
-                    await _context.SaveChangesAsync();
-                    return RedirectToAction(nameof(Index));
+                    sale.SaleDetails.Remove(detailToRemove); // Cũng xóa khỏi collection trong bộ nhớ của sale
+                    cartWasModified = true;
+                    TempData["SuccessMessage"] = "Đã xóa sản phẩm khỏi giỏ hàng.";
                 }
-            }
-
-            // ✅ Otherwise, update quantities
-            foreach (var item in sale.SaleDetails)
-            {
-                if (updatedQuantities.TryGetValue(item.ProductTypeID, out var newQty))
+                else
                 {
-                    item.Quantity = newQty;
+                    TempData["WarningMessage"] = "Không tìm thấy sản phẩm cần xóa trong giỏ hàng.";
+                }
+            }
+            // 4. Nếu không phải xóa trực tiếp, thì xử lý cập nhật số lượng từ updatedQuantities
+            else if (updatedQuantities != null && updatedQuantities.Any())
+            {
+                List<SaleDetail> itemsToRemoveDueToZeroQuantity = new List<SaleDetail>();
+
+                foreach (var item in sale.SaleDetails.ToList()) // ToList() để có thể xóa item khỏi collection gốc khi duyệt
+                {
+                    if (updatedQuantities.TryGetValue(item.ProductTypeID, out var newQuantity))
+                    {
+                        var product = await _context.ProductTypes.AsNoTracking()
+                                                .Include(pt => pt.MeasurementUnit)
+                                                .FirstOrDefaultAsync(pt => pt.ProductTypeID == item.ProductTypeID);
+
+                        if (product == null) continue; // Bỏ qua nếu sản phẩm không còn tồn tại (hiếm khi)
+
+                        bool isContinuous = product.MeasurementUnit?.IsContinuous ?? false;
+                        decimal minAllowedQuantity = isContinuous ? 0.01m : 1m;
+
+                        if (newQuantity < (isContinuous ? 0 : minAllowedQuantity)) // Nếu số lượng mới <= 0 cho sản phẩm rời, hoặc < 0 cho liên tục
+                        {
+                            itemsToRemoveDueToZeroQuantity.Add(item);
+                        }
+                        else if (newQuantity > product.StockAmount)
+                        {
+                            TempData["WarningMessage"] = $"Số lượng cập nhật cho '{product.ProductName}' ({newQuantity}) vượt quá tồn kho ({product.StockAmount}). Số lượng không được thay đổi.";
+                            // Không thay đổi số lượng của item này
+                        }
+                        else if (item.Quantity != newQuantity)
+                        {
+                            item.Quantity = newQuantity;
+                            cartWasModified = true;
+                        }
+                    }
+                }
+
+                if (itemsToRemoveDueToZeroQuantity.Any())
+                {
+                    _context.SaleDetails.RemoveRange(itemsToRemoveDueToZeroQuantity);
+                    foreach (var itemToRemove in itemsToRemoveDueToZeroQuantity)
+                    {
+                        sale.SaleDetails.Remove(itemToRemove); // Xóa khỏi collection trong bộ nhớ
+                    }
+                    cartWasModified = true;
+                    if (TempData["SuccessMessage"] == null) // Chỉ set nếu chưa có thông báo thành công nào khác
+                    {
+                        TempData["SuccessMessage"] = "Đã cập nhật giỏ hàng và xóa các sản phẩm có số lượng bằng 0.";
+                    }
+                }
+                else if (cartWasModified && TempData["SuccessMessage"] == null)
+                {
+                    TempData["SuccessMessage"] = "Đã cập nhật số lượng sản phẩm trong giỏ hàng.";
                 }
             }
 
-            await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
+            // 5. Lưu thay đổi nếu có
+            if (cartWasModified)
+            {
+                try
+                {
+                    await _context.SaveChangesAsync();
+
+                    // Nếu sau khi cập nhật/xóa mà giỏ hàng hoàn toàn trống, xóa luôn Sale "Chờ xử lý"
+                    if (!sale.SaleDetails.Any())
+                    {
+                        // Double check trong DB để chắc chắn
+                        var remainingDetailsCount = await _context.SaleDetails.CountAsync(sd => sd.SaleID == sale.SaleID);
+                        if (remainingDetailsCount == 0)
+                        {
+                            _context.Sales.Remove(sale);
+                            await _context.SaveChangesAsync();
+                            TempData["InfoMessage"] = "Giỏ hàng của bạn hiện đã trống.";
+                            // Client sẽ tự gọi GetCartItemCount khi trang giỏ hàng tải lại,
+                            // hoặc bạn có thể trigger custom event ở đây nếu cần cập nhật badge ngay lập tức
+                            // trước khi redirect (nhưng redirect là đủ).
+                        }
+                    }
+                }
+                catch (DbUpdateConcurrencyException ex)
+                {
+                    // _logger.LogError(ex, "Lỗi tương tranh khi cập nhật giỏ hàng SaleID {SaleID}", sale.SaleID);
+                    TempData["ErrorMessage"] = "Có lỗi xảy ra khi cập nhật giỏ hàng do dữ liệu đã thay đổi. Vui lòng thử lại.";
+                }
+                catch (Exception ex)
+                {
+                    // _logger.LogError(ex, "Lỗi khi lưu thay đổi giỏ hàng SaleID {SaleID}", sale.SaleID);
+                    TempData["ErrorMessage"] = "Có lỗi không xác định xảy ra khi cập nhật giỏ hàng.";
+                }
+            }
+            else if (!removeProductId.HasValue && (updatedQuantities == null || !updatedQuantities.Any()))
+            {
+                // Không có hành động nào được thực hiện (không xóa, không có số lượng cập nhật)
+                // Có thể không cần thông báo gì, hoặc một thông báo "Không có gì để cập nhật"
+            }
+
+
+            return RedirectToAction(nameof(Index)); // Luôn redirect về trang giỏ hàng để hiển thị trạng thái mới nhất
         }
+
+        // ... (Các action AddToCart, ConfirmOrder, BuyNow, GetCartItemCount, OrderHistory của bạn giữ nguyên hoặc đã được cập nhật) ...
 
 
 
         [HttpPost]
         public async Task<IActionResult> AddToCart(int productId, int quantity)
         {
+            // 1. Nếu số lượng truyền vào nhỏ hơn 1, gán mặc định là 1
+            if (quantity == 0)
+            {
+                quantity = 1;
+            }
+
             if (!User.Identity.IsAuthenticated)
             {
                 return Json(new { success = false, message = "Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng." });
             }
 
             var username = User.Identity.Name;
-            var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Username == username);
+            var customer = await _context.Customers
+                                     .Include(c => c.Sales) // Include Sales để có thể truy cập địa chỉ từ đơn hàng gần nhất nếu cần
+                                     .FirstOrDefaultAsync(c => c.Username == username);
             if (customer == null)
             {
                 return Json(new { success = false, message = "Không tìm thấy thông tin khách hàng." });
             }
 
-            // ✅ Dùng đúng trạng thái đơn hàng "Chờ xử lý"
             var sale = await _context.Sales
                 .Include(s => s.SaleDetails)
                 .FirstOrDefaultAsync(s => s.CustomerID == customer.CustomerID && s.OrderStatus == "Chờ xử lý");
@@ -113,48 +237,99 @@ namespace MinimartWeb.Controllers
                 sale = new Sale
                 {
                     CustomerID = customer.CustomerID,
-                    EmployeeID = 1, // tạm thời
-                    PaymentMethodID = 1,
-                    DeliveryAddress = "",
-                    DeliveryTime = DateTime.Now.AddDays(1),
+                    EmployeeID = 1, // Tạm thời: Nên có logic để gán EmployeeID quản lý đơn hàng này
+                    PaymentMethodID = 1, // Tạm thời: Phương thức thanh toán mặc định
+                    DeliveryAddress = " ", // Lấy địa chỉ từ thông tin khách hàng nếu có
+                    DeliveryTime = DateTime.Now.AddDays(2), // Thời gian giao hàng dự kiến
                     IsPickup = false,
                     OrderStatus = "Chờ xử lý",
                     SaleDate = DateTime.Now
                 };
                 _context.Sales.Add(sale);
-                await _context.SaveChangesAsync();
+                // Cần SaveChanges ở đây để sale có SaleID trước khi thêm SaleDetails
+                try
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (Exception ex)
+                {
+                    // _logger.LogError(ex, "Lỗi khi tạo Sale mới cho CustomerID {CustomerId}", customer.CustomerID);
+                    Console.WriteLine($"Lỗi khi tạo Sale mới cho CustomerID {customer.CustomerID}: {ex.Message}");
+                    return Json(new { success = false, message = "Có lỗi xảy ra khi tạo giỏ hàng mới." });
+                }
             }
 
-            var product = await _context.ProductTypes.FindAsync(productId);
+            var product = await _context.ProductTypes
+                                    .Include(p => p.MeasurementUnit) // Include MeasurementUnit để lấy UnitName
+                                    .FirstOrDefaultAsync(p => p.ProductTypeID == productId);
             if (product == null)
             {
                 return Json(new { success = false, message = "Không tìm thấy sản phẩm." });
             }
 
+            // 2. Kiểm tra tồn kho
             var existingDetail = sale.SaleDetails.FirstOrDefault(sd => sd.ProductTypeID == productId);
+            decimal quantityNeededInCart = quantity; // Số lượng cần cho sản phẩm này trong giỏ hàng
             if (existingDetail != null)
             {
-                existingDetail.Quantity += quantity;
+                quantityNeededInCart = existingDetail.Quantity + quantity;
+            }
+
+            if (product.StockAmount < quantityNeededInCart)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = $"Xin lỗi, số lượng tồn kho của sản phẩm '{product.ProductName}' không đủ. Hiện còn {product.StockAmount} {(product.MeasurementUnit?.UnitName ?? "đơn vị")}."
+                });
+            }
+
+            // Thêm hoặc cập nhật chi tiết đơn hàng
+            if (existingDetail != null)
+            {
+                existingDetail.Quantity += quantity; // quantity đã được đảm bảo >= 1
             }
             else
             {
-                var detail = new SaleDetail
+                var newDetail = new SaleDetail
                 {
-                    SaleID = sale.SaleID,
+                    // SaleID sẽ được EF Core tự động gán nếu thêm vào collection sale.SaleDetails
+                    // và sale đã được tracked (hoặc bạn có thể gán sale.SaleID)
                     ProductTypeID = productId,
-                    Quantity = quantity,
-                    ProductPriceAtPurchase = product.Price
+                    Quantity = quantity, // quantity đã được đảm bảo >= 1
+                    ProductPriceAtPurchase = product.Price,
+                    Sale = sale // Thiết lập quan hệ
                 };
-                _context.SaleDetails.Add(detail);
+                //_context.SaleDetails.Add(newDetail); // Không cần thiết nếu bạn dùng sale.SaleDetails.Add
+                sale.SaleDetails.Add(newDetail);
             }
 
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) // Bắt lỗi cụ thể hơn nếu có thể
+            {
+                // _logger.LogError(ex, "Lỗi DbUpdateException khi cập nhật SaleDetails cho SaleID {SaleID}", sale.SaleID);
+                Console.WriteLine($"Lỗi DbUpdateException khi cập nhật SaleDetails cho SaleID {sale.SaleID}: {ex.InnerException?.Message ?? ex.Message}");
+                return Json(new { success = false, message = "Có lỗi xảy ra khi cập nhật chi tiết giỏ hàng." });
+            }
+            catch (Exception ex)
+            {
+                // _logger.LogError(ex, "Lỗi không xác định khi lưu giỏ hàng cho SaleID {SaleID}", sale.SaleID);
+                Console.WriteLine($"Lỗi không xác định khi lưu giỏ hàng cho SaleID {sale.SaleID}: {ex.Message}");
+                return Json(new { success = false, message = "Có lỗi không xác định xảy ra khi cập nhật giỏ hàng." });
+            }
 
+            // 3. Cập nhật thông báo thành công
             return Json(new
             {
                 success = true,
-                message = $"✅ <strong>{product.ProductName}</strong> đã được thêm vào giỏ hàng.",
+                message = $"✅ Thêm thành công {quantity} {(product.MeasurementUnit?.UnitName ?? "sản phẩm")} <strong>{product.ProductName}</strong> vào giỏ hàng.",
                 productName = product.ProductName
+                // Bạn có thể cân nhắc trả về tổng số lượng item trong giỏ hàng hiện tại
+                // để client cập nhật badge ngay mà không cần gọi API GetCartItemCount nữa.
+                // currentCartTotalItems = sale.SaleDetails.Sum(sd => (int)sd.Quantity)
             });
         }
 

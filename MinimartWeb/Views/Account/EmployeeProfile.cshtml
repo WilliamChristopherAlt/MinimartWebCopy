@@ -132,12 +132,7 @@
                     </div>
 
                     <div class="text-center mt-4">
-                        <a asp-controller="Account" asp-action="ChangePassword" class="btn btn-link">Đổi mật khẩu tài khoản</a>
-                        @if (User.IsInRole("Admin") || User.IsInRole("Quản trị viên") || User.IsInRole("Giám sát") || User.IsInRole("Staff"))
-                        {
-                            <span class="mx-1 text-muted">|</span>
-                            <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index" class="btn btn-link">Về trang quản trị</a>
-                        }
+                        <a asp-controller="Account" asp-action="ChangePassword" class="btn btn-outline-secondary"><i class="fas fa-key me-2"></i> Đổi mật khẩu</a>
                     </div>
                 </div> @* card-body chính *@
             </div> @* card chính *@

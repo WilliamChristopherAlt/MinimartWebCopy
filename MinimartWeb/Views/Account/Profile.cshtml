@@ -1,20 +1,23 @@
-﻿@* File: Views/Account/Profile.cshtml (Hoặc CustomerProfile.cshtml) *@
+﻿@* File: Views/Account/Profile.cshtml *@
 @model MinimartWeb.Models.CustomerProfileViewModel
 @using System.Text.Encodings.Web;
 @{
     ViewData["Title"] = "Thông tin cá nhân";
-    Layout = "~/Views/Shared/_Layout.cshtml";
-    var imageSrc = !string.IsNullOrEmpty(Model.ImagePath) && Model.ImagePath != "default.jpg"
-                   ? Url.Content("~/images/users/" + Model.ImagePath)
-                   : Url.Content("~/images/users/default.jpg");
+    Layout = "~/Views/Shared/_Layout.cshtml"; // Đảm bảo đường dẫn Layout chính xác
+
+    // Xác định nguồn ảnh đại diện, sử dụng ảnh mặc định nếu không có hoặc là "default.jpg"
+    var imageSrc = !string.IsNullOrEmpty(Model.ImagePath) && !Model.ImagePath.Equals("default.jpg", StringComparison.OrdinalIgnoreCase)
+                   ? Url.Content("~/images/users/" + Model.ImagePath) // Đường dẫn đến ảnh của người dùng
+                   : Url.Content("~/images/users/default.jpg");     // Đường dẫn đến ảnh mặc định
 }
 
 <div class="container my-4">
-    <div class="text-center py-3 mb-4" style="background-color: #e0f2f7; border-radius: 0.3rem;">
+    @* TIÊU ĐỀ TRANG *@
+    <div class="text-center py-3 mb-4" style="background-color: #e9ecef; border-radius: 0.3rem;">
         <h2 class="mb-0 display-6 fw-normal">@ViewData["Title"]</h2>
     </div>
 
-    @* --- PHẦN THÔNG BÁO --- *@
+    @* --- PHẦN HIỂN THỊ THÔNG BÁO (TEMP DATA) --- *@
     <div class="row justify-content-center mb-3">
         <div class="col-lg-10 col-xl-9">
             @if (TempData["SuccessMessage"] != null)
@@ -24,7 +27,14 @@
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             }
-            @if (TempData["ErrorMessage_2FA"] != null) // Lỗi cụ thể từ action ToggleCustomer2FA
+            @if (TempData["ErrorMessage"] != null) // Một key TempData chung cho lỗi
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i> @TempData["ErrorMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+            @if (TempData["ErrorMessage_2FA"] != null) // Lỗi cụ thể từ action ToggleCustomer2FA (nếu trang này xử lý)
             {
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <i class="fas fa-exclamation-triangle me-2"></i> @TempData["ErrorMessage_2FA"]
@@ -35,47 +45,79 @@
     </div>
 
     <div class="row g-4">
+        @* --- CỘT BÊN TRÁI: THÔNG TIN CHI TIẾT KHÁCH HÀNG --- *@
         <div class="col-lg-5 col-md-6">
-            <div class="border p-3 rounded-3 mb-4" style="background-color: #ffffff;">
-                @* ... (Phần thông tin cá nhân khách hàng và ảnh đại diện) ... *@
-                <div class="text-center mb-4">
-                    <img id="profileImagePreview" src="@imageSrc" class="img-thumbnail rounded-circle mb-2" alt="Ảnh đại diện" style="width: 180px; height: 180px; object-fit: cover; border: 4px solid #dee2e6;">
-                    @* Nếu bạn có form cho phép Customer tự cập nhật ảnh/thông tin, thì nên có form riêng hoặc tích hợp vào đây *@
-                </div>
-                <h4 class="mb-3 border-bottom pb-2 text-center">Thông tin chi tiết</h4>
-                <div class="mb-2 row"><label class="col-sm-4 col-form-label fw-bold text-muted">Mã KH:</label><div class="col-sm-8"><p class="form-control-plaintext py-0">@Model.CustomerId</p></div></div>
-                <div class="mb-2 row"><label class="col-sm-4 col-form-label fw-bold text-muted">Họ:</label><div class="col-sm-8"><p class="form-control-plaintext py-0">@Model.FirstName</p></div></div>
-                <div class="mb-2 row"><label class="col-sm-4 col-form-label fw-bold text-muted">Tên:</label><div class="col-sm-8"><p class="form-control-plaintext py-0">@Model.LastName</p></div></div>
-                <div class="mb-2 row"><label class="col-sm-4 col-form-label fw-bold text-muted">Tên đăng nhập:</label><div class="col-sm-8"><p class="form-control-plaintext py-0">@Model.Username</p></div></div>
-                <div class="mb-2 row">
-                    <label class="col-sm-4 col-form-label fw-bold text-muted">Email:</label>
-                    <div class="col-sm-8 d-flex align-items-center">
-                        <p class="form-control-plaintext py-0 mb-0 me-2">@Model.Email</p>
-                        @if (Model.IsEmailVerified)
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <img id="profileImagePreview" src="@imageSrc" class="img-thumbnail rounded-circle mb-2" alt="Ảnh đại diện" style="width: 180px; height: 180px; object-fit: cover; border: 4px solid #dee2e6;">
+                    </div>
+                    <h4 class="mb-3 border-bottom pb-2 text-center">Thông tin chi tiết</h4>
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5 text-muted">Mã KH:</dt>
+                        <dd class="col-sm-7">@Model.CustomerId</dd>
+
+                        <dt class="col-sm-5 text-muted">Họ:</dt>
+                        <dd class="col-sm-7">@Model.FirstName</dd>
+
+                        <dt class="col-sm-5 text-muted">Tên:</dt>
+                        <dd class="col-sm-7">@Model.LastName</dd>
+
+                        <dt class="col-sm-5 text-muted">Tên đăng nhập:</dt>
+                        <dd class="col-sm-7">@Model.Username</dd>
+
+                        <dt class="col-sm-5 text-muted">Email:</dt>
+                        <dd class="col-sm-7 d-flex align-items-center">
+                            <span class="me-2">@Model.Email</span>
+                            @if (Model.IsEmailVerified)
+                            {
+                                <i class="fas fa-check-circle text-success fs-6" title="Email đã được xác minh"></i>
+                            }
+                            else
+                            {
+                                <i class="fas fa-exclamation-triangle text-warning fs-6" title="Email chưa được xác minh"></i>
+                            }
+                        </dd>
+                        @if (!Model.IsEmailVerified)
                         {
-                            <i class="fas fa-check-circle text-success" title="Email đã được xác minh"></i>
+                            <dd class="col-sm-7 offset-sm-5 mt-1">
+                                <small class="text-muted d-block" style="font-size:0.85em;">
+                                    <a asp-controller="Account" asp-action="ResendVerificationOtp" asp-route-email="@Model.Email" class="text-decoration-none link-primary">Gửi lại mã OTP xác minh</a>
+                                </small>
+                            </dd>
                         }
-                        else
-                        {
-                            <i class="fas fa-exclamation-triangle text-warning" title="Email chưa được xác minh"></i>
-                        }
+
+                        <dt class="col-sm-5 text-muted mt-2">Điện thoại:</dt>
+                        <dd class="col-sm-7 mt-2">@(Model.PhoneNumber ?? "Chưa cập nhật")</dd>
+                    </dl>
+
+                    <div class="text-center mt-4 pt-3 border-top">
+                        <a asp-controller="Account" asp-action="Settings" class="btn btn-outline-primary">
+                            <i class="fas fa-user-cog me-2"></i> Cài đặt tài khoản
+                        </a>
                     </div>
                 </div>
-                @if (!Model.IsEmailVerified)
-                {
-                    <div class="row mb-2"><div class="col-sm-8 offset-sm-4"><small class="form-text text-muted mt-0 d-block" style="font-size:0.8em"><a asp-controller="Account" asp-action="ResendVerificationOtp" asp-route-email="@Model.Email" class="text-decoration-none">Gửi lại mã OTP</a></small></div></div>
-                }
-                <div class="mb-3 row"><label class="col-sm-4 col-form-label fw-bold text-muted">Điện thoại:</label><div class="col-sm-8"><p class="form-control-plaintext py-0">@Model.PhoneNumber</p></div></div>
             </div>
         </div>
 
+        @* --- CỘT BÊN PHẢI: BIỂU ĐỒ CHI TIÊU --- *@
         <div class="col-lg-7 col-md-6">
-            @* ... (Phần biểu đồ chi tiêu giữ nguyên) ... *@
-            <div class="border p-3 rounded-3" style="background-color: #f8f9fa; min-height: 450px;">
-                <h4 class="mb-3 text-center">@ViewBag.ChartTitle</h4>
-                <div id="chartContainer" style="height: 380px; position: relative;">
-                    <canvas id="spendingChart"></canvas>
-                    <p id="noChartDataMessage" class="text-muted text-center" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display:none;">Chưa có dữ liệu chi tiêu để hiển thị.</p>
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h4 class="mb-3 text-center">@Html.Raw(ViewBag.ChartTitle ?? "Biểu đồ chi tiêu")</h4>
+                    <div id="chartContainer" style="height: 380px; position: relative;">
+                        <canvas id="spendingChart"></canvas>
+                        <p id="noChartDataMessage" class="text-muted text-center" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none;">
+                            Chưa có dữ liệu chi tiêu để hiển thị.
+                        </p>
+                    </div>
+                    @if (ViewBag.TotalSpendingThisYear != null && (decimal)ViewBag.TotalSpendingThisYear > 0)
+                    {
+                        <p class="text-center text-muted mt-3 small">
+                            Tổng chi tiêu năm @DateTime.Now.Year (tính đến hiện tại):
+                            <strong>@(((decimal)ViewBag.TotalSpendingThisYear).ToString("N0")) VNĐ</strong>
+                        </p>
+                    }
                 </div>
             </div>
         </div>
@@ -83,35 +125,161 @@
 </div>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    @* Nhúng thư viện Chart.js từ CDN *@
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script> @* Hoặc phiên bản mới hơn nếu bạn muốn *@
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // ... (Script cho biểu đồ chi tiêu giữ nguyên) ...
-            const chartLabels = @Html.Raw(Json.Serialize(ViewBag.ChartLabels ?? new List<string>()));
-            const chartDataValues = @Html.Raw(Json.Serialize(ViewBag.ChartData ?? new List<decimal>()));
-            // ... (phần còn lại của script biểu đồ)
+            // LẤY DỮ LIỆU BIỂU ĐỒ TỪ ViewBag (ĐÃ ĐƯỢC SERIALIZE BỞI RAZOR)
+            const rawChartLabels = @Html.Raw(Json.Serialize(ViewBag.ChartLabels));
+            const rawChartData = @Html.Raw(Json.Serialize(ViewBag.ChartData));
+            const chartTitleFromViewBag = "@Html.Raw(JavaScriptEncoder.Default.Encode(ViewBag.ChartTitle?.ToString() ?? "Biểu đồ chi tiêu"))";
 
-            const toggleCustomerForm = document.getElementById('toggleCustomer2FAForm');
-            if (toggleCustomerForm) {
-                toggleCustomerForm.addEventListener('submit', function (e) {
-                    const passwordInput = this.querySelector('input[name="PasswordForChange2FAStatus"]');
-                    if (!passwordInput || passwordInput.value.trim() === '') {
-                        alert('Vui lòng nhập mật khẩu hiện tại để xác nhận thay đổi 2FA.');
-                        e.preventDefault();
-                        passwordInput.focus();
-                        return;
-                    }
+            // LOGGING DỮ LIỆU THÔ NHẬN ĐƯỢC TỪ SERVER
+            console.groupCollapsed("Chart Data from Server (ViewBag)");
+            console.log("Raw Chart Labels:", rawChartLabels);
+            console.log("Raw Chart Data:", rawChartData);
+            console.log("Chart Title:", chartTitleFromViewBag);
+            console.groupEnd();
 
-                    const isEnabling = this.querySelector('input[name="enable"]').value === 'true';
-                    const confirmMessage = isEnabling
-                        ? 'Bạn có chắc chắn muốn BẬT Xác thực hai yếu tố không?'
-                        : 'Bạn có chắc chắn muốn TẮT Xác thực hai yếu tố không?';
+            // XỬ LÝ DỮ LIỆU ĐỂ ĐẢM BẢO ĐÚNG ĐỊNH DẠNG CHO CHART.JS
+            // Nếu ViewBag null hoặc rỗng, tạo mảng trống
+            const chartLabels = Array.isArray(rawChartLabels) ? rawChartLabels : [];
+            // Đảm bảo chartDataValues là mảng các số (number)
+            const chartDataValues = Array.isArray(rawChartData) ? rawChartData.map(v => parseFloat(v) || 0) : [];
 
-                    if (!confirm(confirmMessage)) {
-                        e.preventDefault();
-                    }
-                });
+            // LOGGING DỮ LIỆU SAU KHI XỬ LÝ
+            console.groupCollapsed("Processed Data for Chart.js");
+            console.log("Processed Labels:", chartLabels);
+            console.log("Processed Data Values:", chartDataValues);
+            console.groupEnd();
+
+            const canvasElement = document.getElementById('spendingChart');
+            const noDataMsgElement = document.getElementById('noChartDataMessage');
+
+            if (!canvasElement) {
+                console.error("Critical Error: Canvas element with ID 'spendingChart' not found!");
+                if (noDataMsgElement) {
+                    noDataMsgElement.textContent = "Lỗi: Thành phần biểu đồ không tồn tại trên trang.";
+                    noDataMsgElement.style.display = 'block';
+                }
+                return; // Không thể tiếp tục nếu không có canvas
             }
+
+            const ctx = canvasElement.getContext('2d');
+            if (!ctx) {
+                console.error("Critical Error: Could not get 2D context from canvas 'spendingChart'!");
+                if (noDataMsgElement) {
+                    noDataMsgElement.textContent = "Lỗi: Không thể khởi tạo môi trường vẽ cho biểu đồ.";
+                    noDataMsgElement.style.display = 'block';
+                }
+                canvasElement.style.display = 'none';
+                return;
+            }
+
+            // KIỂM TRA XEM CÓ DỮ LIỆU DƯƠNG ĐỂ VẼ KHÔNG
+            const hasPositiveData = chartDataValues.length > 0 && chartLabels.length === chartDataValues.length && chartDataValues.some(value => value > 0);
+            console.log("Condition 'hasPositiveData' (length > 0, labels/data match, some value > 0):", hasPositiveData);
+
+            if (hasPositiveData) {
+                if (noDataMsgElement) noDataMsgElement.style.display = 'none'; // Ẩn thông báo "không có dữ liệu"
+                canvasElement.style.display = 'block'; // Hiện canvas
+
+                try {
+                    const spendingChart = new Chart(ctx, {
+                        type: 'bar', // Loại biểu đồ: 'bar', 'line', 'pie', 'doughnut', etc.
+                        data: {
+                            labels: chartLabels,
+                            datasets: [{
+                                label: 'Tổng chi tiêu', // Nhãn cho bộ dữ liệu
+                                data: chartDataValues,
+                                backgroundColor: 'rgba(75, 192, 192, 0.6)', // Màu nền cột
+                                borderColor: 'rgba(75, 192, 192, 1)',     // Màu viền cột
+                                borderWidth: 1,                            // Độ dày viền
+                                // tension: 0.1 // Chỉ dùng cho type 'line' để làm đường cong mềm mại
+                            }]
+                        },
+                        options: {
+                            responsive: true, // Biểu đồ tự điều chỉnh theo kích thước container
+                            maintainAspectRatio: false, // Quan trọng: Cho phép biểu đồ không giữ tỷ lệ cố định, fill div
+                            scales: {
+                                y: { // Cấu hình trục Y
+                                    beginAtZero: true, // Bắt đầu từ 0
+                                    ticks: {
+                                        callback: function (value) { // Định dạng số trên trục Y
+                                            if (typeof value === 'number') {
+                                                return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+                                            }
+                                            return value;
+                                        }
+                                    },
+                                    title: {
+                                        display: true,
+                                        text: 'Số tiền (VNĐ)'
+                                    }
+                                },
+                                x: { // Cấu hình trục X
+                                    title: {
+                                        display: true,
+                                        text: 'Tháng/Năm'
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: { // Chú thích (legend)
+                                    display: true, // Hiện chú thích
+                                    position: 'top', // Vị trí: 'top', 'bottom', 'left', 'right'
+                                },
+                                title: { // Tiêu đề chính của biểu đồ
+                                    display: true,
+                                    text: chartTitleFromViewBag, // Lấy từ ViewBag
+                                    font: {
+                                        size: 16
+                                    }
+                                },
+                                tooltip: { // Thông tin hiển thị khi hover vào cột/điểm
+                                    enabled: true,
+                                    callbacks: {
+                                        label: function (context) {
+                                            let label = context.dataset.label || '';
+                                            if (label) {
+                                                label += ': ';
+                                            }
+                                            if (context.parsed.y !== null) {
+                                                label += new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(context.parsed.y);
+                                            }
+                                            return label;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    console.log("Chart.js instance has been created successfully:", spendingChart);
+                } catch (error) {
+                    console.error("Error occurred while creating the Chart.js instance:", error);
+                    if (noDataMsgElement) {
+                        noDataMsgElement.textContent = "Đã xảy ra lỗi khi cố gắng vẽ biểu đồ. Vui lòng thử tải lại trang.";
+                        noDataMsgElement.style.display = 'block';
+                    }
+                    canvasElement.style.display = 'none'; // Ẩn canvas nếu có lỗi
+                }
+            } else {
+                // Không có dữ liệu hợp lệ để vẽ, hoặc tất cả giá trị đều là 0
+                console.log("No valid data to display on the chart. Displaying 'no data' message.");
+                if (noDataMsgElement) {
+                    // Sử dụng ChartTitle từ ViewBag nếu nó đã chỉ ra không có dữ liệu, ngược lại dùng thông báo mặc định
+                    if (chartTitleFromViewBag.toLowerCase().includes("chưa có dữ liệu") || chartTitleFromViewBag.toLowerCase().includes("lỗi tải")) {
+                        noDataMsgElement.textContent = chartTitleFromViewBag;
+                    } else {
+                        noDataMsgElement.textContent = "Không có dữ liệu chi tiêu trong 12 tháng qua để hiển thị trên biểu đồ.";
+                    }
+                    noDataMsgElement.style.display = 'block';
+                }
+                canvasElement.style.display = 'none'; // Ẩn canvas
+            }
+            // Lưu ý: Các script khác của bạn (nếu có, ví dụ cho 2FA từ trang Settings) nên được tách riêng
+            // nếu trang Profile này không bao gồm các form đó.
         });
     </script>
 }

@@ -1,4 +1,5 @@
-﻿@model MinimartWeb.Model.Sale
+﻿@* Trong Views/Cart/Index.cshtml *@
+@model MinimartWeb.Model.Sale
 @{
     ViewData["Title"] = "Giỏ hàng của bạn";
     string formatCurrency(decimal value) => value.ToString("N0") + " đ";
@@ -9,6 +10,8 @@
 @if (Model == null || !Model.SaleDetails.Any())
 {
     <div class="alert alert-info">Giỏ hàng hiện đang trống.</div>
+    @* Tùy chọn: Nút quay lại trang sản phẩm *@
+    <a asp-controller="CustomerProducts" asp-action="Index" class="btn btn-primary mt-3">Tiếp tục mua sắm</a>
 }
 else
 {
@@ -21,7 +24,8 @@ else
             {
                 var unit = item.ProductType?.MeasurementUnit;
                 var isContinuous = unit?.IsContinuous ?? false;
-                var min = isContinuous ? "0.01" : "1";
+                // min cho input bây giờ có thể là 0, vì backend sẽ xử lý xóa
+                var minInput = isContinuous ? "0.00" : "0"; // Cho phép nhập 0
                 var step = isContinuous ? "0.01" : "1";
                 var unitName = unit?.UnitName ?? "đơn vị";
                 var img = string.IsNullOrEmpty(item.ProductType?.ImagePath)
@@ -29,7 +33,8 @@ else
                 : Url.Content("~/images/products/" + item.ProductType.ImagePath);
                 var itemTotal = item.Quantity * item.ProductPriceAtPurchase;
 
-                <div class="list-group-item mb-3 border rounded p-3 d-flex justify-content-between align-items-stretch flex-row" data-product-id="@item.ProductTypeID" data-price="@item.ProductPriceAtPurchase" style="gap: 1.5rem;">
+                <div class="list-group-item mb-3 border rounded p-3 d-flex justify-content-between align-items-stretch flex-row" data-product-id="@item.ProductTypeID" data-price="@item.ProductPriceAtPurchase.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)" style="gap: 1.5rem;">
+                    @* ... (Phần hiển thị thông tin sản phẩm giữ nguyên) ... *@
                     <a asp-controller="CustomerProducts" asp-action="Details" asp-route-id="@item.ProductTypeID"
                        class="d-flex flex-row text-decoration-none text-dark product-link-hover" style="flex: 1 1 auto;">
                         <div class="image-box d-flex justify-content-center align-items-center bg-light border" style="width: 140px; height: 140px; flex-shrink: 0;">
@@ -47,21 +52,20 @@ else
                     </a>
 
                     <div class="product-actions d-flex flex-column align-items-stretch justify-content-start gap-2" style="min-width: 200px;">
-
                         <div class="mb-2">
                             <label class="form-label small mb-1">Số lượng:</label>
                             <div class="input-group input-group-sm">
                                 <input type="number"
                                        class="form-control quantity-input text-start"
                                        name="updatedQuantities[@item.ProductTypeID]"
-                                       value="@item.Quantity"
-                                       min="@min"
+                                       value="@item.Quantity.ToString(isContinuous ? "0.00" : "0")" @* Hiển thị số lượng thực tế *@
+                                       min="@minInput" @* Cho phép người dùng nhập 0 *@
                                        step="@step" />
                                 <span class="input-group-text">@unitName</span>
                             </div>
                         </div>
                         <button type="button"
-                                class="btn btn-sm btn-outline-danger mt-2"
+                                class="btn btn-sm btn-outline-danger mt-2 remove-item-btn"
                                 data-product-id="@item.ProductTypeID">
                             <i class="fas fa-trash-alt me-1"></i> Xóa
                         </button>
@@ -75,8 +79,8 @@ else
         </div>
 
         <div class="d-flex justify-content-between mt-4">
-            <button type="submit" class="btn btn-primary">Cập nhật giỏ hàng</button>
-            <a class="btn btn-success" asp-controller="Cart" asp-action="ConfirmOrder" asp-route-saleId="@Model.SaleID">Tiến hành đặt hàng</a>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-sync-alt me-1"></i> Cập nhật giỏ hàng</button>
+            <a class="btn btn-success" asp-controller="Cart" asp-action="ConfirmOrder" asp-route-saleId="@Model.SaleID"><i class="fas fa-check-circle me-1"></i> Tiến hành đặt hàng</a>
         </div>
     </form>
 }
@@ -84,42 +88,86 @@ else
 @section Scripts {
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const formatCurrency = (val) =>
-                val.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }).replace("₫", "đ");
+            const formatCurrency = (valStr) => { // Nhận vào chuỗi hoặc số
+                let val = parseFloat(valStr);
+                if (isNaN(val) || val === null) val = 0;
+                return val.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }).replace("₫", "đ");
+            }
 
-            const updateTotals = () => {
+            const cartForm = document.getElementById('cartForm');
+
+            const updateTotalsAndUI = () => {
                 let grandTotal = 0;
+                let cartHasItems = false;
 
-                document.querySelectorAll('.list-group-item').forEach(row => {
+                document.querySelectorAll('.list-group-item[data-product-id]').forEach(row => {
+                    cartHasItems = true;
                     const price = parseFloat(row.dataset.price);
-                    const qty = parseFloat(row.querySelector('input.quantity-input').value);
-                    const itemTotal = price * qty;
+                    const quantityInput = row.querySelector('input.quantity-input');
+                    let qty = parseFloat(quantityInput.value);
+                    const stepValue = quantityInput.step;
+                    const isContinuous = stepValue === "0.01";
+                    const minAllowedForInput = isContinuous ? 0.00 : 0; // Cho phép nhập 0 vào input
 
-                    row.querySelector('.item-total strong').innerText = formatCurrency(itemTotal);
+                    if (isNaN(qty) || qty < 0) { // Nếu không phải số hoặc âm, coi như 0 để tính tổng
+                        qty = 0;
+                    }
+                    // Không tự ý sửa giá trị input ở đây, để user tự do nhập 0
+
+                    const itemTotal = price * qty;
+                    const itemTotalElement = row.querySelector('.item-total strong');
+                    if (itemTotalElement) {
+                        itemTotalElement.innerText = formatCurrency(itemTotal);
+                    }
                     grandTotal += itemTotal;
                 });
 
-                document.getElementById('grandTotal').innerText = formatCurrency(grandTotal);
+                const grandTotalElement = document.getElementById('grandTotal');
+                if (grandTotalElement) {
+                    grandTotalElement.innerText = formatCurrency(grandTotal);
+                }
+
+                // Trigger cập nhật badge giỏ hàng trên layout
+                if (typeof $ !== 'undefined' && $.fn.jquery) {
+                    $(document).trigger('minimart.cart.updated');
+                }
             };
 
-            document.querySelectorAll('input.quantity-input').forEach(input =>
-                input.addEventListener('input', updateTotals)
-            );
+            document.querySelectorAll('input.quantity-input').forEach(input => {
+                input.addEventListener('input', updateTotalsAndUI); // Cập nhật tổng khi gõ
 
-            document.querySelectorAll('.btn-outline-danger').forEach(btn => {
+                input.addEventListener('change', function () { // Xử lý khi rời input
+                    const stepValue = this.step;
+                    const isContinuous = stepValue === "0.01";
+                    let qty = parseFloat(this.value);
+                    const minValidQty = isContinuous ? 0.01 : 1; // Số lượng hợp lệ tối thiểu để giữ lại sản phẩm
+
+                    if (isNaN(qty) || qty < 0) { // Nếu nhập chữ hoặc số âm
+                        this.value = minValidQty.toFixed(isContinuous ? 2 : 0); // Đặt về min hợp lệ
+                    } else if (qty > 0 && qty < minValidQty) { // Nếu dương nhưng nhỏ hơn min hợp lệ
+                        this.value = minValidQty.toFixed(isContinuous ? 2 : 0);
+                    }
+                    // Nếu qty là 0, không làm gì ở đây, để backend xử lý khi submit "Cập nhật giỏ hàng"
+                    updateTotalsAndUI(); // Cập nhật lại tổng tiền
+                });
+            });
+
+            document.querySelectorAll('.remove-item-btn').forEach(btn => {
                 btn.addEventListener('click', function () {
-                    const id = this.dataset.productId;
+                    const productId = this.dataset.productId;
                     if (confirm("Bạn có chắc chắn muốn xóa sản phẩm này khỏi giỏ hàng?")) {
-                        const form = document.getElementById('cartForm');
                         const input = document.createElement("input");
                         input.type = "hidden";
                         input.name = "removeProductId";
-                        input.value = id;
-                        form.appendChild(input);
-                        form.submit();
+                        input.value = productId;
+                        cartForm.appendChild(input);
+                        cartForm.submit();
                     }
                 });
             });
+
+            // Gọi lần đầu để tính tổng
+            updateTotalsAndUI();
         });
     </script>
 }

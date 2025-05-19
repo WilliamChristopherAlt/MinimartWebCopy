@@ -902,7 +902,7 @@ public class AccountController : Controller
     // === KẾT THÚC DÁN CODE SETTINGS (POST) VÀO ĐÂY ===
 
     // GET: /Account/ChangePassword
-    [Authorize(Roles = "Customer")] // Hoặc chỉ [Authorize] nếu không phân quyền chi tiết
+    [Authorize] // Hoặc chỉ [Authorize] nếu không phân quyền chi tiết
     [HttpGet]
     public IActionResult ChangePassword()
     {
@@ -910,107 +910,168 @@ public class AccountController : Controller
     }
 
     // POST: /Account/ChangePassword (Bước 1: Xác thực mk cũ, gửi OTP)
-    [Authorize(Roles = "Customer")]
+    [Authorize] // Đảm bảo người dùng phải đăng nhập để truy cập action này
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
     {
         if (!ModelState.IsValid)
         {
-            return View(model);
+            _logger.LogDebug("ChangePassword POST: ModelState is invalid.");
+            // Log chi tiết lỗi ModelState nếu cần cho việc gỡ lỗi
+            // foreach (var modelStateKey in ModelState.Keys)
+            // {
+            //     var modelStateVal = ModelState[modelStateKey];
+            //     foreach (var error in modelStateVal.Errors)
+            //     {
+            //         _logger.LogDebug($"Key: {modelStateKey}, Error: {error.ErrorMessage}");
+            //     }
+            // }
+            return View(model); // Trả về View với lỗi validation
         }
 
-        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!int.TryParse(userIdString, out int customerId))
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier); // Đây có thể là CustomerID hoặc EmployeeID
+        if (!int.TryParse(userIdString, out int idFromClaim))
         {
-            _logger.LogWarning("ChangePassword POST: User not authenticated or CustomerID claim is missing.");
-            return Unauthorized("Không thể xác định người dùng."); // Hoặc Challenge()
+            _logger.LogWarning("ChangePassword POST: NameIdentifier claim ('{UserIdString}') is missing or not a valid integer.", userIdString);
+            return Unauthorized("Không thể xác định người dùng. Định danh không hợp lệ.");
         }
 
-        var customer = await _context.Customers.FirstOrDefaultAsync(c => c.CustomerID == customerId);
-        if (customer == null)
+        // Khai báo các biến sẽ được sử dụng chung
+        byte[] currentPasswordHash = null;
+        byte[] currentSalt = null;
+        string userEmailForNotification = string.Empty;
+        string userFirstNameForNotification = "Người dùng"; // Giá trị mặc định
+        Action<byte[], byte[]> updatePasswordInDbAction = null; // Action để cập nhật mật khẩu trong DB
+        string successRedirectAction = "Index";       // Action để chuyển hướng sau khi thành công
+        string successRedirectController = "Home";    // Controller để chuyển hướng sau khi thành công
+
+        // Phân biệt người dùng dựa trên vai trò (Roles) đã được gán khi đăng nhập
+        if (User.IsInRole("Customer"))
         {
-            _logger.LogError("ChangePassword POST: Customer with ID {CustomerId} not found in DB.", customerId);
-            return NotFound("Tài khoản không tồn tại.");
+            _logger.LogInformation("ChangePassword POST: Processing as Customer for CustomerID: {IdFromClaim}", idFromClaim);
+            var customer = await _context.Customers.FirstOrDefaultAsync(c => c.CustomerID == idFromClaim);
+            if (customer == null)
+            {
+                _logger.LogError("ChangePassword POST: Customer with CustomerID {IdFromClaim} not found.", idFromClaim);
+                return NotFound("Tài khoản khách hàng không tồn tại.");
+            }
+            currentPasswordHash = customer.PasswordHash;
+            currentSalt = customer.Salt;
+            userEmailForNotification = customer.Email;
+            userFirstNameForNotification = customer.FirstName;
+            updatePasswordInDbAction = (newHash, newSalt) => {
+                customer.PasswordHash = newHash;
+                customer.Salt = newSalt;
+                // customer.LastPasswordChangedDate = DateTime.UtcNow; // Nếu có
+            };
+            successRedirectAction = "Profile"; // Hoặc trang nào đó của Customer
+            successRedirectController = "Account";
         }
+        // Kiểm tra các vai trò của nhân viên mà action Login của bạn đang tạo ("Admin", "Staff")
+        else if (User.IsInRole("Admin") || User.IsInRole("Staff"))
+        {
+            _logger.LogInformation("ChangePassword POST: Processing as Employee. NameIdentifier (assumed EmployeeID): {IdFromClaim}. Attempting to find associated EmployeeAccount.", idFromClaim);
+            // Vì NameIdentifier là EmployeeID, chúng ta cần tìm EmployeeAccount tương ứng
+            var employeeAccount = await _context.EmployeeAccounts
+                                          .Include(ea => ea.Employee) // Để lấy Employee.Email và Employee.FirstName
+                                          .FirstOrDefaultAsync(ea => ea.EmployeeID == idFromClaim); // Quan trọng: Truy vấn bằng EmployeeID
+
+            if (employeeAccount == null)
+            {
+                _logger.LogError("ChangePassword POST: EmployeeAccount associated with EmployeeID {IdFromClaim} not found. This might indicate a data integrity issue or incorrect claim.", idFromClaim);
+                return NotFound("Tài khoản nhân viên không tồn tại hoặc không được liên kết đúng cách.");
+            }
+            _logger.LogInformation("ChangePassword POST: Found EmployeeAccount (AccountID: {EmployeeAccountId}) for EmployeeID: {IdFromClaim}", employeeAccount.AccountID, idFromClaim);
+
+            currentPasswordHash = employeeAccount.PasswordHash;
+            currentSalt = employeeAccount.Salt;
+            userEmailForNotification = employeeAccount.Employee?.Email;
+            userFirstNameForNotification = employeeAccount.Employee?.FirstName ?? employeeAccount.Username; // Ưu tiên FirstName, nếu không có thì dùng Username
+            updatePasswordInDbAction = (newHash, newSalt) => {
+                employeeAccount.PasswordHash = newHash;
+                employeeAccount.Salt = newSalt;
+                // employeeAccount.LastPasswordChangedDate = DateTime.UtcNow; // Nếu có
+            };
+            successRedirectAction = "EmployeeProfile"; // Hoặc trang nào đó của Employee
+            successRedirectController = "Account";
+        }
+        else
+        {
+            // Trường hợp không xác định được loại người dùng dựa trên vai trò
+            _logger.LogWarning("ChangePassword POST: Could not determine user type (Customer/Employee) for UserID {IdFromClaim} based on current roles. Roles found: [{Roles}]",
+                idFromClaim, string.Join(", ", User.FindAll(ClaimTypes.Role).Select(r => r.Value)));
+            return Unauthorized("Không thể xác định loại tài khoản hoặc vai trò không hợp lệ để thực hiện hành động này.");
+        }
+
+        // --- Bắt đầu logic đổi mật khẩu chung ---
 
         // 1. Xác thực mật khẩu hiện tại
-        if (!VerifyPassword(model.CurrentPassword, customer.PasswordHash, customer.Salt))
+        if (!VerifyPassword(model.CurrentPassword, currentPasswordHash, currentSalt))
         {
-            ModelState.AddModelError("CurrentPassword", "Mật khẩu hiện tại không đúng.");
-            _logger.LogWarning("ChangePassword POST: Incorrect current password for CustomerID {CustomerId}.", customerId);
+            ModelState.AddModelError(nameof(model.CurrentPassword), "Mật khẩu hiện tại không đúng.");
+            _logger.LogWarning("ChangePassword POST: Incorrect current password for UserID {IdFromClaim} (Type determined by role).", idFromClaim);
             return View(model);
         }
 
-        // 2. Tạo và gửi OTP
-        var otpTypeName = "UserChangePasswordVerification"; // Khớp với OtpTypes trong DB
-        var otpType = await _context.OtpTypes.FirstOrDefaultAsync(ot => ot.OtpTypeName == otpTypeName);
-        if (otpType == null)
+        // 2. Kiểm tra mật khẩu mới có trùng với mật khẩu cũ không
+        if (VerifyPassword(model.NewPassword, currentPasswordHash, currentSalt))
         {
-            _logger.LogError("CRITICAL: OtpType '{OtpTypeName}' not found for Change Password.", otpTypeName);
-            ModelState.AddModelError(string.Empty, "Lỗi hệ thống: Không thể xử lý yêu cầu đổi mật khẩu (OTP Type).");
+            ModelState.AddModelError(nameof(model.NewPassword), "Mật khẩu mới không được trùng với mật khẩu cũ.");
+            _logger.LogWarning("ChangePassword POST: New password is the same as old for UserID {IdFromClaim} (Type determined by role).", idFromClaim);
             return View(model);
         }
 
-        // Vô hiệu hóa OTP cùng loại chưa sử dụng của khách hàng này (nếu có)
-        var existingOtps = await _context.OtpRequests
-            .Where(o => o.CustomerID == customerId && o.OtpTypeID == otpType.OtpTypeID && !o.IsUsed && o.ExpirationTime > DateTime.UtcNow)
-            .ToListAsync();
-        foreach (var oldOtp in existingOtps)
-        {
-            oldOtp.IsUsed = true;
-            oldOtp.Status = "InvalidatedByNewRequest";
-        }
+        // 3. Tạo hash và salt cho mật khẩu mới
+        (byte[] newGeneratedPasswordHash, byte[] newGeneratedSalt) = GeneratePasswordHashAndSalt(model.NewPassword);
 
-        string otpCode = GenerateOtp();
-        var otpRequest = new OtpRequest
-        {
-            CustomerID = customer.CustomerID,
-            EmployeeAccountID = null, // Vì đây là Customer
-            OtpTypeID = otpType.OtpTypeID,
-            OtpCode = otpCode,
-            RequestTime = DateTime.UtcNow,
-            ExpirationTime = DateTime.UtcNow.AddMinutes(10), // OTP hết hạn sau 10 phút
-            IsUsed = false,
-            Status = "PendingPasswordChangeConfirm"
-        };
-        _context.OtpRequests.Add(otpRequest);
+        // Cập nhật mật khẩu trong đối tượng (customer hoặc employeeAccount) thông qua action đã gán
+        updatePasswordInDbAction(newGeneratedPasswordHash, newGeneratedSalt);
 
         try
         {
-            await _context.SaveChangesAsync(); // Lưu OTP và các OTP cũ đã vô hiệu hóa
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("ChangePassword POST: Password changed successfully for UserID {IdFromClaim} (Type determined by role).", idFromClaim);
+
+            // Gửi email thông báo nếu có địa chỉ email
+            if (!string.IsNullOrEmpty(userEmailForNotification))
+            {
+                string emailSubject = "Thông báo: Mật khẩu MiniMart của bạn đã được thay đổi";
+                string emailMessage = $@"
+                <p>Xin chào {userFirstNameForNotification},</p>
+                <p>Mật khẩu cho tài khoản MiniMart của bạn đã được thay đổi thành công vào lúc {DateTime.Now:dd/MM/yyyy HH:mm:ss}.</p>
+                <p>Nếu bạn không thực hiện thay đổi này, vui lòng liên hệ với bộ phận hỗ trợ của chúng tôi ngay lập tức.</p>";
+                try
+                {
+                    await _emailSender.SendEmailAsync(userEmailForNotification, emailSubject, emailMessage);
+                    _logger.LogInformation("ChangePassword POST: Password change notification email sent to {UserEmail} for UserID {IdFromClaim}.", userEmailForNotification, idFromClaim);
+                }
+                catch (Exception emailEx)
+                {
+                    _logger.LogError(emailEx, "ChangePassword POST: Failed to send password change notification email to {UserEmail} for UserID {IdFromClaim}.", userEmailForNotification, idFromClaim);
+                    // Không nên fail toàn bộ request chỉ vì email, nhưng cần log lại
+                }
+            }
+            else
+            {
+                _logger.LogWarning("ChangePassword POST: Email not available for UserID {IdFromClaim}, password change notification not sent.", idFromClaim);
+            }
+
+            TempData["SuccessMessage"] = "Mật khẩu của bạn đã được thay đổi thành công.";
+            return RedirectToAction(successRedirectAction, successRedirectController);
         }
-        catch (Exception ex)
+        catch (DbUpdateException ex)
         {
-            _logger.LogError(ex, "Lỗi khi lưu OTP Request cho đổi mật khẩu của CustomerID {CustomerId}", customerId);
-            ModelState.AddModelError(string.Empty, "Lỗi hệ thống khi tạo yêu cầu OTP.");
+            _logger.LogError(ex, "ChangePassword POST: Database error saving new password for UserID {IdFromClaim}.", idFromClaim);
+            ModelState.AddModelError(string.Empty, "Lỗi hệ thống khi cập nhật mật khẩu. Vui lòng thử lại.");
             return View(model);
         }
-
-        // Lưu mật khẩu MỚI (đã được validate bởi ViewModel) vào TempData để dùng sau khi OTP được xác nhận.
-        // CẢNH BÁO: Đây là cách đơn giản, không phải là an toàn nhất cho mật khẩu clear text.
-        // Trong môi trường production, hãy cân nhắc mã hóa TempData hoặc dùng cơ chế khác an toàn hơn.
-        TempData["PendingChange_NewPassword"] = model.NewPassword;
-        TempData["PendingChange_CustomerId"] = customer.CustomerID.ToString(); // Lưu ID để xác thực ở bước OTP
-
-
-        string emailSubject = "Xác nhận yêu cầu thay đổi mật khẩu MiniMart";
-        string emailMessage = $@"
-            <p>Xin chào {customer.FirstName},</p>
-            <p>Chúng tôi nhận được yêu cầu thay đổi mật khẩu cho tài khoản MiniMart của bạn.</p>
-            <p>Mã OTP để xác nhận việc thay đổi mật khẩu của bạn là: <strong>{otpCode}</strong></p>
-            <p>Mã này sẽ hết hạn sau 10 phút.</p>
-            <p>Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này và xem xét việc bảo mật tài khoản của bạn.</p>";
-
-        await _emailSender.SendEmailAsync(customer.Email, emailSubject, emailMessage);
-        _logger.LogInformation("ChangePassword POST: OTP for password change sent to CustomerID {CustomerId} at email {CustomerEmail}", customer.CustomerID, customer.Email);
-
-        // Chuyển hướng đến trang nhập OTP
-        return RedirectToAction(nameof(VerifyOtpForAction), new
+        catch (Exception ex) // Bắt các lỗi không mong muốn khác
         {
-            purpose = "ChangePassword",
-            detail = $"Một mã OTP đã được gửi đến email <strong>{customer.Email}</strong>. Vui lòng nhập mã để hoàn tất việc đổi mật khẩu."
-        });
+            _logger.LogError(ex, "ChangePassword POST: An unexpected error occurred for UserID {IdFromClaim}.", idFromClaim);
+            ModelState.AddModelError(string.Empty, "Đã có lỗi không mong muốn xảy ra. Vui lòng thử lại.");
+            return View(model);
+        }
     }
 
 
