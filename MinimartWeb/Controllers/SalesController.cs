@@ -491,7 +491,7 @@ namespace MinimartWeb.Controllers
                 SaleID = sale.SaleID,     // ✅ Added SaleID to the notification
                 Title = "Trạng thái đơn hàng đã thay đổi",
                 Message = $"Đơn hàng #{saleId} của bạn đã được cập nhật sang trạng thái: '{newStatus}'.",
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
                 IsRead = false,
                 NotificationType = NotificationType.OrderStatusUpdate.GetDisplayName()
             };
@@ -529,7 +529,7 @@ namespace MinimartWeb.Controllers
                     SaleID = sale.SaleID,
                     Title = "Đơn hàng đã bị hủy",
                     Message = $"Đơn hàng #{saleId} của bạn đã được hủy theo yêu cầu.",
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.Now,
                     IsRead = false,
                     NotificationType = NotificationType.OrderStatusUpdate.GetDisplayName()
                 };

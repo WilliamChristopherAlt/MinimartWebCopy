@@ -15,7 +15,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace MinimartWeb.Controllers
 {
-    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin")]
     public class CustomersController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -29,9 +29,21 @@ namespace MinimartWeb.Controllers
         }
 
         // GET: Customers
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string searchString)
         {
-            return View(await _context.Customers.ToListAsync());
+            var query = _context.Customers.AsQueryable();
+
+            if (!string.IsNullOrEmpty(searchString))
+            {
+                query = query.Where(c =>
+                    c.FirstName.Contains(searchString) ||
+                    c.LastName.Contains(searchString) ||
+                    c.Email.Contains(searchString) ||
+                    c.PhoneNumber.Contains(searchString));
+            }
+
+            var customers = await query.ToListAsync();
+            return View(customers);
         }
 
         // GET: Customers/Details/5
@@ -68,6 +80,8 @@ namespace MinimartWeb.Controllers
             // Remove password fields to prevent overposting
             ModelState.Remove(nameof(Customer.PasswordHash));
             ModelState.Remove(nameof(Customer.Salt));
+            ModelState.Remove(nameof(Customer.LoginAttempts));
+            ModelState.Remove(nameof(Customer.Notifications));
             ModelState.Remove("ProfileImage");
 
             // Check for existing email, phone number, and username
@@ -170,6 +184,8 @@ namespace MinimartWeb.Controllers
             ModelState.Remove(nameof(Customer.Salt));
             ModelState.Remove(nameof(Customer.ImagePath));
             ModelState.Remove(nameof(Customer.EmailVerifiedAt));
+            ModelState.Remove(nameof(Customer.LoginAttempts));
+            ModelState.Remove(nameof(Customer.Notifications));
 
             if (string.IsNullOrWhiteSpace(Password))
                 ModelState.Remove("Password");

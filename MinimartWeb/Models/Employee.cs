@@ -31,7 +31,7 @@ namespace MinimartWeb.Model
 
         [Required]
         [StringLength(20)]
-        [RegularExpression(@"^(Male|Female|Non-Binary|Prefer not to say)$", ErrorMessage = "Giới tính không hợp lệ.")]
+        [RegularExpression(@"^(Nam|Nữ|Khác|)$", ErrorMessage = "Giới tính không hợp lệ.")]
         [Display(Name = "Giới tính")]
         public string Gender { get; set; }
 

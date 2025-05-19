@@ -1,10 +1,13 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MinimartWeb.Data;
+using MinimartWeb.Model;
 using System.Security.Claims;
 
 namespace MinimartWeb.Controllers
 {
+    [Authorize(Roles = "Customer, Admin, Staff")]
     public class NotificationsController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -16,16 +19,38 @@ namespace MinimartWeb.Controllers
         [HttpGet]
         public async Task<IActionResult> Index()
         {
-            if (!User.Identity.IsAuthenticated) return RedirectToAction("Login", "Account");
+            if (!User.Identity.IsAuthenticated)
+                return RedirectToAction("Login", "Account");
 
-            var username = User.Identity.Name;
-            var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Username == username);
-            if (customer == null) return NotFound();
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var role = User.FindFirstValue(ClaimTypes.Role);
 
-            var notifications = await _context.Notifications
-                .Where(n => n.CustomerID == customer.CustomerID)
-                .OrderByDescending(n => n.CreatedAt)
-                .ToListAsync();
+            List<Notification> notifications;
+
+            if (role == "Customer")
+            {
+                var customer = await _context.Customers.FirstOrDefaultAsync(c => c.CustomerID == userId);
+                if (customer == null) return NotFound();
+
+                notifications = await _context.Notifications
+                    .Where(n => n.CustomerID == customer.CustomerID)
+                    .OrderByDescending(n => n.CreatedAt)
+                    .ToListAsync();
+            }
+            else if (role == "Admin" || role == "Staff")
+            {
+                var employeeAccount = await _context.EmployeeAccounts.FirstOrDefaultAsync(ea => ea.EmployeeID == userId);
+                if (employeeAccount == null) return NotFound();
+
+                notifications = await _context.Notifications
+                    .Where(n => n.EmployeeAccountID == employeeAccount.AccountID)
+                    .OrderByDescending(n => n.CreatedAt)
+                    .ToListAsync();
+            }
+            else
+            {
+                return Forbid(); // Unknown role
+            }
 
             return View(notifications);
         }
@@ -185,6 +210,18 @@ namespace MinimartWeb.Controllers
             return Json(new { unreadCount = unreadCount });
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Delete(int notificationId)
+        {
+            var notification = await _context.Notifications.FindAsync(notificationId);
+            if (notification == null) return NotFound();
+
+            _context.Notifications.Remove(notification);
+            await _context.SaveChangesAsync();
+
+            return Json(new { message = "Đã xóa thông báo." });
+        }
 
     }
 }

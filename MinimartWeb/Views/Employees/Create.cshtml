@@ -1,138 +1,140 @@
 ﻿@model MinimartWeb.Model.Employee
 
 @{
-    ViewData["Title"] = "Create";
+    ViewData["Title"] = "Thêm nhân viên mới";
 }
 
-<h1>Create</h1>
-<h4>Employee</h4>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Create" enctype="multipart/form-data">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+<div class="container my-4">
+    <div class="card shadow-lg border-0">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0"><i class="fas fa-user-plus me-2"></i>Thêm nhân viên mới</h4>
+        </div>
+        <div class="card-body">
+            <form asp-action="Create" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
-            <div class="form-group">
-                <label asp-for="FirstName" class="control-label"></label>
-                <input asp-for="FirstName" class="form-control" />
-                <span asp-validation-for="FirstName" class="text-danger"></span>
-            </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label asp-for="FirstName" class="form-label fw-semibold"></label>
+                        <input asp-for="FirstName" class="form-control" />
+                        <span asp-validation-for="FirstName" class="text-danger small"></span>
+                    </div>
 
-            <div class="form-group">
-                <label asp-for="LastName" class="control-label"></label>
-                <input asp-for="LastName" class="form-control" />
-                <span asp-validation-for="LastName" class="text-danger"></span>
-            </div>
+                    <div class="col-md-6">
+                        <label asp-for="LastName" class="form-label fw-semibold"></label>
+                        <input asp-for="LastName" class="form-control" />
+                        <span asp-validation-for="LastName" class="text-danger small"></span>
+                    </div>
 
-            <div class="form-group">
-                <label asp-for="Email" class="control-label"></label>
-                <input asp-for="Email" class="form-control" />
-                <span asp-validation-for="Email" class="text-danger"></span>
-            </div>
+                    <div class="col-md-6">
+                        <label asp-for="Email" class="form-label fw-semibold"></label>
+                        <input asp-for="Email" class="form-control" />
+                        <span asp-validation-for="Email" class="text-danger small"></span>
+                    </div>
 
-            <div class="form-group">
-                <label asp-for="PhoneNumber" class="control-label"></label>
-                <input asp-for="PhoneNumber" class="form-control" />
-                <span asp-validation-for="PhoneNumber" class="text-danger"></span>
-            </div>
+                    <div class="col-md-6">
+                        <label asp-for="PhoneNumber" class="form-label fw-semibold"></label>
+                        <input asp-for="PhoneNumber" class="form-control" />
+                        <span asp-validation-for="PhoneNumber" class="text-danger small"></span>
+                    </div>
 
-            <div class="form-group">
-                <label asp-for="BirthDate" class="control-label"></label>
-                <input asp-for="BirthDate" type="date" class="form-control" />
-                <span asp-validation-for="BirthDate" class="text-danger"></span>
-            </div>
+                    <div class="col-md-4">
+                        <label asp-for="BirthDate" class="form-label fw-semibold"></label>
+                        <input asp-for="BirthDate" type="date" class="form-control" />
+                        <span asp-validation-for="BirthDate" class="text-danger small"></span>
+                    </div>
 
-            <div class="form-group">
-                <label asp-for="CitizenID" class="control-label"></label>
-                <input asp-for="CitizenID" class="form-control" />
-                <span asp-validation-for="CitizenID" class="text-danger"></span>
-            </div>
+                    <div class="col-md-4">
+                        <label asp-for="CitizenID" class="form-label fw-semibold"></label>
+                        <input asp-for="CitizenID" class="form-control" />
+                        <span asp-validation-for="CitizenID" class="text-danger small"></span>
+                    </div>
 
-            <div class="form-group">
-                <label asp-for="RoleID" class="control-label"></label>
-                <select asp-for="RoleID" class="form-control">
-                    @foreach (var role in ViewData["Roles"] as List<SelectListItem>)
-                    {
-                        <option value="@role.Value">@role.Text</option>
-                    }
-                </select>
-                <span asp-validation-for="RoleID" class="text-danger"></span>
-            </div>
+                    <div class="col-md-4">
+                        <label asp-for="Salary" class="form-label fw-semibold"></label>
+                        <input asp-for="Salary" class="form-control" />
+                        <span asp-validation-for="Salary" class="text-danger small"></span>
+                    </div>
 
-            <div class="form-group">
-                <label asp-for="Gender" class="control-label"></label>
-                <select asp-for="Gender" class="form-control">
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                </select>
-                <span asp-validation-for="Gender" class="text-danger"></span>
-            </div>
+                    <div class="col-md-6">
+                        <label asp-for="RoleID" class="form-label fw-semibold"></label>
+                        <select asp-for="RoleID" class="form-select">
+                            @foreach (var role in ViewData["Roles"] as List<SelectListItem>)
+                            {
+                                <option value="@role.Value">@role.Text</option>
+                            }
+                        </select>
+                        <span asp-validation-for="RoleID" class="text-danger small"></span>
+                    </div>
 
-            <div class="form-group">
-                <label asp-for="Salary" class="control-label"></label>
-                <input asp-for="Salary" class="form-control" />
-                <span asp-validation-for="Salary" class="text-danger"></span>
-            </div>
+                    <div class="col-md-6">
+                        <label asp-for="Gender" class="form-label fw-semibold"></label>
+                        <select asp-for="Gender" class="form-select">
+                            <option value="">-- Chọn giới tính --</option>
+                            <option value="Nam">Nam</option>
+                            <option value="Nữ">Nữ</option>
+                            <option value="Khác">Khác</option>
+                        </select>
+                        <span asp-validation-for="Gender" class="text-danger small"></span>
+                    </div>
 
-            <div class="form-group">
-                <label asp-for="HireDate" class="control-label"></label>
-                <input asp-for="HireDate" type="date" class="form-control" />
-                <span asp-validation-for="HireDate" class="text-danger"></span>
-            </div>
+                    <div class="col-md-6">
+                        <label asp-for="HireDate" class="form-label fw-semibold"></label>
+                        <input asp-for="HireDate" type="date" class="form-control" />
+                        <span asp-validation-for="HireDate" class="text-danger small"></span>
+                    </div>
 
-            <!-- Image Upload with Drag & Drop -->
-            <div class="form-group">
-                <label for="ProfileImage" class="control-label">Profile Picture</label>
-                <div id="drop-area" style="border: 2px dashed #ccc; padding: 20px; text-align: center; cursor: pointer;">
-                    <p>Drag & Drop image here or click to select</p>
-                    <input type="file" id="ProfileImage" name="ProfileImage" accept="image/*" style="display:none;" />
+                    <!-- Drag & Drop Image -->
+                    <div class="col-md-12">
+                        <label for="ProfileImage" class="form-label fw-semibold">Ảnh đại diện</label>
+                        <div id="drop-area" class="border border-2 border-dashed rounded p-4 text-center bg-light cursor-pointer">
+                            <p class="mb-2"><i class="fas fa-image fa-2x text-muted"></i></p>
+                            <p class="mb-0">Kéo ảnh vào đây hoặc click để chọn ảnh</p>
+                            <input type="file" id="ProfileImage" name="ProfileImage" accept="image/*" class="d-none" />
+                        </div>
+                        <img id="previewImage" src="#" alt="Preview" class="img-fluid rounded mt-2 d-none" style="max-width: 200px;" />
+                        <span asp-validation-for="ImagePath" class="text-danger small"></span>
+                    </div>
                 </div>
-                <img id="previewImage" src="#" alt="Image Preview" style="max-width: 200px; margin-top: 10px; display:none;" />
-                <span asp-validation-for="ImagePath" class="text-danger"></span>
-            </div>
 
-            <div class="form-group">
-                <input type="submit" value="Create" class="btn btn-primary" />
-            </div>
-        </form>
+                <div class="mt-4 d-flex justify-content-between">
+                    <a asp-action="Index" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Quay lại
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Lưu nhân viên
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
-<div>
-    <a asp-action="Index">Back to List</a>
-</div>
-
 @section Scripts {
-    @Html.RenderPartialAsync("_ValidationScriptsPartial")
-
+    @await Html.PartialAsync("_ValidationScriptsPartial")
     <script>
         const dropArea = document.getElementById('drop-area');
         const fileInput = document.getElementById('ProfileImage');
         const previewImage = document.getElementById('previewImage');
 
         dropArea.addEventListener('click', () => fileInput.click());
-
         fileInput.addEventListener('change', e => {
-            if (fileInput.files.length > 0) {
-                showPreview(fileInput.files[0]);
-            }
+            if (fileInput.files.length > 0) showPreview(fileInput.files[0]);
         });
 
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, e => e.preventDefault());
-            document.body.addEventListener(eventName, e => e.preventDefault());
+        dropArea.addEventListener('dragover', e => {
+            e.preventDefault();
+            dropArea.classList.add('highlight');
         });
 
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropArea.addEventListener(eventName, () => dropArea.classList.add('highlight'));
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, () => dropArea.classList.remove('highlight'));
+        dropArea.addEventListener('dragleave', e => {
+            e.preventDefault();
+            dropArea.classList.remove('highlight');
         });
 
         dropArea.addEventListener('drop', e => {
+            e.preventDefault();
             if (e.dataTransfer.files.length > 0) {
                 fileInput.files = e.dataTransfer.files;
                 showPreview(e.dataTransfer.files[0]);
@@ -141,21 +143,24 @@
 
         function showPreview(file) {
             if (!file.type.startsWith('image/')) {
-                alert('Please upload an image file.');
+                alert('Chỉ được tải lên file ảnh!');
                 fileInput.value = '';
-                previewImage.style.display = 'none';
+                previewImage.classList.add('d-none');
                 return;
             }
             const url = URL.createObjectURL(file);
             previewImage.src = url;
-            previewImage.style.display = 'block';
+            previewImage.classList.remove('d-none');
         }
     </script>
-
     <style>
         #drop-area.highlight {
-            border-color: #0b85a1;
-            background-color: #e0f7fa;
+            border-color: #0d6efd;
+            background-color: #e9f5ff;
+        }
+
+        .cursor-pointer {
+            cursor: pointer;
         }
     </style>
 }
