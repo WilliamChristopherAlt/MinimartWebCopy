@@ -279,21 +279,64 @@ public class AccountController : Controller
 
         if (model.NewImageFile != null && model.NewImageFile.Length > 0)
         {
-            // ... (Logic upload ảnh giữ nguyên như trước) ...
-            try { /* ... */ } catch (Exception ex) { /* ... ModelState.AddModelError ... return View(model); */ }
-        }
+            _logger.LogInformation("Settings POST: New image file detected for CustomerID: {CustomerId}. File name: {FileName}, Size: {FileSize}", currentUserIdFromClaims, model.NewImageFile.FileName, model.NewImageFile.Length);
+            try
+            {
+                // Đường dẫn đến thư mục lưu ảnh (ví dụ: wwwroot/images/users)
+                // Đảm bảo _webHostEnvironment đã được inject vào constructor
+                string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images", "users");
+                if (!Directory.Exists(uploadsFolder))
+                {
+                    Directory.CreateDirectory(uploadsFolder);
+                    _logger.LogInformation("Settings POST: Created directory: {UploadsFolder}", uploadsFolder);
+                }
 
-        try
-        {
-            await _context.SaveChangesAsync();
-            TempData["SuccessMessage"] = "Thông tin cá nhân đã được cập nhật thành công!";
-            _logger.LogInformation("Settings POST: Thông tin CustomerID {CustomerId} đã được cập nhật vào DB.", currentUserIdFromClaims);
-            return RedirectToAction(nameof(Settings));
-        }
-        catch (DbUpdateException ex) { /* ... xử lý lỗi DB ... */ }
-        // ... (các catch khác) ...
+                // Xóa ảnh cũ (nếu có và không phải là ảnh mặc định)
+                // Giả sử customerToUpdate.ImagePath chỉ lưu tên file (ví dụ: "abc.jpg")
+                if (!string.IsNullOrEmpty(customerToUpdate.ImagePath) &&
+                    !customerToUpdate.ImagePath.Equals("default.jpg", StringComparison.OrdinalIgnoreCase)) // Thay "default.jpg" bằng tên ảnh mặc định của bạn
+                {
+                    // Cần lấy tên file từ ImagePath nếu nó có thể chứa đường dẫn thư mục con
+                    var oldFileName = Path.GetFileName(customerToUpdate.ImagePath);
+                    var oldImagePhysicalPath = Path.Combine(uploadsFolder, oldFileName);
 
-        return View(model);
+                    if (System.IO.File.Exists(oldImagePhysicalPath))
+                    {
+                        System.IO.File.Delete(oldImagePhysicalPath);
+                        _logger.LogInformation("Settings POST: Deleted old image: {OldImagePhysicalPath}", oldImagePhysicalPath);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Settings POST: Old image file not found for deletion: {OldImagePhysicalPath}", oldImagePhysicalPath);
+                    }
+                }
+
+                // Tạo tên file duy nhất để tránh trùng lặp
+                string uniqueFileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(model.NewImageFile.FileName);
+                string newImagePhysicalPath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                // Lưu file mới
+                using (var fileStream = new FileStream(newImagePhysicalPath, FileMode.Create))
+                {
+                    await model.NewImageFile.CopyToAsync(fileStream);
+                }
+
+                customerToUpdate.ImagePath = uniqueFileName; // QUAN TRỌNG: Cập nhật ImagePath với tên file mới
+                model.ImagePath = uniqueFileName; // Cũng cập nhật ImagePath trong model để nếu có lỗi sau đó, view vẫn hiển thị ảnh mới đã upload (hoặc preview)
+                _logger.LogInformation("Settings POST: New image saved as: {NewImagePhysicalPath}. Customer.ImagePath updated to: {UniqueFileName}", newImagePhysicalPath, uniqueFileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Settings POST: Error uploading new image for CustomerID: {CustomerId}", currentUserIdFromClaims);
+                ModelState.AddModelError(nameof(model.NewImageFile), "Lỗi tải lên ảnh đại diện. Vui lòng thử lại.");
+                // Gán lại ảnh cũ vào model nếu upload lỗi, để view hiển thị đúng
+                model.ImagePath = customerToUpdate.ImagePath;
+                return View(model);
+            }
+        }
+            // ... (các catch khác) ...
+
+            return View(model);
     }
 
 
@@ -977,19 +1020,54 @@ public class AccountController : Controller
 
             if (model.NewImageFile != null && model.NewImageFile.Length > 0)
             {
-                // ... (Logic upload ảnh của bạn) ...
-                // Ví dụ:
+                _logger.LogInformation("EmployeeProfile POST: New image file detected for EID: {EmployeeId}. File: {FileName}, Size: {FileSize}", currentEmployeeId, model.NewImageFile.FileName, model.NewImageFile.Length);
                 try
                 {
+                    // Đường dẫn đến thư mục lưu ảnh của nhân viên
                     string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images", "employees");
-                    // ... (xóa ảnh cũ, lưu ảnh mới, cập nhật employeeInDb.ImagePath) ...
-                    actualChangesMadeToDb = true;
+                    if (!Directory.Exists(uploadsFolder))
+                    {
+                        Directory.CreateDirectory(uploadsFolder);
+                        _logger.LogInformation("EmployeeProfile POST: Created directory: {UploadsFolder}", uploadsFolder);
+                    }
+
+                    // Xóa ảnh cũ (nếu có và không phải là ảnh mặc định cho nhân viên)
+                    if (!string.IsNullOrEmpty(employeeInDb.ImagePath) &&
+                        !employeeInDb.ImagePath.Equals("default_employee.jpg", StringComparison.OrdinalIgnoreCase)) // Sử dụng ảnh mặc định của nhân viên
+                    {
+                        var oldFileName = Path.GetFileName(employeeInDb.ImagePath); // Lấy tên file an toàn
+                        var oldImagePhysicalPath = Path.Combine(uploadsFolder, oldFileName);
+                        if (System.IO.File.Exists(oldImagePhysicalPath))
+                        {
+                            System.IO.File.Delete(oldImagePhysicalPath);
+                            _logger.LogInformation("EmployeeProfile POST: Deleted old employee image: {OldImagePhysicalPath}", oldImagePhysicalPath);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("EmployeeProfile POST: Old employee image file not found for deletion: {OldImagePhysicalPath}", oldImagePhysicalPath);
+                        }
+                    }
+
+                    // Tạo tên file duy nhất
+                    string uniqueFileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(model.NewImageFile.FileName);
+                    string newImagePhysicalPath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                    // Lưu file mới
+                    using (var fileStream = new FileStream(newImagePhysicalPath, FileMode.Create))
+                    {
+                        await model.NewImageFile.CopyToAsync(fileStream);
+                    }
+
+                    employeeInDb.ImagePath = uniqueFileName; // Cập nhật ImagePath trong đối tượng Employee
+                    model.ImagePath = uniqueFileName; // Cập nhật model để view hiển thị đúng nếu có lỗi sau đó
+                    actualChangesMadeToDb = true; // Đánh dấu là có thay đổi
+                    _logger.LogInformation("EmployeeProfile POST: New employee image saved as: {NewImagePhysicalPath}. Employee.ImagePath updated to: {UniqueFileName}", newImagePhysicalPath, uniqueFileName);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Lỗi upload ảnh EmployeeProfile cho EID: {EmployeeId}", currentEmployeeId);
-                    ModelState.AddModelError("NewImageFile", "Lỗi tải lên ảnh đại diện.");
-                    model.ImagePath = employeeInDb.ImagePath;
+                    _logger.LogError(ex, "EmployeeProfile POST: Error uploading new image for EID: {EmployeeId}", currentEmployeeId);
+                    ModelState.AddModelError("NewImageFile", "Lỗi tải lên ảnh đại diện. Vui lòng thử lại.");
+                    model.ImagePath = employeeInDb.ImagePath; // Gán lại ảnh cũ vào model nếu upload lỗi
                     return View("EmployeeProfile", model);
                 }
             }
