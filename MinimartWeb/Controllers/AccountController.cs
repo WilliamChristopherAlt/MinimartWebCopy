@@ -12,10 +12,6 @@ using MinimartWeb.Data;
 using MinimartWeb.Models;     // Chứa LoginViewModel, RegisterViewModel, ErrorViewModel
 using MinimartWeb.ViewModels; // Chứa VerifyOtpViewModel, VerifyLoginOtpViewModel
 using MinimartWeb.Model;      // Chứa Customer, EmployeeAccount, OtpRequest, OtpType
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -52,173 +48,6 @@ public class AccountController : Controller
         return RedirectToAction("Index", "Home");
     }
 
-    //// --- [HttpPost] Login: Bước 1 - Xác thực Username/Password & Gửi OTP 2FA ---
-    //[AllowAnonymous]
-    //[HttpPost]
-    //[ValidateAntiForgeryToken]
-    //public async Task<IActionResult> Login(LoginViewModel model)
-    //{
-    //    if (!ModelState.IsValid)
-    //    {
-    //        return BadRequest(new { errors = ModelStateToDictionary(ModelState) });
-    //    }
-
-    //    _logger.LogInformation("Login POST: Bắt đầu xử lý đăng nhập cho UserType: {UserType}, Username: {Username}", model.UserType, model.Username);
-
-    //    string? userEmailForOtp = null;
-    //    int? customerIdForOtpRecord = null;
-    //    int? employeeAccountIdForOtpRecord = null;
-    //    string usernameForClaims = model.Username;
-    //    string roleForClaims = string.Empty;
-    //    string userIdForClaims = string.Empty;
-
-    //    try
-    //    {
-    //        if (model.UserType == "Customer")
-    //        {
-    //            var customer = await _context.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Username == model.Username);
-    //            if (customer == null || !VerifyPassword(model.Password, customer.PasswordHash, customer.Salt))
-    //            {
-    //                _logger.LogWarning("Đăng nhập thất bại (Bước 1 - Khách hàng): Sai thông tin cho {Username}", model.Username);
-    //                return BadRequest(new { message = "Tên đăng nhập hoặc mật khẩu không đúng." });
-    //            }
-    //            if (!customer.IsEmailVerified)
-    //            {
-    //                _logger.LogWarning("Đăng nhập (Bước 1 - Khách hàng): Email chưa xác minh cho {Username}", model.Username);
-    //                TempData["UnverifiedEmail"] = customer.Email;
-    //                return BadRequest(new { message = "Tài khoản của bạn chưa được xác minh email ban đầu. Vui lòng kiểm tra email hoặc yêu cầu gửi lại mã xác minh.", needsInitialVerification = true, email = customer.Email });
-    //            }
-    //            userEmailForOtp = customer.Email;
-    //            customerIdForOtpRecord = customer.CustomerID;
-    //            roleForClaims = "Customer";
-    //            userIdForClaims = customer.CustomerID.ToString();
-    //        }
-    //        else if (model.UserType == "Employee") // <<<==== PHẦN XỬ LÝ CHO NHÂN VIÊN (BƯỚC 1)
-    //        {
-    //            _logger.LogInformation("Login (Employee): Attempting to authenticate employee {Username}", model.Username);
-    //            var employeeAccount = await _context.EmployeeAccounts.AsNoTracking()
-    //                                        .Include(ea => ea.Employee) // Nạp thông tin Employee
-    //                                            .ThenInclude(e => e.Role) // Từ Employee, nạp thông tin Role
-    //                                        .FirstOrDefaultAsync(ea => ea.Username == model.Username);
-
-    //            if (employeeAccount == null)
-    //            {
-    //                _logger.LogWarning("Login (Employee): Tài khoản nhân viên không tồn tại: {Username}", model.Username);
-    //                return BadRequest(new { success = false, message = "Tên đăng nhập hoặc mật khẩu không đúng." });
-    //            }
-    //            if (employeeAccount.Employee == null) // Kiểm tra quan trọng
-    //            {
-    //                _logger.LogError("Login (Employee): Dữ liệu Employee liên kết với EmployeeAccountID {AccountId} là null cho Username {Username}.", employeeAccount.AccountID, model.Username);
-    //                return StatusCode(StatusCodes.Status500InternalServerError, new { success = false, message = "Lỗi dữ liệu hệ thống (Employee null). Vui lòng liên hệ quản trị viên." });
-    //            }
-    //            if (employeeAccount.Employee.Role == null) // Kiểm tra quan trọng
-    //            {
-    //                _logger.LogError("Login (Employee): Dữ liệu Role liên kết với EmployeeID {EmployeeId} là null cho Username {Username}.", employeeAccount.EmployeeID, model.Username);
-    //                return StatusCode(StatusCodes.Status500InternalServerError, new { success = false, message = "Lỗi dữ liệu hệ thống (Role null). Vui lòng liên hệ quản trị viên." });
-    //            }
-
-    //            if (!VerifyPassword(model.Password, employeeAccount.PasswordHash, employeeAccount.Salt))
-    //            {
-    //                _logger.LogWarning("Login (Employee): Sai mật khẩu cho {Username}", model.Username);
-    //                return BadRequest(new { success = false, message = "Tên đăng nhập hoặc mật khẩu không đúng." });
-    //            }
-
-    //            if (!employeeAccount.IsActive)
-    //            {
-    //                _logger.LogWarning("Login (Employee): Tài khoản nhân viên {Username} không hoạt động.", model.Username);
-    //                return BadRequest(new { success = false, message = "Tài khoản nhân viên này đã bị khóa hoặc chưa được kích hoạt." });
-    //            }
-
-    //            // Giả sử EmployeeAccount cũng có IsEmailVerified và EmailVerifiedAt nếu cần
-    //            // var empAccEntityType = _context.Model.FindEntityType(typeof(EmployeeAccount));
-    //            // var isEmpEmailVerifiedProp = empAccEntityType?.FindProperty("IsEmailVerified");
-    //            // if (isEmpEmailVerifiedProp != null && !employeeAccount.IsEmailVerified)
-    //            // {
-    //            //    _logger.LogWarning("Login (Employee): Email nhân viên chưa xác minh cho {Username}", model.Username);
-    //            //    return BadRequest(new { success = false, message = "Email của tài khoản nhân viên này chưa được xác minh.", 
-    //            //                            needsInitialVerification = true, 
-    //            //                            email = employeeAccount.Employee.Email });
-    //            // }
-
-
-    //            userEmailForOtp = employeeAccount.Employee.Email;       // Email để gửi OTP
-    //            employeeAccountIdForOtpRecord = employeeAccount.AccountID; // Dùng để tạo OtpRequest
-    //            roleForClaims = employeeAccount.Employee.Role.RoleName;    // Vai trò (Admin, Staff)
-    //            userIdForClaims = employeeAccount.EmployeeID.ToString();   // EmployeeID để lưu vào Claims
-    //            usernameForClaims = employeeAccount.Username; // Lấy username chính xác từ DB
-    //        }
-    //        else
-    //        {
-    //            return BadRequest(new { success = false, message = "Loại người dùng không hợp lệ." });
-    //        }
-
-    //        // -- Tiếp tục logic gửi OTP chung cho cả Customer và Employee --
-    //        if (string.IsNullOrEmpty(userEmailForOtp))
-    //        {
-    //            _logger.LogError("Không thể xác định email để gửi OTP cho Username: {Username}, UserType: {UserType}", model.Username, model.UserType);
-    //            return StatusCode(StatusCodes.Status500InternalServerError, new { success = false, message = "Lỗi hệ thống: Không thể gửi mã xác thực." });
-    //        }
-
-    //        // Tạo và gửi OTP
-    //        string otpCode = GenerateOtp();
-    //        var otpType = await _context.OtpTypes.FirstOrDefaultAsync(ot => ot.OtpTypeName == "LoginTwoFactorVerification");
-    //        if (otpType == null)
-    //        {
-    //            _logger.LogCritical("CRITICAL: OtpType 'LoginTwoFactorVerification' not found.");
-    //            return StatusCode(StatusCodes.Status500InternalServerError, new { success = false, message = "Lỗi cấu hình hệ thống (OTP Type)." });
-    //        }
-
-    //        // Vô hiệu hóa OTP 2FA cũ chưa dùng của user này
-    //        var existingUnusedOtps = _context.OtpRequests
-    //            .Where(o => o.OtpTypeID == otpType.OtpTypeID && !o.IsUsed && o.ExpirationTime > DateTime.UtcNow);
-    //        if (customerIdForOtpRecord.HasValue) existingUnusedOtps = existingUnusedOtps.Where(o => o.CustomerID == customerIdForOtpRecord.Value);
-    //        else if (employeeAccountIdForOtpRecord.HasValue) existingUnusedOtps = existingUnusedOtps.Where(o => o.EmployeeAccountID == employeeAccountIdForOtpRecord.Value);
-
-    //        var oldOtpsToInvalidate = await existingUnusedOtps.ToListAsync();
-    //        foreach (var oldOtp in oldOtpsToInvalidate)
-    //        {
-    //            oldOtp.IsUsed = true;
-    //            oldOtp.Status = "InvalidatedByNewLogin";
-    //        }
-
-    //        var otpRequest = new OtpRequest
-    //        {
-    //            CustomerID = customerIdForOtpRecord,
-    //            EmployeeAccountID = employeeAccountIdForOtpRecord,
-    //            OtpTypeID = otpType.OtpTypeID,
-    //            OtpCode = otpCode,
-    //            RequestTime = DateTime.UtcNow,
-    //            ExpirationTime = DateTime.UtcNow.AddMinutes(5),
-    //            IsUsed = false,
-    //            Status = "PendingLogin2FA"
-    //        };
-    //        _context.OtpRequests.Add(otpRequest);
-    //        await _context.SaveChangesAsync();
-
-    //        string emailSubject = "Mã Xác Thực Đăng Nhập MiniMart";
-    //        string emailMessage = $"<p>Xin chào {usernameForClaims},</p><p>Mã xác thực đăng nhập (2FA) của bạn là: <strong>{otpCode}</strong>. Mã này sẽ hết hạn sau 5 phút.</p>";
-    //        await _emailSender.SendEmailAsync(userEmailForOtp, emailSubject, emailMessage);
-
-    //        _logger.LogInformation("Bước 1 Đăng nhập ({UserType}): OTP 2FA đã gửi đến {Email} cho {UsernameForClaims}", model.UserType, userEmailForOtp, usernameForClaims);
-
-    //        TempData["2FA_Attempt_Username"] = usernameForClaims; // Dùng username từ DB
-    //        TempData["2FA_Attempt_UserType"] = model.UserType;
-    //        TempData["2FA_Attempt_EmailForDisplay"] = userEmailForOtp;
-    //        TempData["2FA_Attempt_RememberMe"] = model.RememberMe;
-    //        TempData["2FA_Attempt_Role"] = roleForClaims;
-    //        TempData["2FA_Attempt_UserId"] = userIdForClaims; // CustomerID hoặc EmployeeID
-
-    //        return Ok(new { success = true, redirectUrl = Url.Action(nameof(VerifyLoginOtp)) });
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Lỗi không mong muốn trong Bước 1 Đăng nhập cho Username: {Username}.", model.Username);
-    //        return StatusCode(StatusCodes.Status500InternalServerError, new { success = false, message = "Lỗi hệ thống không mong muốn. Vui lòng thử lại." });
-    //    }
-    //}
-    // Trong AccountController.cs
-
-    // ... (các using và constructor) ...
 
     // GET: /Account/EmployeeProfile
     // Trong AccountController.cs
@@ -534,162 +363,162 @@ public class AccountController : Controller
     {
         if (!ModelState.IsValid)
         {
-            _logger.LogWarning("Login POST: ModelState invalid. User: {Username}, Type: {UserType}", model.Username, model.UserType);
             var errors = ModelState.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.Errors.Select(e => e.ErrorMessage).ToArray());
-            return BadRequest(new { success = false, errors = errors, message = "Dữ liệu đầu vào không hợp lệ." });
+            return BadRequest(new { success = false, errors, message = "Dữ liệu đầu vào không hợp lệ." });
         }
 
-        _logger.LogInformation("Login POST: Attempting login for User: {Username}, Type: {UserType}", model.Username, model.UserType);
+        var currentIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
 
-        string userEmailForOtp = string.Empty; // Sẽ được gán nếu cần gửi OTP
-        int? customerIdForRecord = null;
-        int? employeeAccountIdForRecord = null;
-        bool is2FAEnabledForThisUser = false;
-        ClaimsIdentity? identity = null;       // Sẽ được tạo nếu đăng nhập trực tiếp hoặc sau OTP
-        string roleToUseInClaims = string.Empty; // Vai trò sẽ dùng để tạo claim
-        string userIdForClaims = string.Empty;   // ID người dùng cho claim
-        string usernameForDisplayAndClaims = model.Username; // Sẽ được override bằng username từ DB
+        string userEmail = "";
+        string username = model.Username;
+        string role = "";
+        string userId = "";
+        bool is2FA = false;
+        int? customerId = null;
+        int? employeeId = null;
 
         try
         {
             if (model.UserType == "Customer")
             {
-                var customer = await _context.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Username == model.Username);
+                var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Username == model.Username);
                 if (customer == null || !VerifyPassword(model.Password, customer.PasswordHash, customer.Salt))
-                {
-                    _logger.LogWarning("Login failed (Customer): Invalid credentials for {Username}", model.Username);
                     return BadRequest(new { success = false, message = "Tên đăng nhập hoặc mật khẩu không đúng." });
-                }
 
                 if (!customer.IsEmailVerified)
-                { /* ... xử lý email chưa xác minh ... */ return BadRequest(new { success = false, message = "Tài khoản chưa xác minh email.", needsInitialVerification = true, email = customer.Email }); }
+                    return BadRequest(new { success = false, message = "Tài khoản chưa xác minh email.", needsInitialVerification = true, email = customer.Email });
 
-                userEmailForOtp = customer.Email;
-                customerIdForRecord = customer.CustomerID;
-                is2FAEnabledForThisUser = customer.Is2FAEnabled;
-                usernameForDisplayAndClaims = customer.Username;
-                roleToUseInClaims = "Customer"; // Vai trò cố định
-                userIdForClaims = customer.CustomerID.ToString();
-
-                _logger.LogInformation("Customer {Username} authenticated. 2FA Enabled: {Is2FAEnabled}", usernameForDisplayAndClaims, is2FAEnabledForThisUser);
+                userEmail = customer.Email;
+                username = customer.Username;
+                role = "Customer";
+                userId = customer.CustomerID.ToString();
+                is2FA = customer.Is2FAEnabled;
+                customerId = customer.CustomerID;
             }
-            // 👉 Employee login
             else if (model.UserType == "Employee")
             {
-                var account = await _context.EmployeeAccounts.AsNoTracking()
-                    .Include(ea => ea.Employee) // Vẫn cần Employee để lấy Email
-                         .ThenInclude(e => e!.Role)
-                    .FirstOrDefaultAsync(ea => ea.Username == model.Username);
+                var account = await _context.EmployeeAccounts
+                    .Include(a => a.Employee).ThenInclude(e => e.Role)
+                    .FirstOrDefaultAsync(a => a.Username == model.Username);
 
                 if (account == null || !VerifyPassword(model.Password, account.PasswordHash, account.Salt))
-                {
-                    _logger.LogWarning("Login failed (Employee): Invalid credentials for {Username}", model.Username);
                     return BadRequest(new { success = false, message = "Tên đăng nhập hoặc mật khẩu không đúng." });
-                }
 
-                 //🔥 **Role Assignment Logic**
-                if (account.Employee.Role.RoleName == "Quản trị viên")
-                {
-                    roleToUseInClaims = "Admin";
-                }
-                else
-                {
-                    roleToUseInClaims = "Staff";
-                }
+                if (account.Employee == null || !account.IsActive)
+                    return BadRequest(new { success = false, message = "Tài khoản nhân viên đã bị khóa hoặc không hợp lệ." });
 
-                //displayName = account.Username;
-                if (account.Employee == null)
-                { /* ... lỗi dữ liệu ... */ return StatusCode(500, new { success = false, message = "Lỗi dữ liệu hệ thống (E01)." }); }
-                if (!account.IsActive)
-                { /* ... tài khoản khóa ... */ return BadRequest(new { success = false, message = "Tài khoản nhân viên đã bị khóa." }); }
                 if (!account.IsEmailVerified)
-                { /* ... email chưa xác minh ... */ return BadRequest(new { success = false, message = "Email tài khoản nhân viên chưa xác minh.", needsEmployeeEmailVerification = true, emailForVerification = account.Employee.Email }); }
+                    return BadRequest(new { success = false, message = "Email tài khoản nhân viên chưa xác minh.", needsEmployeeEmailVerification = true, emailForVerification = account.Employee.Email });
 
-                userEmailForOtp = account.Employee.Email;
-                employeeAccountIdForRecord = account.AccountID;
-                is2FAEnabledForThisUser = account.Is2FAEnabled;
-                usernameForDisplayAndClaims = account.Username;
-                userIdForClaims = account.EmployeeID.ToString();
-
-                _logger.LogInformation("Employee {Username} authenticated. 2FA Enabled: {Is2FAEnabled}. Role will be set as '{StaticRole}'", usernameForDisplayAndClaims, is2FAEnabledForThisUser, roleToUseInClaims);
+                userEmail = account.Employee.Email;
+                username = account.Username;
+                role = account.Employee.Role.RoleName == "Quản trị viên" ? "Admin" : "Staff";
+                userId = account.EmployeeID.ToString();
+                is2FA = account.Is2FAEnabled;
+                employeeId = account.AccountID;
             }
             else
             {
-                _logger.LogWarning("Login: Invalid UserType: {UserType}", model.UserType);
                 return BadRequest(new { success = false, message = "Loại người dùng không hợp lệ." });
             }
 
-            // --- Bước 2: Quyết định luồng dựa trên trạng thái Is2FAEnabled ---
-            if (is2FAEnabledForThisUser)
+            // Check if this IP is new
+            bool isNewIp = false;
+            if (customerId.HasValue)
             {
-                // --- Người dùng ĐÃ BẬT 2FA: Tiến hành gửi OTP qua Email ---
-                _logger.LogInformation("Account {Username} ({UserType}) has 2FA enabled. Sending OTP.", usernameForDisplayAndClaims, model.UserType);
+                isNewIp = !await _context.LoginAttempts.AnyAsync(l => l.CustomerID == customerId && l.IPAddress == currentIp);
+                _context.LoginAttempts.Add(new LoginAttempt
+                {
+                    AttemptTime = DateTime.UtcNow,
+                    IsSuccessful = true,
+                    IPAddress = currentIp,
+                    CustomerID = customerId
+                });
+            }
+            else if (employeeId.HasValue)
+            {
+                isNewIp = !await _context.LoginAttempts.AnyAsync(l => l.EmployeeAccountID == employeeId && l.IPAddress == currentIp);
+                _context.LoginAttempts.Add(new LoginAttempt
+                {
+                    AttemptTime = DateTime.UtcNow,
+                    IsSuccessful = true,
+                    IPAddress = currentIp,
+                    EmployeeAccountID = employeeId
+                });
+            }
 
-                if (string.IsNullOrEmpty(userEmailForOtp))
-                { /* ... lỗi không có email ... */ return StatusCode(500, new { success = false, message = "Lỗi hệ thống: Không thể gửi mã xác thực." }); }
+            if (isNewIp)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    Title = "Cảnh báo đăng nhập từ thiết bị mới",
+                    Message = $"Tài khoản {role.ToLower()} '{username}' đã đăng nhập từ địa chỉ IP mới: {currentIp}, nếu đây không phải là bạn, hãy đổi lại mật khẩu ngay",
+                    CreatedAt = DateTime.Now,
+                    IsRead = false,
+                    NotificationType = NotificationType.SecurityAlert.GetDisplayName(),
+                    CustomerID = role == "Customer" ? int.Parse(userId) : null,
+                    EmployeeAccountID = role != "Customer" ? int.Parse(userId) : null
+                });
+            }
 
-                string otpCode = GenerateOtp();
+            if (is2FA)
+            {
                 var otpType = await _context.OtpTypes.FirstOrDefaultAsync(ot => ot.OtpTypeName == "LoginTwoFactorVerification");
-                if (otpType == null) { /* ... lỗi config OTP Type ... */ return StatusCode(500, new { success = false, message = "Lỗi cấu hình hệ thống (OTP Type)." }); }
+                if (otpType == null)
+                    return StatusCode(500, new { success = false, message = "Lỗi cấu hình hệ thống (OTP Type)." });
 
-                // ... (Logic vô hiệu hóa OTP cũ và tạo OtpRequest mới như cũ) ...
-                var existingUnusedOtpsQuery = _context.OtpRequests.Where(o => o.OtpTypeID == otpType.OtpTypeID && !o.IsUsed && o.ExpirationTime > DateTime.UtcNow);
-                if (customerIdForRecord.HasValue) existingUnusedOtpsQuery = existingUnusedOtpsQuery.Where(o => o.CustomerID == customerIdForRecord.Value);
-                else if (employeeAccountIdForRecord.HasValue) existingUnusedOtpsQuery = existingUnusedOtpsQuery.Where(o => o.EmployeeAccountID == employeeAccountIdForRecord.Value);
-                var oldOtpsToInvalidate = await existingUnusedOtpsQuery.ToListAsync();
-                oldOtpsToInvalidate.ForEach(o => { o.IsUsed = true; o.Status = "InvalidatedByNewLoginAttempt"; });
+                var otpCode = GenerateOtp();
+                var otpRequest = new OtpRequest
+                {
+                    CustomerID = customerId,
+                    EmployeeAccountID = employeeId,
+                    OtpCode = otpCode,
+                    OtpTypeID = otpType.OtpTypeID,
+                    RequestTime = DateTime.UtcNow,
+                    ExpirationTime = DateTime.UtcNow.AddMinutes(5),
+                    IsUsed = false,
+                    Status = "PendingLogin2FAEmail"
+                };
 
-                var otpRequest = new OtpRequest { /* ... gán các giá trị ... OtpCode = otpCode ... */ CustomerID = customerIdForRecord, EmployeeAccountID = employeeAccountIdForRecord, OtpTypeID = otpType.OtpTypeID, OtpCode = otpCode, RequestTime = DateTime.UtcNow, ExpirationTime = DateTime.UtcNow.AddMinutes(5), IsUsed = false, Status = "PendingLogin2FAEmail" };
                 _context.OtpRequests.Add(otpRequest);
-                await _context.SaveChangesAsync();
 
-                string emailSubject = "MiniMart - Mã Xác Thực Đăng Nhập";
-                string emailMessage = $"<p>Xin chào {usernameForDisplayAndClaims},</p><p>Mã xác thực đăng nhập của bạn là: <strong>{otpCode}</strong>...</p>";
-                await _emailSender.SendEmailAsync(userEmailForOtp, emailSubject, emailMessage);
-                _logger.LogInformation("2FA OTP sent for {Username} ({UserType}).", usernameForDisplayAndClaims, model.UserType);
+                await _emailSender.SendEmailAsync(userEmail, "MiniMart - Mã xác thực đăng nhập",
+                    $"<p>Xin chào {username},</p><p>Mã xác thực đăng nhập của bạn là: <strong>{otpCode}</strong></p>");
 
-                // Lưu thông tin cần thiết vào TempData (BAO GỒM CẢ ROLE ĐÃ GÁN CỨNG)
-                TempData["2FA_Attempt_Username"] = usernameForDisplayAndClaims;
+                TempData["2FA_Attempt_Username"] = username;
                 TempData["2FA_Attempt_UserType"] = model.UserType;
-                TempData["2FA_Attempt_EmailForDisplay"] = userEmailForOtp;
+                TempData["2FA_Attempt_EmailForDisplay"] = userEmail;
                 TempData["2FA_Attempt_RememberMe"] = model.RememberMe;
-                TempData["2FA_Attempt_Role"] = roleToUseInClaims; // Vai trò đã gán (ví dụ: "Admin" cho Employee)
-                TempData["2FA_Attempt_UserId"] = userIdForClaims;
+                TempData["2FA_Attempt_Role"] = role;
+                TempData["2FA_Attempt_UserId"] = userId;
 
+                await _context.SaveChangesAsync();
                 return Ok(new { success = true, needsOtpVerification = true, redirectUrl = Url.Action(nameof(VerifyLoginOtp)) });
             }
             else
             {
-                // --- Người dùng KHÔNG BẬT 2FA: Đăng nhập trực tiếp ---
-                _logger.LogInformation("Account {Username} ({UserType}) does not require 2FA. Signing in directly.", usernameForDisplayAndClaims, model.UserType);
-
-                if (string.IsNullOrEmpty(roleToUseInClaims) || string.IsNullOrEmpty(userIdForClaims))
-                { /* ... lỗi thiếu thông tin claims ... */ return StatusCode(500, new { success = false, message = "Lỗi hệ thống." }); }
-
-                identity = new ClaimsIdentity(new[] // Tạo identity ở đây
+                var identity = new ClaimsIdentity(new[]
                 {
-                new Claim(ClaimTypes.NameIdentifier, userIdForClaims),
-                new Claim(ClaimTypes.Name, usernameForDisplayAndClaims),
-                new Claim(ClaimTypes.Role, roleToUseInClaims) // Sử dụng role đã gán
-            }, CookieAuthenticationDefaults.AuthenticationScheme, ClaimTypes.Name, ClaimTypes.Role);
+                new Claim(ClaimTypes.NameIdentifier, userId),
+                new Claim(ClaimTypes.Name, username),
+                new Claim(ClaimTypes.Role, role)
+            }, CookieAuthenticationDefaults.AuthenticationScheme);
 
-                var principal = new ClaimsPrincipal(identity);
-                var authProperties = new AuthenticationProperties
-                {
-                    IsPersistent = model.RememberMe
-                };
-                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, authProperties);
+                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+                    new ClaimsPrincipal(identity),
+                    new AuthenticationProperties { IsPersistent = model.RememberMe });
 
-                _logger.LogInformation("User {Username} ({UserType}) signed in directly with role {Role}.", usernameForDisplayAndClaims, model.UserType, roleToUseInClaims);
+                await _context.SaveChangesAsync();
                 return Ok(new { success = true, redirectUrl = Url.Action("Index", "Home") });
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Lỗi không mong muốn trong quá trình Login cho {Username}, Type: {UserType}. Message: {ExMsg}", model.Username, model.UserType, ex.Message);
+            _logger.LogError(ex, "Unexpected error during login.");
             return StatusCode(500, new { success = false, message = "Lỗi hệ thống. Vui lòng thử lại." });
         }
     }
+
 
     // --- [HttpGet] VerifyLoginOtp: Hiển thị form nhập OTP 2FA khi đăng nhập ---
     [AllowAnonymous]
@@ -2108,7 +1937,6 @@ public class AccountController : Controller
         return View("VerifyOtpGeneral", viewModel); // Sử dụng view chung VerifyOtpGeneral.cshtml
     }
 
-    // --- ACTION POST XỬ LÝ OTP CHO NHIỀU MỤC ĐÍCH ---
     // --- ACTION POST XỬ LÝ OTP CHO NHIỀU MỤC ĐÍCH ---
     [Authorize(Roles = "Customer")]
     [HttpPost]

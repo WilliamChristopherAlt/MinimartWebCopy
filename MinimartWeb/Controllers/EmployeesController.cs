@@ -11,7 +11,7 @@ using MinimartWeb.Model;
 
 namespace MinimartWeb.Controllers
 {
-    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin")]
     public class EmployeesController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -22,11 +22,24 @@ namespace MinimartWeb.Controllers
         }
 
         // GET: Employees
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string searchString)
         {
-            var applicationDbContext = _context.Employees.Include(e => e.Role);
-            return View(await applicationDbContext.ToListAsync());
+            var query = _context.Employees.Include(e => e.Role).AsQueryable();
+
+            if (!string.IsNullOrEmpty(searchString))
+            {
+                query = query.Where(e =>
+                    e.FirstName.Contains(searchString) ||
+                    e.LastName.Contains(searchString) ||
+                    e.Email.Contains(searchString) ||
+                    e.PhoneNumber.Contains(searchString) ||
+                    e.CitizenID.Contains(searchString));
+            }
+
+            var employees = await query.ToListAsync();
+            return View(employees);
         }
+
 
         // GET: Employees/Details/5
         public async Task<IActionResult> Details(int? id)
@@ -65,7 +78,6 @@ namespace MinimartWeb.Controllers
 
             return View();
         }
-
 
         // POST: Employees/Create
         [HttpPost]

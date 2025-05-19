@@ -4,52 +4,66 @@
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="fw-bold text-primary">Danh sách khách hàng</h2>
+    <h2 class="fw-bold text-primary mb-0">Quản lý khách hàng</h2>
     <a asp-action="Create" class="btn btn-success">
         <i class="fas fa-user-plus me-1"></i> Thêm khách hàng mới
     </a>
 </div>
 
-<table class="table table-bordered table-hover align-middle">
-    <thead class="table-dark text-center">
-        <tr style="height: 70px;">
-            <th>Họ</th>
-            <th>Tên</th>
-            <th>Email</th>
-            <th>Điện thoại</th>
-            <th style="width: 120px;">Ảnh</th>
-            <th>Tên đăng nhập</th>
-            <th>Hành động</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var item in Model)
-        {
-            <tr style="min-height: 100px;">
-                <td class="align-middle">@item.FirstName</td>
-                <td class="align-middle">@item.LastName</td>
-                <td class="align-middle">@item.Email</td>
-                <td class="align-middle">@item.PhoneNumber</td>
-                <td class="align-middle text-center">
-                    <img src="@Url.Content("~/images/users/" + (string.IsNullOrEmpty(item.ImagePath) ? "default.jpg" : item.ImagePath))"
-                         alt="Ảnh đại diện"
-                         class="rounded-circle shadow-sm"
-                         style="width: 70px; height: 70px; object-fit: cover;" />
-                </td>
-                <td class="align-middle">@item.Username</td>
-                <td class="align-middle text-center text-nowrap">
-                    <a asp-action="Edit" asp-route-id="@item.CustomerID" class="btn btn-sm btn-outline-primary me-1" title="Chỉnh sửa">
-                        <i class="fas fa-edit"></i>
-                    </a>
-                    <a asp-action="Details" asp-route-id="@item.CustomerID" class="btn btn-sm btn-outline-info me-1" title="Chi tiết">
-                        <i class="fas fa-info-circle"></i>
-                    </a>
-                    <a asp-action="Delete" asp-route-id="@item.CustomerID" class="btn btn-sm btn-outline-danger" title="Xóa"
-                       onclick="return confirm('Bạn có chắc chắn muốn xóa khách hàng này?');">
-                        <i class="fas fa-trash-alt"></i>
-                    </a>
-                </td>
+<!-- Search Bar -->
+<form asp-action="Index" method="get" class="mb-3">
+    <div class="input-group">
+        <input type="text" name="searchString" class="form-control"
+               placeholder="Tìm theo tên, email hoặc số điện thoại..."
+               value="@Context.Request.Query["searchString"]" />
+
+        <button type="submit" class="btn btn-outline-primary"><i class="fas fa-search"></i> Tìm</button>
+    </div>
+</form>
+
+<!-- Responsive Table -->
+<div class="table-responsive shadow-sm rounded">
+    <table class="table table-bordered table-hover align-middle">
+        <thead class="table-dark text-center">
+            <tr style="height: 70px;">
+                <th>Họ</th>
+                <th>Tên</th>
+                <th>Email</th>
+                <th>Điện thoại</th>
+                <th style="width: 120px;">Ảnh</th>
+                <th>Tên đăng nhập</th>
+                <th>Hành động</th>
             </tr>
-        }
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td class="align-middle">@item.FirstName</td>
+                    <td class="align-middle">@item.LastName</td>
+                    <td class="align-middle">@item.Email</td>
+                    <td class="align-middle">@item.PhoneNumber</td>
+                    <td class="text-center align-middle">
+                        <img src="@Url.Content("~/images/users/" + (string.IsNullOrEmpty(item.ImagePath) ? "default.jpg" : item.ImagePath))"
+                             alt="Ảnh đại diện"
+                             class="rounded-circle border shadow"
+                             style="width: 70px; height: 70px; object-fit: cover;" />
+                    </td>
+                    <td class="align-middle">@item.Username</td>
+                    <td class="align-middle text-center text-nowrap">
+                        <a asp-action="Edit" asp-route-id="@item.CustomerID" class="btn btn-sm btn-outline-primary me-1" title="Chỉnh sửa">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <a asp-action="Details" asp-route-id="@item.CustomerID" class="btn btn-sm btn-outline-info me-1" title="Chi tiết">
+                            <i class="fas fa-info-circle"></i>
+                        </a>
+                        <a asp-action="Delete" asp-route-id="@item.CustomerID" class="btn btn-sm btn-outline-danger" title="Xóa"
+                           onclick="return confirm('Bạn có chắc chắn muốn xóa khách hàng này?');">
+                            <i class="fas fa-trash-alt"></i>
+                        </a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

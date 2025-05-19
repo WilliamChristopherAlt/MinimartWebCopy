@@ -14,6 +14,14 @@
 
     <!-- Inline Styles (giữ nguyên như code bạn cung cấp) -->
     <style>
+
+        .custom-context-menu {
+            min-width: 150px;
+            background-color: white;
+            border: 1px solid #ccc;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
         body {
             padding-top: 56px;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -639,7 +647,8 @@
                     <li><a asp-controller="EmployeeRoles" asp-action="Index" class="dropdown-item"><i class="fas fa-id-badge fa-fw me-2"></i>Vai trò NV</a></li>
                     <li><a asp-controller="Employees" asp-action="Index" class="dropdown-item"><i class="fas fa-user-tie fa-fw me-2"></i>Nhân viên</a></li>
                     <li><a asp-controller="EmployeeAccounts" asp-action="Index" class="dropdown-item"><i class="fas fa-users-cog fa-fw me-2"></i>Tài khoản NV</a></li>
-                    <li><a asp-controller="Measurements" asp-action="Index" class="dropdown-item"><i class="fas fa-ruler fa-fw me-2"></i>Đơn vị đo</a></li>
+                    <li><a asp-controller="Customers" asp-action="Index" class="dropdown-item"><i class="fas fa-user fa-fw me-2"></i>Khách hàng</a></li>
+                    <li><a asp-controller="MeasurementUnits" asp-action="Index" class="dropdown-item"><i class="fas fa-ruler fa-fw me-2"></i>Đơn vị đo</a></li>
                     <li><a asp-controller="OTPTypes" asp-action="Index" class="dropdown-item"><i class="fas fa-key fa-fw me-2"></i>Loại OTP</a></li>
                     <li><a asp-controller="PaymentMethods" asp-action="Index" class="dropdown-item"><i class="fas fa-credit-card fa-fw me-2"></i>Phương thức thanh toán</a></li>
                     <li><a asp-controller="ProductTypes" asp-action="Index" class="dropdown-item"><i class="fas fa-tags fa-fw me-2"></i>Mặt hàng</a></li>
@@ -947,6 +956,65 @@
 
                             });
 
+                                    // 🆕 Right-click context menu for notifications
+        notificationList.on('contextmenu', '.notification-item', function (e) {
+            e.preventDefault();
+
+            // Remove any existing custom menu
+            $('.custom-context-menu').remove();
+
+            const notificationId = $(this).data('id');
+            const menu = $(`
+                <ul class="custom-context-menu dropdown-menu show position-absolute" style="z-index: 1055;">
+                    <li><a class="dropdown-item text-danger delete-notification" href="#" data-id="${notificationId}"><i class="fas fa-trash-alt me-1"></i>Xóa</a></li>
+                </ul>
+            `);
+
+            $('body').append(menu);
+            menu.css({ top: e.pageY, left: e.pageX });
+
+            // Remove menu when clicking outside
+            $(document).on('click.contextmenu', function () {
+                $('.custom-context-menu').remove();
+                $(document).off('click.contextmenu');
+            });
+        });
+
+                       // 🧹 Delete notification handler (no confirmation, fixed token)
+        $(document).on('click', '.delete-notification', function (e) {
+            e.preventDefault();
+            const id = $(this).data('id');
+
+            const token = $('input[name="__RequestVerificationToken"]').val();
+            if (!token) {
+                console.error("⚠️ CSRF token not found.");
+                return;
+            }
+
+            $.ajax({
+                url: '/Notifications/Delete',
+                type: 'POST',
+                data: {
+                    notificationId: id,
+                    __RequestVerificationToken: token
+                },
+                success: function (response) {
+                    $(`a.notification-item[data-id="${id}"]`).closest('li').remove();
+                    $('.custom-context-menu').remove();
+                    fetchUnreadNotificationCount();
+
+                    // ✅ Hide the dropdown manually
+                    $('#notificationDropdownToggle').dropdown('hide');
+                },
+                error: function (xhr) {
+                    console.error("❌ Delete failed:", xhr.responseText);
+                    $('.custom-context-menu').remove();
+                }
+            });
+        });
+
+
+
                             // ✅ Attach click event to mark as read
                             $(".notification-item").on('click', function (e) {
                                 var id = $(this).data('id');
@@ -1080,5 +1148,6 @@
             }
         });
     </script>
+    @Html.AntiForgeryToken()
 </body>
 </html>

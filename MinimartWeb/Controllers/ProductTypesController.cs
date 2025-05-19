@@ -24,11 +24,28 @@ namespace MinimartWeb.Controllers
 
         // GET: ProductTypes
         [AllowAnonymous]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(int page = 1)
         {
-            var applicationDbContext = _context.ProductTypes.Include(p => p.Category).Include(p => p.MeasurementUnit).Include(p => p.Supplier);
-            return View(await applicationDbContext.ToListAsync());
+            int pageSize = 15;
+
+            var query = _context.ProductTypes
+                .Include(p => p.Category)
+                .Include(p => p.MeasurementUnit)
+                .Include(p => p.Supplier);
+
+            int totalItems = await query.CountAsync();
+            var products = await query
+                .OrderBy(p => p.ProductTypeID) // or any other sort
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = (int)Math.Ceiling((double)totalItems / pageSize);
+
+            return View(products);
         }
+
 
         // GET: ProductTypes/Details/5
         public async Task<IActionResult> Details(int? id)
@@ -107,7 +124,7 @@ namespace MinimartWeb.Controllers
             if (!string.IsNullOrWhiteSpace(tagsInput))
             {
                 // Only allow letters, spaces, and commas
-                var invalidTagPattern = new Regex(@"[^a-zA-Z,\s]");
+                var invalidTagPattern = new Regex(@"[^\p{L},\s]", RegexOptions.Compiled);
                 if (invalidTagPattern.IsMatch(tagsInput))
                 {
                     ViewData["TagError"] = "Tags can only contain letters, commas, and spaces.";
@@ -252,7 +269,7 @@ namespace MinimartWeb.Controllers
 
             if (!string.IsNullOrWhiteSpace(tagsInput))
             {
-                var invalidTagPattern = new Regex(@"[^a-zA-Z,\s]");
+                var invalidTagPattern = new Regex(@"[^\p{L},\s]", RegexOptions.Compiled);
                 if (invalidTagPattern.IsMatch(tagsInput))
                 {
                     ViewData["TagError"] = "Tags can only contain letters, commas, and spaces.";
