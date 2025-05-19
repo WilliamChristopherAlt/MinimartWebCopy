@@ -12,7 +12,7 @@ using MinimartWeb.Model;
 
 namespace MinimartWeb.Controllers
 {
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin, Staff")]
     public class ProductTypesController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -55,15 +55,19 @@ namespace MinimartWeb.Controllers
         }
 
 
-        // GET: ProductTypes/Create
         [HttpGet]
         public IActionResult Create()
         {
             ViewData["CategoryID"] = new SelectList(_context.Categories, "CategoryID", "CategoryName");
             ViewData["MeasurementUnitID"] = new SelectList(_context.MeasurementUnits, "MeasurementUnitID", "UnitName");
-            ViewData["SupplierID"] = new SelectList(_context.Suppliers, "SupplierID", "SupplierName"); // FIXED: use SupplierName
+            ViewData["SupplierID"] = new SelectList(_context.Suppliers, "SupplierID", "SupplierName");
+
+            // Preload tag names into ViewBag
+            ViewBag.AllTags = _context.Tags.Select(t => t.TagName).ToList();
+
             return View();
         }
+
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -126,24 +130,38 @@ namespace MinimartWeb.Controllers
                         .Select(t => t.Trim().ToLower())
                         .Distinct();
 
+                    var tagEntities = new List<Tag>();
+
                     foreach (var tagName in tags)
                     {
                         var existingTag = await _context.Tags.FirstOrDefaultAsync(t => t.TagName.ToLower() == tagName);
                         if (existingTag == null)
                         {
-                            existingTag = new Tag { TagName = tagName };
-                            _context.Tags.Add(existingTag);
-                            await _context.SaveChangesAsync(); // Save to get the TagID
+                            var newTag = new Tag { TagName = tagName };
+                            tagEntities.Add(newTag);
+                            _context.Tags.Add(newTag);
                         }
+                        else
+                        {
+                            tagEntities.Add(existingTag);
+                        }
+                    }
 
+                    // Save all new tags at once
+                    await _context.SaveChangesAsync();
+
+                    // Now create the ProductTags using resolved TagIDs
+                    foreach (var tag in tagEntities)
+                    {
                         _context.ProductTags.Add(new ProductTag
                         {
                             ProductTypeID = productType.ProductTypeID,
-                            TagID = existingTag.TagID
+                            TagID = tag.TagID
                         });
                     }
 
                     await _context.SaveChangesAsync();
+
                 }
 
                 return RedirectToAction(nameof(Index));
@@ -169,23 +187,28 @@ namespace MinimartWeb.Controllers
         // GET: ProductTypes/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            if (id == null) return NotFound();
 
-            var productType = await _context.ProductTypes.FindAsync(id);
-            if (productType == null)
-            {
-                return NotFound();
-            }
+            var productType = await _context.ProductTypes
+                .Include(p => p.ProductTags)
+                .ThenInclude(pt => pt.Tag)
+                .FirstOrDefaultAsync(p => p.ProductTypeID == id);
 
-            // Match Create action's SelectList naming
+            if (productType == null) return NotFound();
+
             ViewData["CategoryID"] = new SelectList(_context.Categories, "CategoryID", "CategoryName", productType.CategoryID);
             ViewData["MeasurementUnitID"] = new SelectList(_context.MeasurementUnits, "MeasurementUnitID", "UnitName", productType.MeasurementUnitID);
-            ViewData["SupplierID"] = new SelectList(_context.Suppliers, "SupplierID", "SupplierName", productType.SupplierID); // FIXED: SupplierName instead of SupplierAddress
+            ViewData["SupplierID"] = new SelectList(_context.Suppliers, "SupplierID", "SupplierName", productType.SupplierID);
+
+            // Suggestion list for autocomplete
+            ViewBag.AllTags = _context.Tags.Select(t => t.TagName).ToList();
+
+            // Existing tags of the product (as comma-separated string)
+            ViewBag.TagString = string.Join(", ", productType.ProductTags.Select(pt => pt.Tag.TagName));
+
             return View(productType);
         }
+
 
         [HttpPost]
         [ValidateAntiForgeryToken]

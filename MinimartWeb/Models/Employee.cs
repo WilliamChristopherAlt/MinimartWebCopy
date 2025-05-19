@@ -10,60 +10,59 @@ namespace MinimartWeb.Model
 
         [Required]
         [StringLength(255)]
-        [Display(Name = "First Name")]
+        [Display(Name = "Họ")]
         public string FirstName { get; set; }
 
         [Required]
         [StringLength(255)]
-        [Display(Name = "Last Name")]
+        [Display(Name = "Tên")]
         public string LastName { get; set; }
 
         [Required]
         [EmailAddress]
         [StringLength(255)]
-        [Display(Name = "Email Address")]
+        [Display(Name = "Địa chỉ Email")]
         public string Email { get; set; }
 
         [Required]
-        [RegularExpression(@"^\d{10}$", ErrorMessage = "Phone number must be exactly 10 digits.")]
-        [Display(Name = "Phone Number")]
+        [RegularExpression(@"^\d{10}$", ErrorMessage = "Số điện thoại phải có đúng 10 chữ số.")]
+        [Display(Name = "Số điện thoại")]
         public string PhoneNumber { get; set; }
 
         [Required]
         [StringLength(20)]
-        [RegularExpression(@"^(Male|Female|Non-Binary|Prefer not to say)$", ErrorMessage = "Invalid gender.")]
-        [Display(Name = "Gender")]
+        [RegularExpression(@"^(Male|Female|Non-Binary|Prefer not to say)$", ErrorMessage = "Giới tính không hợp lệ.")]
+        [Display(Name = "Giới tính")]
         public string Gender { get; set; }
 
         [Required]
-        [Display(Name = "Birth Date")]
+        [Display(Name = "Ngày sinh")]
         public DateTime BirthDate { get; set; }
 
         [Required]
         [StringLength(100)]
-        [Display(Name = "Citizen ID")]
+        [Display(Name = "CMND/CCCD")]
         public string CitizenID { get; set; }
 
         [Column(TypeName = "decimal(10,2)")]
         [Range(0, double.MaxValue)]
-        [Display(Name = "Salary")]
+        [Display(Name = "Lương")]
         public decimal? Salary { get; set; }
 
         [Required]
-        [Display(Name = "Hire Date")]
+        [Display(Name = "Ngày tuyển dụng")]
         public DateTime HireDate { get; set; } = DateTime.Now;
 
         [Required]
-        [Display(Name = "Role")]
+        [Display(Name = "Vai trò")]
         public int RoleID { get; set; }
 
         [StringLength(512)]
-        [Display(Name = "Profile Image")]
+        [Display(Name = "Ảnh đại diện")]
         public string? ImagePath { get; set; }
 
         // Navigation properties
         public EmployeeRole Role { get; set; }
-        // Trong class Employee
         public virtual EmployeeAccount? EmployeeAccount { get; set; }
 
         public ICollection<Sale> Sales { get; set; } = new HashSet<Sale>();

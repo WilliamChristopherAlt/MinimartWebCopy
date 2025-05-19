@@ -9,10 +9,10 @@ namespace MinimartWeb.Model
 
         [Required]
         [StringLength(255)]
-        [Display(Name = "Name")]
+        [Display(Name = "Tên danh mục")]
         public string CategoryName { get; set; }
 
-        [Display(Name = "Description")]
+        [Display(Name = "Mô tả danh mục")]
         public string? CategoryDescription { get; set; }
 
         // Navigation property

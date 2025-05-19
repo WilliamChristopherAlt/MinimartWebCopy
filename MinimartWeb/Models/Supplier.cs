@@ -9,21 +9,21 @@ namespace MinimartWeb.Model
 
         [Required]
         [StringLength(255)]
-        [Display(Name = "Name")]
+        [Display(Name = "Tên nhà cung cấp")]
         public string SupplierName { get; set; }
 
         [Required]
-        [RegularExpression(@"^\d{10}$", ErrorMessage = "Phone number must be exactly 10 digits.")]
-        [Display(Name = "Phone Number")]
+        [RegularExpression(@"^\d{10}$", ErrorMessage = "Số điện thoại phải đúng 10 chữ số.")]
+        [Display(Name = "Số điện thoại")]
         public string SupplierPhoneNumber { get; set; }
 
         [Required]
         [StringLength(255)]
-        [Display(Name = "Address")]
+        [Display(Name = "Địa chỉ")]
         public string SupplierAddress { get; set; }
 
         [Required]
-        [EmailAddress]
+        [EmailAddress(ErrorMessage = "Địa chỉ email không hợp lệ.")]
         [StringLength(255)]
         [Display(Name = "Email")]
         public string SupplierEmail { get; set; }

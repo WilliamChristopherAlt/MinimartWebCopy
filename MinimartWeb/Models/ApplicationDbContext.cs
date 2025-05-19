@@ -253,20 +253,20 @@ namespace MinimartWeb.Data
             });
 
             // === Cấu hình cho Entity: ProductTag (Bảng trung gian Many-to-Many) ===
-            modelBuilder.Entity<ProductTag>(entity =>
-            {
-                entity.HasKey(pt => new { pt.ProductTypeID, pt.TagID }); // Khóa chính hỗn hợp
+            //modelBuilder.Entity<ProductTag>(entity =>
+            //{
+            //    entity.HasKey(pt => new { pt.ProductTypeID, pt.TagID }); // Khóa chính hỗn hợp
 
-                entity.HasOne(pt => pt.ProductType)
-                    .WithMany(p => p.ProductTags) // Giả sử ProductType có ICollection<ProductTag> ProductTags
-                    .HasForeignKey(pt => pt.ProductTypeID)
-                    .OnDelete(DeleteBehavior.Cascade); // Khi xóa ProductType, xóa ProductTags liên quan
+            //    entity.HasOne(pt => pt.ProductType)
+            //        .WithMany(p => p.ProductTags) // Giả sử ProductType có ICollection<ProductTag> ProductTags
+            //        .HasForeignKey(pt => pt.ProductTypeID)
+            //        .OnDelete(DeleteBehavior.Cascade); // Khi xóa ProductType, xóa ProductTags liên quan
 
-                entity.HasOne(pt => pt.Tag)
-                    .WithMany(t => t.ProductTags) // Giả sử Tag có ICollection<ProductTag> ProductTags
-                    .HasForeignKey(pt => pt.TagID)
-                    .OnDelete(DeleteBehavior.Cascade); // Khi xóa Tag, xóa ProductTags liên quan
-            });
+            //    entity.HasOne(pt => pt.Tag)
+            //        .WithMany(t => t.ProductTags) // Giả sử Tag có ICollection<ProductTag> ProductTags
+            //        .HasForeignKey(pt => pt.TagID)
+            //        .OnDelete(DeleteBehavior.Cascade); // Khi xóa Tag, xóa ProductTags liên quan
+            //});
 
             // === Cấu hình cho Entity: OtpType ===
             modelBuilder.Entity<OtpType>(entity => {

@@ -10,47 +10,47 @@ namespace MinimartWeb.Model
 
         [Required]
         [StringLength(255)]
-        [Display(Name = "Product Name")]
+        [Display(Name = "Tên sản phẩm")]
         public string ProductName { get; set; }
 
         [Required]
-        [Display(Name = "Product Description")]
+        [Display(Name = "Mô tả sản phẩm")]
         public string ProductDescription { get; set; }
 
         [Required]
-        [Display(Name = "Category")]
+        [Display(Name = "Danh mục")]
         public int CategoryID { get; set; }
 
         [Required]
-        [Display(Name = "Supplier")]
+        [Display(Name = "Nhà cung cấp")]
         public int SupplierID { get; set; }
 
         [Required]
-        [Range(0, double.MaxValue, ErrorMessage = "Price must be a positive value.")]
-        [Display(Name = "Price")]
+        [Range(0, double.MaxValue, ErrorMessage = "Giá phải là một số dương.")]
+        [Display(Name = "Giá")]
         public decimal Price { get; set; }
 
         [Required]
-        [Range(0, double.MaxValue, ErrorMessage = "Stock Amount must be a positive value.")]
-        [Display(Name = "Stock Amount")]
+        [Range(0, double.MaxValue, ErrorMessage = "Số lượng tồn kho phải là số dương.")]
+        [Display(Name = "Số lượng tồn kho")]
         public decimal StockAmount { get; set; }
 
         [Required]
-        [Display(Name = "Measurement Unit")]
+        [Display(Name = "Đơn vị tính")]
         public int MeasurementUnitID { get; set; }
 
-        [Display(Name = "Expiration Duration (Days)")]
+        [Display(Name = "Hạn sử dụng (ngày)")]
         public int? ExpirationDurationDays { get; set; }
 
         [Required]
-        [Display(Name = "Is Active")]
+        [Display(Name = "Hiển thị")]
         public bool IsActive { get; set; } = true;
 
         [Required]
-        [Display(Name = "Date Added")]
+        [Display(Name = "Ngày thêm")]
         public DateTime DateAdded { get; set; } = DateTime.Now;
 
-        [Display(Name = "Image Path")]
+        [Display(Name = "Đường dẫn ảnh")]
         public string ImagePath { get; set; }
 
         // Navigation properties
@@ -62,6 +62,5 @@ namespace MinimartWeb.Model
 
         [NotMapped]
         public List<string> Tags => ProductTags?.Select(pt => pt.Tag.TagName).ToList() ?? new List<string>();
-
     }
 }

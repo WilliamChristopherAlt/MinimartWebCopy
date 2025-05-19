@@ -1,83 +1,66 @@
 ﻿@model IEnumerable<MinimartWeb.Model.ProductType>
 @{
     ViewData["Title"] = "Danh sách sản phẩm";
+    string formatCurrency(decimal val) => val.ToString("N0") + " đ";
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="fw-bold text-primary">Danh sách sản phẩm</h2>
+    <h2 class="fw-bold text-primary">📦 Danh sách sản phẩm</h2>
     <a asp-action="Create" class="btn btn-success">
         <i class="fas fa-plus me-1"></i> Thêm sản phẩm mới
     </a>
 </div>
 
-<table class="table table-bordered table-hover table-striped align-middle">
-    <thead class="table-dark text-center">
-        <tr style="height: 70px;">
-            <th>Tên sản phẩm</th>
-            <th style="width: 180px;">Mô tả</th> <!-- LIMIT width -->
-            <th>Giá</th>
-            <th>Tồn kho</th>
-            <th>HSD (ngày)</th>
-            <th>Trạng thái</th>
-            <th>Ngày thêm</th>
-            <th style="width: 160px;">Ảnh</th> <!-- WIDER image -->
-            <th>Danh mục</th>
-            <th>Nhà cung cấp</th>
-            <th>Đơn vị</th>
-            <th>Hành động</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var item in Model)
-        {
-            <tr style="height: 200px;">
-                <!-- INCREASE HEIGHT -->
-                <td class="align-middle">@item.ProductName</td>
-                <td class="align-middle small text-muted" style="max-width: 200px; white-space: normal; word-wrap: break-word;">
-                    @item.ProductDescription
-                </td>
-                <td class="align-middle text-end text-danger fw-semibold">@item.Price.ToString("N0") đ</td>
-                <td class="align-middle text-center">@item.StockAmount</td>
-                <td class="align-middle text-center">@item.ExpirationDurationDays</td>
-                <td class="align-middle text-center">
-                    @if (item.IsActive)
-                    {
-                        <span class="badge bg-success">Hiển thị</span>
-                    }
-                    else
-                    {
-                        <span class="badge bg-secondary">Ẩn</span>
-                    }
-                </td>
-                <td class="align-middle">@item.DateAdded.ToString("dd/MM/yyyy")</td>
-                <td class="align-middle text-center">
-                    @if (!string.IsNullOrEmpty(item.ImagePath))
-                    {
-                        <img src="~/images/products/@item.ImagePath"
-                             alt="@item.ProductName"
-                             class="img-thumbnail"
-                             style="max-height: 120px; width: auto;" />
-                    }
-                    else
-                    {
-                        <span class="text-muted small fst-italic">Không có ảnh</span>
-                    }
-                </td>
-                <td class="align-middle">@item.Category?.CategoryName</td>
-                <td class="align-middle">@item.Supplier?.SupplierName</td>
-                <td class="align-middle">@item.MeasurementUnit?.UnitName</td>
-                <td class="align-middle text-center text-nowrap">
-                    <a asp-action="Edit" asp-route-id="@item.ProductTypeID" class="btn btn-sm btn-outline-primary me-1">
-                        <i class="fas fa-edit"></i>
-                    </a>
-                    <a asp-action="Details" asp-route-id="@item.ProductTypeID" class="btn btn-sm btn-outline-info me-1">
-                        <i class="fas fa-info-circle"></i>
-                    </a>
-                    <a asp-action="Delete" asp-route-id="@item.ProductTypeID" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bạn có chắc chắn muốn xóa?');">
-                        <i class="fas fa-trash-alt"></i>
-                    </a>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+    @foreach (var item in Model)
+    {
+        var img = string.IsNullOrEmpty(item.ImagePath)
+        ? Url.Content("~/images/placeholder.png")
+        : Url.Content("~/images/products/" + item.ImagePath);
+
+        <div class="col">
+            <div class="card h-100 shadow-sm">
+                <img src="@img" class="card-img-top" alt="@item.ProductName" style="height: 180px; object-fit: contain; background-color: #f9f9f9;" />
+
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title text-primary">@item.ProductName</h5>
+                    <p class="card-text small text-muted mb-2">@item.ProductDescription</p>
+
+                    <ul class="list-unstyled small text-muted mb-2">
+                        <li><strong>Giá:</strong> @formatCurrency(item.Price)</li>
+                        <li><strong>Tồn kho:</strong> @item.StockAmount</li>
+                        <li><strong>HSD:</strong> @item.ExpirationDurationDays ngày</li>
+                        <li><strong>Đơn vị:</strong> @item.MeasurementUnit?.UnitName</li>
+                        <li><strong>Danh mục:</strong> @item.Category?.CategoryName</li>
+                        <li><strong>Nhà cung cấp:</strong> @item.Supplier?.SupplierName</li>
+                        <li><strong>Ngày thêm:</strong> @item.DateAdded.ToString("dd/MM/yyyy")</li>
+                        <li>
+                            <strong>Trạng thái:</strong>
+                            @if (item.IsActive)
+                            {
+                                <span class="badge bg-success">Hiển thị</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Ẩn</span>
+                            }
+                        </li>
+                    </ul>
+
+                    <div class="mt-auto d-flex justify-content-between gap-1">
+                        <a asp-action="Edit" asp-route-id="@item.ProductTypeID" class="btn btn-sm btn-outline-primary w-100">
+                            <i class="fas fa-edit"></i> Sửa
+                        </a>
+                        <a asp-action="Details" asp-route-id="@item.ProductTypeID" class="btn btn-sm btn-outline-info w-100">
+                            <i class="fas fa-info-circle"></i> Chi tiết
+                        </a>
+                        <a asp-action="Delete" asp-route-id="@item.ProductTypeID" class="btn btn-sm btn-outline-danger w-100"
+                           onclick="return confirm('Bạn có chắc chắn muốn xóa?');">
+                            <i class="fas fa-trash-alt"></i> Xóa
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
